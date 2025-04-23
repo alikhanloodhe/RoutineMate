@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  user: process.env.DB_USER,
+  user: process.env.DB_USER, // process is an object in Node that gives us the information about current running process
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,

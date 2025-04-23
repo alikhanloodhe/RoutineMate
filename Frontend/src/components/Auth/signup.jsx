@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-
+import { useNavigate } from 'react-router-dom';
+import './Authform.css';
 const Signup = () => {
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
-
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' }); // use state is a react hook/ trick which updates the value e.g Formdata when setFormdata is called
+  
+  const navigate = useNavigate();
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -25,9 +27,11 @@ const Signup = () => {
       const data = await res.json();
 
       if (res.ok) {
-        alert('Signup successful! You can now log in.');
+        alert('Signup successful!');
         // Optionally clear form or redirect
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+        navigate('/login');
+
       } else {
         alert(data.message || 'Signup failed');
       }

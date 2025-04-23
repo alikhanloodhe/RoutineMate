@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; 
-
-const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+import './Authform.css';
+  const Login = ({setName}) => {
+  const [formData, setFormData] = useState({ email: '', password: '' }); // React Hooks by default formData is "". changed when setFormData is called.
+  
   const navigate = useNavigate(); // for redirection
 
   // Handle form field changes
@@ -14,7 +15,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault(); // Prevent form from refreshing the page
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, { // send the formData using POST method and receives the response in res variable
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -22,11 +23,13 @@ const Login = () => {
         body: JSON.stringify(formData), // Use formData directly
       });
 
-      const data = await res.json();
+      const data = await res.json(); // get the res json data in data variable
 
       if (res.ok) {
         localStorage.setItem('token', data.token); // Save JWT token for later use
         alert('Login Successful');
+        console.log(data.user.name);
+        setName(data.user.name);
         navigate('/dashboard'); // Redirect to dashboard on success
       } else {
         alert(data.message); // Show error message from backend
@@ -59,7 +62,7 @@ const Login = () => {
         />
         <button type="submit">Login</button>
       </form>
-      <p>Don't have an account? <a href="/signup">Create one</a></p>
+      <span >Don't have an this? <a href="/signup">Create one</a></span>
     </div>
   );
 };
