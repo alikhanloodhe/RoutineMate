@@ -9,13 +9,14 @@ import {
   ActivitySquare 
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({name}) => {
   const navItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', to: '/dashboard' },
     { icon: <CheckSquare size={20} />, label: 'Tasks', to: '/tasks' },
     { icon: <CalendarClock size={20} />, label: 'Routines', to: '/routines' },
     { icon: <Target size={20} />, label: 'Goals', to: '/goals' },
     { icon: <ActivitySquare size={20} />, label: 'Habits', to: '/habits' },
+    
   ];
 
   return (
@@ -39,7 +40,7 @@ const Sidebar = () => {
             U
           </div>
           <div className="text-sm">
-            <p className="font-medium">User Name</p>
+            <p className="font-medium">{name}</p>
             <p className="text-gray-500">user@example.com</p>
           </div>
         </div>

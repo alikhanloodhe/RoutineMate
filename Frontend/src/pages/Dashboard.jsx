@@ -6,7 +6,7 @@ import DashboardContent from '../components/Dashboard/DashboardContent';
 const Dashboard = ({name}) => {
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+      <Sidebar name  = {name}/>
       <main className="flex-1 overflow-y-auto">
         <DashboardContent name = {name}/>
       </main>

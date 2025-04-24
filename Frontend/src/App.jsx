@@ -7,10 +7,9 @@ import Tasks from './pages/Tasks';
 import { useState } from 'react';
 
 function App() {
-  const isAuthenticated = true;
-
   const [name,getName] = useState("User");
- 
+
+ console.log(name);
   return (
     <Router>
       <Routes>
@@ -25,32 +24,29 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path="*" element={<Login />} /> {/* Default route to login */}
-        <Route 
-          path="/dashboard" 
-          element={isAuthenticated ? <Dashboard name={name}/> : <Navigate to="/login" />} 
-        />
+        <Route path="*" element={<Login setName = {getName}/>} /> {/* Default route to login */}
+
         <Route 
           path="/tasks" 
-          element={isAuthenticated ? <Tasks /> : <Navigate to="/login" />} 
+          element={<Tasks />} 
         />
         <Route 
           path="/routines" 
-          element={isAuthenticated ? <Navigate to="/login" /> : <Navigate to="/login" />} 
+          element={<Navigate to="/dashboard" />} 
         />
         <Route 
           path="/goals" 
-          element={isAuthenticated ? <Navigate to="/login" /> : <Navigate to="/login" />} 
+          element={<Navigate to="/dashboard" />} 
         />
         <Route 
           path="/habits" 
-          element={isAuthenticated ? <Navigate to="/login" />: <Navigate to="/login" />} 
+          element={<Navigate to="/dashboard" />}  
         />
         
         {/* Redirect to Dashboard name="{name}"if authenticated, otherwise to login */}
         <Route 
           path="/" 
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
+          element={<Login setName = {getName}/>} 
         />
       </Routes>
     </Router>

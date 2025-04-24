@@ -48,7 +48,15 @@ const Signup = () => {
         <input type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} required />
         <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
         <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} required />
-        <input type="password" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required />
+        <input
+        type="password"
+        name="confirmPassword"
+        placeholder="Confirm Password"
+        value={formData.confirmPassword}
+        pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$"
+         title="Password must be at least 8 characters long and include one lowercase letter, one uppercase letter, one number, and one special character."
+        onChange={handleChange} required />
+        
         <button type="submit">Sign Up</button>
       </form>
       <p>Already have an account? <a href="/login">Login</a></p>

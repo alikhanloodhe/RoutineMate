@@ -10,14 +10,21 @@ exports.addTask = async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      // Let's find out status_id to add in tasks table
       const priorityText = priority.toUpperCase();
-      console.log(priorityText);
       const priorityResult = await client.query('SELECT id FROM priorities where label = $1',[priorityText]);
       if (priorityResult.rows.length === 0) {
         throw new Error('Priority not found');
       }
       const priority_id = priorityResult.rows[0].id;
+
+      // Extracting status_id from status
+      const statusText = status;
+      const statusResult = await client.query('SELECT id FROM statuses where label = $1',[statusText]);
+      if (statusResult.rows.length === 0) {
+        throw new Error('status not found');
+      }
+      const status_id = statusResult.rows[0].id;
+
       // 1. Handle tags (many-to-many)
       let tagIds = [];
       if (Array.isArray(tags) && tags.length > 0) {
@@ -39,8 +46,8 @@ exports.addTask = async (req, res) => {
   
       // 2. Insert task
       const insertTaskResult = await client.query(
-        'INSERT INTO tasks(title, description, type, user_id, due_date, priority_id, status_id) VALUES($1, $2, $3,$4, $5, $6, 1) RETURNING id',
-        [title, description,type,user_id,dueDate,priority_id]
+        'INSERT INTO tasks(title, description, type, user_id, due_date, priority_id, status_id) VALUES($1, $2, $3,$4, $5, $6, $7) RETURNING id',
+        [title, description,type,user_id,dueDate,priority_id,status_id]
       );
       const task_id = insertTaskResult.rows[0].id;
   
@@ -144,3 +151,82 @@ exports.addTask = async (req, res) => {
     client.release();
   }
   }
+
+
+  exports.deleteTask = async (req,res) =>{
+    const{task_id} = req.params;
+    const client = await pool.connect();
+    try{
+      client.query('DELETE FROM tasks where id = $1',[task_id]);
+      res.status(200).json({message:'Task Deleted Succesflly'});
+    }
+    catch (error) {
+      console.error('Error Delete tasks:', error);
+      res.status(500).json({ error: 'Failed to delete task' });
+    } finally {
+      client.release();
+    }
+  }
+
+
+  exports.editTask = async (req,res)=>{
+    // Let's add logic of updating information about tasks
+    const user_id = req.user.id;
+    const{task_id} = req.params; // assuming route is /tasks/:task_id
+  const { title, description, dueDate, priority, tags, subtasks, status } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get priority_id and status_id
+    const priorityText = priority.toUpperCase();
+    const priorityResult = await client.query('SELECT id FROM priorities WHERE label = $1', [priorityText]);
+    if (priorityResult.rows.length === 0) throw new Error('Priority not found');
+    const priority_id = priorityResult.rows[0].id;
+
+    const statusResult = await client.query('SELECT id FROM statuses WHERE label = $1', [status]);
+    if (statusResult.rows.length === 0) throw new Error('Status not found');
+    const status_id = statusResult.rows[0].id;
+
+    // 1. Update task
+    await client.query(
+      `UPDATE tasks 
+       SET title = $1, description = $2, due_date = $3, priority_id = $4, status_id = $5 
+       WHERE id = $6 AND user_id = $7`,
+      [title, description, dueDate, priority_id, status_id, task_id, user_id]
+    );
+
+    // 2. Update tags (delete existing and re-insert)
+    await client.query('DELETE FROM task_tags WHERE task_id = $1', [task_id]);
+    for (let tag of tags) {
+      const tagText = tag.toLowerCase();
+      let tagResult = await client.query('SELECT id FROM tags WHERE name = $1', [tagText]);
+      let tag_id = tagResult.rows.length ? tagResult.rows[0].id :
+        (await client.query('INSERT INTO tags(name) VALUES($1) RETURNING id', [tagText])).rows[0].id;
+
+      await client.query('INSERT INTO task_tags(task_id, tag_id) VALUES($1, $2)', [task_id, tag_id]);
+    }
+
+    // 3. Update subtasks (delete existing and re-insert)
+    await client.query('DELETE FROM subtasks WHERE task_id = $1', [task_id]);
+    for (let subtask of subtasks) {
+      await client.query(
+        'INSERT INTO subtasks(task_id, title, is_completed) VALUES($1, $2, $3)',
+        [task_id, subtask.title, subtask.completed]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Task updated successfully' });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ message: 'Error updating task', error: err.message });
+  } finally {
+    client.release();
+  }
+
+  }
+  
