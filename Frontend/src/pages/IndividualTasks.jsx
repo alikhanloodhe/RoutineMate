@@ -1,14 +1,14 @@
 // src/pages/Tasks.jsx
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/sidebar/Sidebar';
-import TaskToggle from '../components/tasks/TaskToggle';
+
 import TaskList from '../components/tasks/TaskList';
 import TaskModal from '../components/tasks/TaskModal';
 import { PlusCircle } from 'lucide-react';
+// import { FiPlus } from 'react-icons/fi';
+// import Button from '../components/ui/Button';
 
 const Tasks = () => {
   const token = localStorage.getItem('token');
-  const [activeTab, setActiveTab] = useState('personal');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [tasks, setTasks] = useState([ ]);
@@ -116,7 +116,8 @@ const Tasks = () => {
     
       const data = await res.json();
       if (res.ok) {
-        alert('Task updated!');
+        // alert('Task updated!');
+        console.log('Task Updated')
       } else {
         alert(data.error || 'Error updating task');
       }
@@ -200,54 +201,47 @@ const Tasks = () => {
     setIsModalOpen(false);
     setTaskToEdit(null);
   };
-
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Tasks</h1>
-            <button
-              onClick={() => {
-                setTaskToEdit(null); // Ensure we're creating a new task, not editing
-                setIsModalOpen(true);
-              }}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              <PlusCircle size={18} className="mr-2" />
-              Add Task
-            </button>
-          </div>
-          
-          <div className="mb-6">
-            <TaskToggle activeTab={activeTab} setActiveTab={setActiveTab} />
-          </div>
-          
-          {activeTab === 'personal' ? (
-            <TaskList 
-              tasks={tasks} 
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={deleteTaskFromBackend}
-              onAddSubtask={addSubtaskToTask}
-            />
-          ) : (
-            <div className="bg-white rounded-lg p-8 text-center">
-              <h3 className="text-lg font-medium text-gray-800 mb-2">Group Tasks</h3>
-              <p className="text-gray-600">Group tasks feature is coming soon!</p>
-            </div>
-          )}
+return (
+  <div className="min-h-screen bg-gray-50">
+    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <div className="container mx-auto px-4 py-4 md:py-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Personal Tasks
+          </h1>
+          <button
+            onClick={() => {
+              setTaskToEdit(null);
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            <PlusCircle size={18} className="mr-2" />
+            Add Task
+          </button>
         </div>
+      </div>
+    </header>
+    <div className="flex">
+
+      <main className="flex-1 overflow-y-auto p-6">
+        <TaskList
+          tasks={tasks}
+          onUpdateTask={handleUpdateTask}
+          onDeleteTask={deleteTaskFromBackend}
+          onAddSubtask={addSubtaskToTask}
+        />
       </main>
-      
-      <TaskModal 
-        isOpen={isModalOpen} 
-        onClose={handleCloseModal}
-        onSave={handleSaveTask}
-        taskToEdit={taskToEdit}
-      />
     </div>
-  );
+
+    <TaskModal
+      isOpen={isModalOpen}
+      onClose={handleCloseModal}
+      onSave={handleSaveTask}
+      taskToEdit={taskToEdit}
+    />
+  </div>
+);
 };
 
 export default Tasks;

@@ -3,7 +3,7 @@ import Login from './components/Auth/login';
 import Signup from './components/Auth/signup';
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/Auth/PrivateRoute';
-import Tasks from './pages/Tasks';
+import TaskLayout from './pages/TaskLayout';
 import { useState } from 'react';
 
 function App() {
@@ -28,7 +28,7 @@ function App() {
 
         <Route 
           path="/tasks" 
-          element={<Tasks />} 
+          element={<TaskLayout />} 
         />
         <Route 
           path="/routines" 

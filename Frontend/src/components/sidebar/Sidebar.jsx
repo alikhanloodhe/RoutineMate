@@ -34,12 +34,12 @@ const Sidebar = ({name}) => {
           />
         ))}
       </nav>
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 sticky bottom-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">
             U
           </div>
-          <div className="text-sm">
+          <div className="text-sm ">
             <p className="font-medium">{name}</p>
             <p className="text-gray-500">user@example.com</p>
           </div>

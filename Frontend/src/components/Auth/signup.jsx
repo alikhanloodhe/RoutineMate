@@ -33,7 +33,7 @@ const Signup = () => {
         navigate('/login');
 
       } else {
-        alert(data.message || 'Signup failed');
+        alert(data.msg || 'Signup failed');
       }
     } catch (error) {
       console.error('Signup error', error);
@@ -53,8 +53,8 @@ const Signup = () => {
         name="confirmPassword"
         placeholder="Confirm Password"
         value={formData.confirmPassword}
-        pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$"
-         title="Password must be at least 8 characters long and include one lowercase letter, one uppercase letter, one number, and one special character."
+        // pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$"
+        //  title="Password must be at least 8 characters long and include one lowercase letter, one uppercase letter, one number, and one special character."
         onChange={handleChange} required />
         
         <button type="submit">Sign Up</button>

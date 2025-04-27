@@ -3,15 +3,20 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 
+
 // This file is exporting two modules/functions signup and login
 exports.signup = async (req, res) => {
+    pool.connect()
+  .then(() => console.log('Connected to Supabase!'))
+  .catch(err => console.error('Connection error:', err));
+  
   const { name, email, password } = req.body; // Extracts name, email, password from request body
   try {
     // Check if user exists
     const userExist = await pool.query('SELECT * FROM users WHERE email = $1', [email]); // Query from the database that either that email already registered await causes the prgram to wait until the query is fininsed
 
     if (userExist.rows.length > 0) return res.status(400).json({ msg: "User already exists" }); // If user already exists return 400 bad request response along with the message in json format and returns through the arrow function
-
+    console.log("No user exits signing up",name);
     // Hash password using library bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
