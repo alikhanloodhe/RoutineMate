@@ -1,6 +1,6 @@
 // src/pages/Tasks.jsx
 import React, { useState, useEffect } from 'react';
-
+import Spinner from '../components/ui/Spinner';
 import TaskList from '../components/tasks/TaskList';
 import TaskModal from '../components/tasks/TaskModal';
 import { PlusCircle } from 'lucide-react';
@@ -11,9 +11,11 @@ const Tasks = () => {
   const token = localStorage.getItem('token');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([ ]);
   useEffect(() => {
     const fetchTasks = async () => {
+      setLoading(true);
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/fetchTasks`, {
           headers: {
@@ -44,6 +46,8 @@ const Tasks = () => {
         console.log(tasks);
       } catch (err) {
         console.error('Failed to fetch tasks:', err);
+      }finally {
+        setLoading(false);
       }
     };
 
@@ -64,43 +68,33 @@ const Tasks = () => {
 
   // Function to create a new task
   const createTaskInBackend = async (taskData) => {
+
     try {
-      const saveTaskToBackend = async (taskData) => {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/AddTask`,{
-              method : 'POST',
-              headers: {
-                      'Content-Type': 'application/json',
-                      'authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(taskData),
-          }
-          );
-          const data = await res.json();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/AddTask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(taskData),
+      });
   
-        if (res.ok) {
-          alert('Task Added Successfully');
-        } else {
-          alert(data.message || 'Error from backend');
-        }
-          
-          console.log('Task data to be sent to backend:', taskData);
-          // For now, we'll just add the task to our local state
-          setTasks([...tasks, { ...taskData, id: Date.now() }]);
-        } catch (error) {
-          console.error('Error saving task:', error);
-        }
-      };
-      
-      // Call the function to save the task
-      saveTaskToBackend(taskData);
-      console.log('Creating new task:', taskData);
-      // For now, we'll just add the task to our local state
-      setTasks([...tasks, { ...taskData, id: Date.now() }]);
+      const data = await res.json();
+  
+      if (res.ok) {
+        alert('Task Added Successfully');
+        // Add the new task to local state
+        setTasks(prevTasks => [...prevTasks, { ...taskData, id: Date.now() }]);
+      } else {
+        alert(data.msg || 'Error from backend');
+      }
+  
+      console.log('Task data sent to backend:', taskData);
     } catch (error) {
       console.error('Error creating task:', error);
     }
   };
+  
 
   // Function to update an existing task
   const updateTaskInBackend = async (taskData) => {
@@ -201,6 +195,16 @@ const Tasks = () => {
     setIsModalOpen(false);
     setTaskToEdit(null);
   };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <Spinner size="xl" className="mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading tasks...</p>
+        </div>
+      </div>
+    );
+  }
 return (
   <div className="min-h-screen bg-gray-50">
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">

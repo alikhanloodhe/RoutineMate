@@ -4,6 +4,7 @@ import Signup from './components/Auth/signup';
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import TaskLayout from './pages/TaskLayout';
+import VerifyEmail from './pages/verifyEmail';
 import { useState } from 'react';
 
 function App() {
@@ -48,6 +49,8 @@ function App() {
           path="/" 
           element={<Login setName = {getName}/>} 
         />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+
       </Routes>
     </Router>
   )
