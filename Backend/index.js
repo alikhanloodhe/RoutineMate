@@ -5,6 +5,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const groupTaskRoutes = require('./routes/groupTaskRoutes');
+const friendsRoute = require('./routes/friendsRoute');
 const app = express(); // The function when called return an object that has various methods and properties
 
 app.use(cors()); 
@@ -13,6 +14,7 @@ app.use(express.json()); // parse incoming JSON
 app.use('/api/auth', authRoutes); // Authentication routes
 app.use('/api/Tasks',taskRoutes);
 app.use('/api/groupTasks',groupTaskRoutes);
+app.use('/api/friends',friendsRoute);
 
 const PORT = process.env.PORT || 5000;
 // console.dir(app);

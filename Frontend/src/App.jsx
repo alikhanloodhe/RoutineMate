@@ -6,7 +6,7 @@ import PrivateRoute from './components/Auth/PrivateRoute';
 import TaskLayout from './pages/TaskLayout';
 import VerifyEmail from './pages/verifyEmail';
 import { useState } from 'react';
-
+import FriendsPage from './pages/FriendsPage';
 function App() {
   const [name,getName] = useState("User");
 
@@ -31,6 +31,7 @@ function App() {
           path="/tasks" 
           element={<TaskLayout />} 
         />
+        <Route path="/friends" element={<FriendsPage />} />
         <Route 
           path="/routines" 
           element={<Navigate to="/dashboard" />} 
