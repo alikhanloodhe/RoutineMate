@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Tabs from '../components/ui/Tabs';
-import Spinner from '../components/ui/Spinner';
 import GroupTaskList from '../components/group-tasks/GroupTaskList';
-import GroupTaskForm from '../components/group-tasks/GroupTaskForm';
-import { FiPlus, FiFilter, FiX, FiUsers, FiList } from 'react-icons/fi';
+import GroupTaskModal from '../components/group-tasks/GroupTaskModal';
+import { FiPlus, FiFilter, FiX, FiUsers, FiList, FiCalendar, FiCheckCircle } from 'react-icons/fi';
 
 /**
  * GroupTasksPage component to manage and display group tasks
@@ -13,198 +12,103 @@ import { FiPlus, FiFilter, FiX, FiUsers, FiList } from 'react-icons/fi';
  * @returns {JSX.Element} GroupTasksPage component
  */
 const GroupTasksPage = () => {
+  // Static mock data
+  const mockTasks = [
+    {
+      id: 1,
+      title: 'Complete team project',
+      description: 'Finish the quarterly project with the team',
+      statusId: 1,
+      priorityId: 3,
+      dueDate: '2023-08-25',
+      createdBy: 1,
+      groupId: null,
+      createdAt: '2023-07-15T10:00:00Z',
+      updatedAt: '2023-07-15T10:00:00Z',
+      assignees: [1, 2, 3],
+      tagIds: [1]
+    },
+    {
+      id: 2,
+      title: 'Team workout session',
+      description: 'Weekly team building exercise',
+      statusId: 2,
+      priorityId: 2,
+      dueDate: '2023-08-10',
+      createdBy: 2,
+      groupId: null,
+      createdAt: '2023-07-16T09:30:00Z',
+      updatedAt: '2023-07-16T15:45:00Z',
+      assignees: [2, 4],
+      tagIds: [2, 4]
+    },
+    {
+      id: 3,
+      title: 'Research new technologies',
+      description: 'Collaborative research on emerging tech for next sprint',
+      statusId: 1,
+      priorityId: 1,
+      dueDate: '2023-09-01',
+      createdBy: 3,
+      groupId: null,
+      createdAt: '2023-07-17T14:20:00Z',
+      updatedAt: '2023-07-17T14:20:00Z',
+      assignees: [1, 3, 4],
+      tagIds: [3]
+    }
+  ];
+
+  const mockFriends = [
+    { id: 1, name: 'John Doe', avatar: 'https://i.pravatar.cc/150?img=1' },
+    { id: 2, name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?img=5' },
+    { id: 3, name: 'Mike Johnson', avatar: 'https://i.pravatar.cc/150?img=8' },
+    { id: 4, name: 'Sarah Williams', avatar: 'https://i.pravatar.cc/150?img=9' }
+  ];
+
+  const mockPriorities = [
+    { id: 1, name: 'Low', color: 'success' },
+    { id: 2, name: 'Medium', color: 'warning' },
+    { id: 3, name: 'High', color: 'danger' }
+  ];
+
+  const mockStatuses = [
+    { id: 1, name: 'To Do', color: 'secondary' },
+    { id: 2, name: 'In Progress', color: 'primary' },
+    { id: 3, name: 'Done', color: 'success' }
+  ];
+
+  const mockTags = [
+    { id: 1, name: 'Work', color: 'primary' },
+    { id: 2, name: 'Personal', color: 'success' },
+    { id: 3, name: 'Study', color: 'warning' },
+    { id: 4, name: 'Health', color: 'danger' }
+  ];
+
   // State management
-  const [tasks, setTasks] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [priorities, setPriorities] = useState([]);
-  const [statuses, setStatuses] = useState([]);
-  const [tags, setTags] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState(mockTasks);
   const [activeTab, setActiveTab] = useState('all');
-  const [showForm, setShowForm] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch tasks, friends, and reference data
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  /**
-   * Fetches all initial data needed for the page
-   * This would be replaced with actual API calls in a real implementation
-   */
-  const fetchInitialData = async () => {
-    setLoading(true);
-    
-    try {
-      // Simulate API calls
-      // TODO: Replace with actual API calls to your backend
-      await Promise.all([
-        fetchPriorities(),
-        fetchStatuses(),
-        fetchTags(),
-        fetchFriends(),
-        fetchTasks()
-      ]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      // TODO: Add proper error handling
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Fetches priority data
-   * @returns {Promise} Promise resolving to priority data
-   */
-  const fetchPriorities = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          { id: 1, name: 'Low', color: 'success' },
-          { id: 2, name: 'Medium', color: 'warning' },
-          { id: 3, name: 'High', color: 'danger' }
-        ];
-        setPriorities(data);
-        console.log("These are priorities");
-        console.log(priorities);
-        resolve(data);
-      }, 300);
-    });
-  };
- 
-  /**
-   * Fetches status data
-   * @returns {Promise} Promise resolving to status data
-   */
-  const fetchStatuses = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          { id: 1, name: 'To Do', color: 'secondary' },
-          { id: 2, name: 'In Progress', color: 'primary' },
-          { id: 3, name: 'Done', color: 'success' }
-        ];
-        setStatuses(data);
-        resolve(data);
-      }, 300);
-    });
-  };
-
-  /**
-   * Fetches tag data
-   * @returns {Promise} Promise resolving to tag data
-   */
-  const fetchTags = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          { id: 1, name: 'Work', color: 'primary' },
-          { id: 2, name: 'Personal', color: 'success' },
-          { id: 3, name: 'Study', color: 'warning' },
-          { id: 4, name: 'Health', color: 'danger' }
-        ];
-        setTags(data);
-        resolve(data);
-      }, 300);
-    });
-  };
-
-  /**
-   * Fetches friend/user data
-   * @returns {Promise} Promise resolving to friend data
-   */
-  const fetchFriends = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          { id: 1, name: 'John Doe', avatar: 'https://i.pravatar.cc/150?img=1' },
-          { id: 2, name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?img=5' },
-          { id: 3, name: 'Mike Johnson', avatar: 'https://i.pravatar.cc/150?img=8' },
-          { id: 4, name: 'Sarah Williams', avatar: 'https://i.pravatar.cc/150?img=9' }
-        ];
-        setFriends(data);
-        resolve(data);
-      }, 300);
-    });
-  };
-
-  /**
-   * Fetches task data
-   * @returns {Promise} Promise resolving to task data
-   */
-  const fetchTasks = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          {
-            id: 1,
-            title: 'Complete team project',
-            description: 'Finish the quarterly project with the team',
-            statusId: 1,
-            priorityId: 3,
-            dueDate: '2023-08-25',
-            createdBy: 1, // User_id Admin user_id
-            groupId: null,
-            createdAt: '2023-07-15T10:00:00Z',
-            updatedAt: '2023-07-15T10:00:00Z',
-            assignees: [1, 2, 3],
-            tagIds: [1]
-          },
-          {
-            id: 2,
-            title: 'Team workout session',
-            description: 'Weekly team building exercise',
-            statusId: 2,
-            priorityId: 2,
-            dueDate: '2023-08-10',
-            createdBy: 2,
-            groupId: null,
-            createdAt: '2023-07-16T09:30:00Z',
-            updatedAt: '2023-07-16T15:45:00Z',
-            assignees: [2, 4],
-            tagIds: [2, 4]
-          },
-          {
-            id: 3,
-            title: 'Research new technologies',
-            description: 'Collaborative research on emerging tech for next sprint',
-            statusId: 1,
-            priorityId: 1,
-            dueDate: '2023-09-01',
-            createdBy: 3,
-            groupId: null,
-            createdAt: '2023-07-17T14:20:00Z',
-            updatedAt: '2023-07-17T14:20:00Z',
-            assignees: [1, 3, 4],
-            tagIds: [3]
-          }
-        ];
-        setTasks(data);
-        resolve(data);
-      }, 300);
-    });
-  };
-
-  // Filter tasks based on active tab
+  // Filter tasks based on active tab and search query
   const filteredTasks = tasks.filter(task => {
+    // Filter by tab
     if (activeTab === 'active') {
-      return task.statusId !== 3; // Not done
+      if (task.statusId === 3) return false; // Not done
     } else if (activeTab === 'completed') {
-      return task.statusId === 3; // Done
+      if (task.statusId !== 3) return false; // Done
     }
-    return true; // All tasks
+    
+    // Filter by search query
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      if (!task.title.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    
+    return true;
   });
 
   /**
@@ -212,7 +116,7 @@ const GroupTasksPage = () => {
    */
   const handleCreateTask = () => {
     setEditingTask(null);
-    setShowForm(true);
+    setIsModalOpen(true);
   };
 
   /**
@@ -221,7 +125,7 @@ const GroupTasksPage = () => {
    */
   const handleEditTask = (task) => {
     setEditingTask(task);
-    setShowForm(true);
+    setIsModalOpen(true);
   };
 
   /**
@@ -229,50 +133,24 @@ const GroupTasksPage = () => {
    * @param {Object} taskData - The task data to submit
    */
   const handleSubmitTask = (taskData) => {
-    // TODO: Replace with actual API calls
-
     if (editingTask) {
       // Update existing task
-      updateTask(taskData);
+      const updatedTasks = tasks.map(task => 
+        task.id === editingTask.id ? { ...task, ...taskData } : task
+      );
+      setTasks(updatedTasks);
     } else {
       // Create new task
-      createTask(taskData);
+      const newTask = {
+        ...taskData,
+        id: tasks.length + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setTasks([...tasks, newTask]);
     }
     
-    setShowForm(false);
-    setEditingTask(null);
-  };
-
-  /**
-   * Creates a new task
-   * @param {Object} taskData - The task data to create
-   */
-  const createTask = (taskData) => {
-    // TODO: Replace with actual API call
-    const newId = Math.max(0, ...tasks.map(t => t.id)) + 1;
-    const now = new Date().toISOString();
-    // Logic to Add Group Task
-    // But before that we have to structure group Task syntactically with the db
-    const newTask = { 
-      ...taskData, 
-      id: newId,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: 1 // Current user ID would come from auth context
-    };
-    
-    setTasks([...tasks, newTask]);
-  };
-
-  /**
-   * Updates an existing task
-   * @param {Object} taskData - The task data to update
-   */
-  const updateTask = (taskData) => {
-    // TODO: Replace with actual API call
-    setTasks(tasks.map(task => 
-      task.id === editingTask.id ? { ...taskData, id: task.id } : task
-    ));
+    setIsModalOpen(false);
   };
 
   /**
@@ -280,48 +158,36 @@ const GroupTasksPage = () => {
    * @param {number} taskId - The ID of the task to delete
    */
   const handleDeleteTask = (taskId) => {
-    // TODO: Replace with actual API call
-    setTasks(tasks.filter(task => task.id !== taskId));
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      setTasks(tasks.filter(task => task.id !== taskId));
+    }
   };
 
   /**
-   * Cancels the task form
+   * Closes the task modal
    */
-  const handleCancelForm = () => {
-    setShowForm(false);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
     setEditingTask(null);
   };
 
   /**
-   * Maps a task for the form
+   * Maps a task to the format needed by the modal
    * @param {Object} task - The task to map
-   * @returns {Object} The mapped task data
+   * @returns {Object} The mapped task
    */
-  const mapTaskForForm = (task) => {
-    if (!task) return null;
+  const mapTaskForModal = (task) => {
     return {
       id: task.id,
       title: task.title,
-      description: task.description,
-      due_date: task.dueDate,
-      priority_id: task.priorityId,
-      status_id: task.statusId,
+      description: task.description || '',
+      dueDate: task.dueDate || '',
+      priority: task.priorityId,
+      status: task.statusId,
       assignees: task.assignees || [],
       tags: task.tagIds || []
     };
   };
-
-  // Show loading spinner while data is being fetched
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <Spinner size="xl" className="mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading tasks...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-10">
@@ -333,67 +199,183 @@ const GroupTasksPage = () => {
               <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
                 <FiUsers className="text-blue-600 dark:text-blue-400 text-xl" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Group Tasks</h1>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Group Tasks</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Collaborate with your team</p>
+              </div>
             </div>
             
             <Button 
-              onClick={handleCreateTask} 
               variant="primary"
               size="md"
-              icon={FiPlus}
+              icon={FiPlus} 
+              onClick={handleCreateTask}
             >
-              Add Group Task
+              Create Task
             </Button>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-6">
+        {/* Search */}
         <div className="mb-6">
-          <Tabs
-            tabs={[
-              { id: 'all', label: 'All Tasks', icon: FiList },
-              { id: 'active', label: 'Active', count: tasks.filter(t => t.statusId !== 3).length },
-              { id: 'completed', label: 'Completed', count: tasks.filter(t => t.statusId === 3).length }
-            ]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <FiX />
+              </button>
+            )}
+          </div>
         </div>
 
-        {showForm && (
-          <Card 
-            className="mb-6"
-            shadow="card"
-            header={
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {editingTask ? 'Edit Group Task' : 'Create New Group Task'}
-              </h2>
-            }
-          >
-            <GroupTaskForm
-              task={mapTaskForForm(editingTask)}
-              priorities={priorities}
-              statuses={statuses}
-              tags={tags}
-              friends={friends}
-              onSubmit={handleSubmitTask}
-              onCancel={handleCancelForm}
-              submitLabel={editingTask ? 'Update Task' : 'Add Task'}
-            />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <Card>
+            <div className="flex gap-3 items-center">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <FiList className="text-blue-600 dark:text-blue-400 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Tasks</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{tasks.length}</h2>
+              </div>
+            </div>
           </Card>
-        )}
+          
+          <Card>
+            <div className="flex gap-3 items-center">
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                <FiCalendar className="text-yellow-600 dark:text-yellow-400 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">In Progress</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{tasks.filter(t => t.statusId === 2).length}</h2>
+              </div>
+            </div>
+          </Card>
+          
+          <Card>
+            <div className="flex gap-3 items-center">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <FiCheckCircle className="text-green-600 dark:text-green-400 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{tasks.filter(t => t.statusId === 3).length}</h2>
+              </div>
+            </div>
+          </Card>
+        </div>
 
-        <GroupTaskList
-          tasks={filteredTasks}
-          priorities={priorities}
-          statuses={statuses}
-          tags={tags}
-          friends={friends}
-          onEdit={handleEditTask}
-          onDelete={handleDeleteTask}
-        />
+        {/* Tabs */}
+        <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+          <button 
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'all' 
+              ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('all')}
+          >
+            All Tasks
+            <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs ml-2">
+              {tasks.length}
+            </span>
+          </button>
+          
+          <button 
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'active' 
+              ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('active')}
+          >
+            Active
+            <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs ml-2">
+              {tasks.filter(t => t.statusId !== 3).length}
+            </span>
+          </button>
+          
+          <button 
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'completed' 
+              ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('completed')}
+          >
+            Completed
+            <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs ml-2">
+              {tasks.filter(t => t.statusId === 3).length}
+            </span>
+          </button>
+        </div>
+
+        {/* Task List */}
+        <div className="mt-6">
+          <GroupTaskList 
+            tasks={filteredTasks}
+            statuses={mockStatuses}
+            priorities={mockPriorities}
+            friends={mockFriends}
+            tags={mockTags}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+          />
+          
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiList className="text-blue-600 dark:text-blue-400 text-2xl" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No tasks found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
+                {searchQuery 
+                  ? "No tasks match your search criteria" 
+                  : activeTab === 'completed' 
+                    ? "You haven't completed any tasks yet" 
+                    : activeTab === 'active' 
+                      ? "You don't have any active tasks" 
+                      : "You don't have any tasks yet"}
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={handleCreateTask}
+                icon={FiPlus}
+              >
+                Create a task
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Task Modal */}
+      {isModalOpen && (
+        <GroupTaskModal 
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitTask}
+          initialValues={editingTask ? mapTaskForModal(editingTask) : null}
+          friends={mockFriends}
+          priorities={mockPriorities}
+          statuses={mockStatuses}
+          tags={mockTags}
+        />
+      )}
     </div>
   );
 };

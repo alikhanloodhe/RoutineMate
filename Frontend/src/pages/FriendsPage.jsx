@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/sidebar/Sidebar';
 import Card from '../components/ui/Card';
-import Tabs from '../components/ui/Tabs';
 import Button from '../components/ui/Button';
+import Spinner from '../components/ui/Spinner';
 import FriendCardList from '../components/friends/FriendCardList';
 import AddFriendModal from '../components/friends/AddFriendModal';
-import { FiSearch, FiUserPlus, FiUserCheck, FiUserX, FiUsers } from 'react-icons/fi';
+import Sidebar from '../components/sidebar/Sidebar';
+import { FiSearch, FiUserPlus, FiUserCheck, FiUserX, FiUsers, FiUserMinus, FiX } from 'react-icons/fi';
 
 const FriendsPage = () => {
   const [activeTab, setActiveTab] = useState('friends');
@@ -14,7 +14,8 @@ const FriendsPage = () => {
   const [sentRequests, setSentRequests] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
   const [friends, setFriends] = useState([]);
-  const [refreshCounter, setRefreshCounter] = useState(0); // ← Added
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem('token');
 
@@ -72,10 +73,23 @@ const FriendsPage = () => {
   };
 
   useEffect(() => {
-    fetchFriends();
-    fetchSentRequests();
-    fetchReceivedRequests();
-  }, [refreshCounter]); // ← useEffect now re-runs on refreshCounter change
+    const fetchAllData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchFriends(),
+          fetchSentRequests(),
+          fetchReceivedRequests()
+        ]);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAllData();
+  }, [refreshCounter]);
 
   const handleSendRequest = async (userId) => {
     try {
@@ -164,145 +178,238 @@ const FriendsPage = () => {
     }
   };
 
-  // const renderFriendsList = () => (
-  //   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  //     {friends.map(friend => (
-  //       <Card key={friend.id} hoverable className="flex items-center p-4">
-  //         <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
-  //           {friend.name.charAt(0)}
-  //         </div>
-  //         <div className="ml-4 flex-1">
-  //           <h3 className="font-medium text-gray-900">{friend.name}</h3>
-  //           <p className="text-sm text-gray-500">{friend.email}</p>
-  //         </div>
-  //         <Button variant="light" size="sm" icon={FiUserCheck}>
-  //           Friend
-  //         </Button>
-  //       </Card>
-  //     ))}
-  //   </div>
-  // );
+  // Filter based on search query
+  const filterListBySearch = (list) => {
+    if (!searchQuery.trim()) return list;
+    
+    const query = searchQuery.toLowerCase();
+    return list.filter(item => 
+      item.name?.toLowerCase().includes(query) || 
+      item.email?.toLowerCase().includes(query)
+    );
+  };
+  
+  const filteredFriends = filterListBySearch(friends);
+  const filteredSentRequests = filterListBySearch(sentRequests);
+  const filteredReceivedRequests = filterListBySearch(receivedRequests);
 
-  // const renderSentRequests = () => (
-  //   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  //     {sentRequests.map(request => (
-  //       <Card key={request.id} hoverable className="flex items-center p-4">
-  //         <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-medium">
-  //           {request.name.charAt(0)}
-  //         </div>
-  //         <div className="ml-4 flex-1">
-  //           <h3 className="font-medium text-gray-900">{request.name}</h3>
-  //           <p className="text-sm text-gray-500">{request.email}</p>
-  //         </div>
-  //         <Button
-  //           variant="light"
-  //           size="sm"
-  //           icon={FiUserX}
-  //           onClick={() => handleCancelRequest(request.id)}
-  //         >
-  //           Cancel
-  //         </Button>
-  //       </Card>
-  //     ))}
-  //   </div>
-  // );
-
-  // const renderReceivedRequests = () => (
-  //   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  //     {receivedRequests.map(request => (
-  //       <Card key={request.id} hoverable className="flex items-center p-4">
-  //         <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-medium">
-  //           {request.name.charAt(0)}
-  //         </div>
-  //         <div className="ml-4 flex-1">
-  //           <h3 className="font-medium text-gray-900">{request.name}</h3>
-  //           <p className="text-sm text-gray-500">{request.email}</p>
-  //         </div>
-  //         <div className="flex gap-2">
-  //           <Button
-  //             variant="primary"
-  //             size="sm"
-  //             icon={FiUserCheck}
-  //             onClick={() => handleAcceptRequest(request.id)}
-  //           >
-  //             Accept
-  //           </Button>
-  //           <Button
-  //             variant="light"
-  //             size="sm"
-  //             icon={FiUserX}
-  //             onClick={() => handleDeclineRequest(request.id)}
-  //           >
-  //             Decline
-  //           </Button>
-  //         </div>
-  //       </Card>
-  //     ))}
-  //   </div>
-  // );
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <Spinner size="xl" className="mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading friends...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
-              <p className="text-gray-500">Manage your friends and connections</p>
+      <div className="flex-1 min-h-screen bg-gray-50 dark:bg-gray-900 pb-10">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4 md:py-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg">
+                  <FiUsers className="text-purple-600 dark:text-purple-400 text-xl" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Friends</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Manage your connections</p>
+                </div>
+              </div>
+              
+              <Button 
+                variant="primary"
+                size="md"
+                icon={FiUserPlus} 
+                onClick={handleAddFriend}
+              >
+                Add Friend
+              </Button>
             </div>
-            <Button variant="primary" icon={FiUserPlus} onClick={handleAddFriend}>
-              Add Friend
-            </Button>
           </div>
+        </header>
 
+        <div className="container mx-auto px-4 py-6">
+          {/* Search */}
           <div className="mb-6">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search friends..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search by name or email..."
                 value={searchQuery}
                 onChange={handleSearch}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <FiX />
+                </button>
+              )}
             </div>
           </div>
 
-          <Tabs
-            tabs={[
-              { id: 'friends', label: 'Friends', icon: FiUsers, count: friends.length },
-              { id: 'sent', label: 'Sent Requests', icon: FiUserPlus, count: sentRequests.length },
-              { id: 'received', label: 'Received Requests', icon: FiUserCheck, count: receivedRequests.length },
-            ]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+          {/* Friend Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Friends</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{friends.length}</h2>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                  <FiUsers className="text-blue-600 dark:text-blue-400 text-xl" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Sent Requests</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{sentRequests.length}</h2>
+                </div>
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                  <FiUserPlus className="text-yellow-600 dark:text-yellow-400 text-xl" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Pending Requests</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{receivedRequests.length}</h2>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                  <FiUserCheck className="text-green-600 dark:text-green-400 text-xl" />
+                </div>
+              </div>
+            </Card>
+          </div>
 
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setActiveTab('friends')}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                  activeTab === 'friends'
+                    ? 'bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FiUsers />
+                  <span>Friends</span>
+                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                    {friends.length}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('sent')}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                  activeTab === 'sent'
+                    ? 'bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FiUserPlus />
+                  <span>Sent Requests</span>
+                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                    {sentRequests.length}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('received')}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                  activeTab === 'received'
+                    ? 'bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FiUserCheck />
+                  <span>Received Requests</span>
+                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                    {receivedRequests.length}
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Friend Lists */}
           <div className="mt-6">
-          {activeTab === 'friends' && (
-  <FriendCardList list={friends} type="friends" />
-)}
-{activeTab === 'sent' && (
-  <FriendCardList list={sentRequests} type="sent" onCancel={handleCancelRequest} />
-)}
-{activeTab === 'received' && (
-  <FriendCardList 
-    list={receivedRequests} 
-    type="received" 
-    onAccept={handleAcceptRequest} 
-    onDecline={handleDeclineRequest} 
-  />
-)}
+            {activeTab === 'friends' && filteredFriends.length === 0 && (
+              <Card className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <FiUsers className="text-gray-500 dark:text-gray-400 text-xl" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Friends Yet</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">Start connecting with others to build your network</p>
+                <Button variant="primary" icon={FiUserPlus} onClick={handleAddFriend}>
+                  Add Your First Friend
+                </Button>
+              </Card>
+            )}
+            
+            {activeTab === 'sent' && filteredSentRequests.length === 0 && (
+              <Card className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <FiUserPlus className="text-gray-500 dark:text-gray-400 text-xl" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Pending Requests</h3>
+                <p className="text-gray-500 dark:text-gray-400">You haven't sent any friend requests yet</p>
+              </Card>
+            )}
+
+            {activeTab === 'received' && filteredReceivedRequests.length === 0 && (
+              <Card className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                  <FiUserCheck className="text-gray-500 dark:text-gray-400 text-xl" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Friend Requests</h3>
+                <p className="text-gray-500 dark:text-gray-400">You don't have any pending friend requests</p>
+              </Card>
+            )}
+
+            {activeTab === 'friends' && filteredFriends.length > 0 && (
+              <FriendCardList list={filteredFriends} type="friends" />
+            )}
+            
+            {activeTab === 'sent' && filteredSentRequests.length > 0 && (
+              <FriendCardList list={filteredSentRequests} type="sent" onCancel={handleCancelRequest} />
+            )}
+            
+            {activeTab === 'received' && filteredReceivedRequests.length > 0 && (
+              <FriendCardList 
+                list={filteredReceivedRequests} 
+                type="received" 
+                onAccept={handleAcceptRequest} 
+                onDecline={handleDeclineRequest} 
+              />
+            )}
           </div>
         </div>
-      </main>
 
-      <AddFriendModal
-        isOpen={showAddFriendModal}
-        onClose={() => setShowAddFriendModal(false)}
-        onSendRequest={handleSendRequest}
-      />
+        <AddFriendModal
+          isOpen={showAddFriendModal}
+          onClose={() => setShowAddFriendModal(false)}
+          onSendRequest={handleSendRequest}
+        />
+      </div>
     </div>
   );
 };

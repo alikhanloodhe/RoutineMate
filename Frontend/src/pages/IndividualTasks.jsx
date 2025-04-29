@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Spinner from '../components/ui/Spinner';
 import TaskList from '../components/tasks/TaskList';
 import TaskModal from '../components/tasks/TaskModal';
-import { PlusCircle } from 'lucide-react';
-// import { FiPlus } from 'react-icons/fi';
-// import Button from '../components/ui/Button';
+import Button from '../components/ui/Button';
+import { FiCheck, FiCalendar, FiPlus, FiList } from 'react-icons/fi';
 
 const Tasks = () => {
   const token = localStorage.getItem('token');
@@ -13,6 +12,8 @@ const Tasks = () => {
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([ ]);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'active', 'completed'
+
   useEffect(() => {
     const fetchTasks = async () => {
       setLoading(true);
@@ -53,6 +54,7 @@ const Tasks = () => {
 
     fetchTasks();
   },[]);
+  
   // Function to handle saving a new task or updating an existing one
   const handleSaveTask = (taskData) => {
     // Check if it's an update or a new task
@@ -159,16 +161,6 @@ const Tasks = () => {
         subtasks: [...taskToUpdate.subtasks, subtask]
       };
 
-      // Here you would make your fetch API call
-      // Example:
-      // const response = await fetch(`/api/tasks/${taskId}/subtasks`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ subtask }),
-      // });
-
       console.log('Adding subtask to task:', taskId, subtask);
       
       // Update task in local state
@@ -195,6 +187,17 @@ const Tasks = () => {
     setIsModalOpen(false);
     setTaskToEdit(null);
   };
+
+  // Filter tasks based on activeFilter
+  const filteredTasks = tasks.filter(task => {
+    if (activeFilter === 'active') {
+      return task.status !== 'Completed';
+    } else if (activeFilter === 'completed') {
+      return task.status === 'Completed';
+    }
+    return true; // 'all' filter
+  });
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900">
@@ -205,47 +208,108 @@ const Tasks = () => {
       </div>
     );
   }
-return (
-  <div className="min-h-screen bg-gray-50">
-    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-      <div className="container mx-auto px-4 py-4 md:py-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Personal Tasks
-          </h1>
-          <button
-            onClick={() => {
-              setTaskToEdit(null);
-              setIsModalOpen(true);
-            }}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <PlusCircle size={18} className="mr-2" />
-            Add Task
-          </button>
-        </div>
-      </div>
-    </header>
-    <div className="flex">
 
-      <main className="flex-1 overflow-y-auto p-6">
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-10">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 md:py-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                <FiCalendar className="text-blue-600 dark:text-blue-400 text-xl" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Personal Tasks</h1>
+            </div>
+            
+            <Button 
+              onClick={() => {
+                setTaskToEdit(null);
+                setIsModalOpen(true);
+              }}
+              variant="primary"
+              size="md"
+              icon={FiPlus}
+            >
+              Add Task
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-6">
+        {/* Tabs / Filters */}
+        <div className="mb-6">
+          <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                activeFilter === 'all'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <FiList />
+                <span>All Tasks</span>
+                <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                  {tasks.length}
+                </span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveFilter('active')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                activeFilter === 'active'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <FiCalendar />
+                <span>Active</span>
+                <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                  {tasks.filter(t => t.status !== 'Completed').length}
+                </span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveFilter('completed')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
+                activeFilter === 'completed'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <FiCheck />
+                <span>Completed</span>
+                <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                  {tasks.filter(t => t.status === 'Completed').length}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <TaskList
-          tasks={tasks}
+          tasks={filteredTasks}
           onUpdateTask={handleUpdateTask}
           onDeleteTask={deleteTaskFromBackend}
           onAddSubtask={addSubtaskToTask}
         />
-      </main>
-    </div>
+      </div>
 
-    <TaskModal
-      isOpen={isModalOpen}
-      onClose={handleCloseModal}
-      onSave={handleSaveTask}
-      taskToEdit={taskToEdit}
-    />
-  </div>
-);
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveTask}
+        taskToEdit={taskToEdit}
+      />
+    </div>
+  );
 };
 
 export default Tasks;
