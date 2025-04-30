@@ -13,6 +13,7 @@ import { FiPlus, FiFilter, FiX, FiUsers, FiList } from 'react-icons/fi';
  * @returns {JSX.Element} GroupTasksPage component
  */
 const GroupTasksPage = () => {
+  const token = localStorage.getItem('token');
   // State management
   const [tasks, setTasks] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -117,27 +118,21 @@ const GroupTasksPage = () => {
     });
   };
 
-  /**
-   * Fetches friend/user data
-   * @returns {Promise} Promise resolving to friend data
-   */
   const fetchFriends = async () => {
-    // Simulate API call
-    // TODO: Replace with actual API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const data = [
-          { id: 1, name: 'John Doe', avatar: 'https://i.pravatar.cc/150?img=1' },
-          { id: 2, name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?img=5' },
-          { id: 3, name: 'Mike Johnson', avatar: 'https://i.pravatar.cc/150?img=8' },
-          { id: 4, name: 'Sarah Williams', avatar: 'https://i.pravatar.cc/150?img=9' }
-        ];
-        setFriends(data);
-        resolve(data);
-      }, 300);
-    });
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/friends/getFriends`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+      setFriends(data)};
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
   };
-
   /**
    * Fetches task data
    * @returns {Promise} Promise resolving to task data
