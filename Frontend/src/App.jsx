@@ -1,62 +1,78 @@
-import { BrowserRouter as Router, Routes, Route ,Navigate} from 'react-router-dom';
-import Login from './components/Auth/login';
-import Signup from './components/Auth/signup';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/login';
+import Signup from './pages/signup';
 import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/Auth/PrivateRoute';
-import TaskLayout from './pages/TaskLayout';
-import VerifyEmail from './pages/verifyEmail';
-import { useState } from 'react';
-import FriendsPage from './pages/FriendsPage';
-function App() {
-  const [name,getName] = useState("User");
+import Routines from './pages/Routines';
+import Tasks from './pages/Tasks';
+import Goals from './pages/Goals';
+import HabitPage from './pages/HabitPage';
+import Friends from './pages/Friends';
+import Help from './pages/Help';
 
- console.log(name);
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem('token') !== null;
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login setName = {getName}/>} />
+        <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard name={name}/>
-              
-            </PrivateRoute>
-          }
-        />
-        <Route path="*" element={<Login setName = {getName}/>} /> {/* Default route to login */}
-
-        <Route 
-          path="/tasks" 
-          element={<TaskLayout />} 
-        />
-        <Route path="/friends" element={<FriendsPage />} />
-        <Route 
-          path="/routines" 
-          element={<Navigate to="/dashboard" />} 
-        />
-        <Route 
-          path="/goals" 
-          element={<Navigate to="/dashboard" />} 
-        />
-        <Route 
-          path="/habits" 
-          element={<Navigate to="/dashboard" />}  
-        />
         
-        {/* Redirect to Dashboard name="{name}"if authenticated, otherwise to login */}
-        <Route 
-          path="/" 
-          element={<Login setName = {getName}/>} 
-        />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/routines" element={
+          <ProtectedRoute>
+            <Routines />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/tasks" element={
+          <ProtectedRoute>
+            <Tasks />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/goals" element={
+          <ProtectedRoute>
+            <Goals />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/habits" element={
+          <ProtectedRoute>
+            <HabitPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/friends" element={
+          <ProtectedRoute>
+            <Friends />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/help" element={
+          <ProtectedRoute>
+            <Help />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
-  )
+  );
 }
 
-export default App
-
-
+export default App;

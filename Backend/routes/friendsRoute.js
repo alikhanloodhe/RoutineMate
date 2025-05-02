@@ -1,14 +1,16 @@
 const express = require('express');
 const { searchAddFriend,AddFriend,getSentRequests,getReceivedRequests,acceptFriend ,declineFriend,cancelFriend,getAllFriends} = require('../controllers/addFriendController');
 
-const verifyToken = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+
 const router = express.Router();
-router.get('/searchFriends',verifyToken,searchAddFriend);
-router.post('/addFriend',verifyToken,AddFriend);
-router.get('/getSentRequests',verifyToken,getSentRequests);
-router.get('/getReceivedRequests',verifyToken,getReceivedRequests);
-router.post('/acceptFriend',verifyToken,acceptFriend);
-router.delete('/declineFriend',verifyToken,declineFriend);
-router.delete('/cancelRequest',verifyToken,cancelFriend);
-router.get('/getFriends',verifyToken,getAllFriends)
+router.use(authenticate);
+router.get('/searchFriends',searchAddFriend);
+router.post('/addFriend',AddFriend);
+router.get('/getSentRequests',getSentRequests);
+router.get('/getReceivedRequests',getReceivedRequests);
+router.post('/acceptFriend',acceptFriend);
+router.delete('/declineFriend',declineFriend);
+router.delete('/cancelRequest',cancelFriend);
+router.get('/getFriends',getAllFriends)
 module.exports  = router;

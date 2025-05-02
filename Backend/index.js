@@ -1,22 +1,26 @@
-const express = require('express'); //requiring / importing from module express it will return a function
+const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const authRoutes = require('./routes/authRoutes');
-const taskRoutes = require('./routes/taskRoutes');
-const groupTaskRoutes = require('./routes/groupTaskRoutes');
+const authRoutes = require('./routes/authRoutes.js');
+const habitRoutes = require('./routes/habitRoutes.js');
+const trackingRoutes = require('./routes/trackingRoutes.js');
 const friendsRoute = require('./routes/friendsRoute');
-const app = express(); // The function when called return an object that has various methods and properties
+const taskRoutes = require('./routes/taskRoutes.js');
 
-app.use(cors()); 
-app.use(express.json()); // parse incoming JSON
+const app = express();
 
-app.use('/api/auth', authRoutes); // Authentication routes
-app.use('/api/Tasks',taskRoutes);
-app.use('/api/groupTasks',groupTaskRoutes);
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/habits', habitRoutes);
+app.use('/api/tracking', trackingRoutes);
 app.use('/api/friends',friendsRoute);
+app.use('/api/Tasks',taskRoutes);
 
 const PORT = process.env.PORT || 5000;
-// console.dir(app);
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); // app.listen turns the server into the listening mode means it will wait for the client request and then respond
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

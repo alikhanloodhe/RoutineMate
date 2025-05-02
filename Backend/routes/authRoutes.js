@@ -1,12 +1,10 @@
-const express = require('express'); // Express
+const express = require('express');
 
-const { signup, login } = require('../controllers/authController');
-const {verifyEmail} = require('../utils/verifyEmail');
+const {signUp, login} = require('../controllers/authController.js');
+const router = express.Router();   
 
-const router = express.Router();
-
-router.post('/signup', signup);
+// Route for user registration
+router.post('/signup', signUp);
 router.post('/login', login);
-router.get('/verify-email', verifyEmail);
 
 module.exports = router;
