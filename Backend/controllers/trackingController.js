@@ -40,8 +40,16 @@ exports.getTrackingForDate = async (req, res) => {
       return res.status(400).json({ msg: 'Invalid date format. Use YYYY-MM-DD' });
     }
     
-    // Get tracking data for all user's habits on the given date
-    const tracking = await pool.query(
+    // First get all habits for this user
+    const habitsResult = await pool.query(
+      'SELECT * FROM habits WHERE user_id = $1',
+      [userId]
+    );
+    
+    const habits = habitsResult.rows;
+    
+    // Get existing tracking data for the given date
+    const trackingResult = await pool.query(
       `SELECT ht.*, h.title, h.frequency
        FROM habit_tracking ht
        JOIN habits h ON ht.habit_id = h.id
@@ -49,7 +57,33 @@ exports.getTrackingForDate = async (req, res) => {
       [userId, date]
     );
     
-    res.json(tracking.rows);
+    const existingTracking = trackingResult.rows;
+    
+    // Create a map of habit_id to tracking data
+    const trackingMap = {};
+    existingTracking.forEach(record => {
+      trackingMap[record.habit_id] = record;
+    });
+    
+    // Create a complete response including all habits
+    const completeTracking = habits.map(habit => {
+      // If tracking exists for this habit, return it
+      if (trackingMap[habit.id]) {
+        return trackingMap[habit.id];
+      }
+      
+      // Otherwise return a default "not completed" status
+      return {
+        habit_id: habit.id,
+        user_id: userId,
+        date: date,
+        completed: false,
+        title: habit.title,
+        frequency: habit.frequency
+      };
+    });
+    
+    res.json(completeTracking);
   } catch (err) {
     console.error('Error fetching tracking data:', err);
     res.status(500).json({ msg: 'Server error' });
@@ -109,7 +143,20 @@ exports.toggleHabitCompletion = async (req, res) => {
       );
     }
     
-    res.json(result.rows[0]);
+    // Get the habit data to include in the response
+    const habitData = await pool.query(
+      'SELECT title, frequency FROM habits WHERE id = $1',
+      [habit_id]
+    );
+    
+    // Add habit title and frequency to the response
+    const responseData = {
+      ...result.rows[0],
+      title: habitData.rows[0].title,
+      frequency: habitData.rows[0].frequency
+    };
+    
+    res.json(responseData);
   } catch (err) {
     console.error('Error updating tracking data:', err);
     res.status(500).json({ msg: 'Server error' });

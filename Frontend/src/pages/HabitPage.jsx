@@ -74,8 +74,8 @@ const HabitPage = () => {
         // Get API URL from environment or use default
         const apiUrl = getApiUrl();
         
-        // Fetch habits
-        const habitsResponse = await fetch(`${apiUrl}/api/habits`, {
+        // Fetch habits - Use the clear URL pattern with /getHabits
+        const habitsResponse = await fetch(`${apiUrl}/api/habits/getHabits`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -94,11 +94,11 @@ const HabitPage = () => {
         
         const habitsData = await habitsResponse.json();
         setHabits(habitsData);
-        
+
         // Fetch today's date for tracking data
         const today = new Date().toISOString().split('T')[0];
         
-        // Fetch tracking data for today
+        // Fetch tracking data for today - all habits, not just completed ones
         const trackingResponse = await fetch(`${apiUrl}/api/tracking/date/${today}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -266,8 +266,8 @@ const HabitPage = () => {
       const token = getToken();
       if (!token) return;
       
-      // Delete habit from API
-      const response = await fetch(`${apiUrl}/api/habits/${selectedHabit.id}`, {
+      // Delete habit from API - Use a clearer API path
+      const response = await fetch(`${apiUrl}/api/habits/deleteHabit/${selectedHabit.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -367,8 +367,8 @@ const HabitPage = () => {
         type: 'info'
       });
       
-      // Call the API to toggle completion
-      const response = await fetch(`${apiUrl}/api/tracking/toggle`, {
+      // Call the API to toggle completion - Use a clearer API path
+      const response = await fetch(`${apiUrl}/api/tracking/toggleCompletion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -464,9 +464,10 @@ const HabitPage = () => {
       // Determine if this is a create or update operation
       const isNewHabit = !formData.id;
       const method = isNewHabit ? 'POST' : 'PUT';
+      // Use clearer API paths
       const url = isNewHabit 
-        ? `${apiUrl}/api/habits` 
-        : `${apiUrl}/api/habits/${formData.id}`;
+        ? `${apiUrl}/api/habits/createHabit` 
+        : `${apiUrl}/api/habits/updateHabit/${formData.id}`;
       
       // Call the API to create or update the habit
       const response = await fetch(url, {

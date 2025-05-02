@@ -16,7 +16,7 @@ router.get('/habit/:habitId', getTrackingByHabit);
 // GET /api/tracking/date/:date - Get tracking data for all habits on a specific date
 router.get('/date/:date', getTrackingForDate);
 
-// POST /api/tracking/toggle - Toggle habit completion status for a specific date
-router.post('/toggle', toggleHabitCompletion);
+// POST /api/tracking/toggleCompletion - Toggle habit completion status for a specific date
+router.post('/toggleCompletion', toggleHabitCompletion);
 
 module.exports = router; 

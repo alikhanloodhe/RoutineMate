@@ -12,19 +12,19 @@ const { authenticate } = require('../middleware/auth');
 // Apply authentication middleware to all habit routes
 router.use(authenticate);
 
-// GET /api/habits - Get all habits for the logged-in user
-router.get('/', getHabits);
+// GET /api/habits/getHabits - Get all habits for the logged-in user
+router.get('/getHabits', getHabits);
 
 // GET /api/habits/:id - Get a specific habit by ID
 router.get('/:id', getHabitById);
 
-// POST /api/habits - Create a new habit
-router.post('/', createHabit);
+// POST /api/habits/createHabit - Create a new habit
+router.post('/createHabit', createHabit);
 
-// PUT /api/habits/:id - Update a habit
-router.put('/:id', updateHabit);
+// PUT /api/habits/updateHabit/:id - Update a specific habit
+router.put('/updateHabit/:id', updateHabit);
 
-// DELETE /api/habits/:id - Delete a habit
-router.delete('/:id', deleteHabit);
+// DELETE /api/habits/deleteHabit/:id - Delete a specific habit
+router.delete('/deleteHabit/:id', deleteHabit);
 
 module.exports = router; 
