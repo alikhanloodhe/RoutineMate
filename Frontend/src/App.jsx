@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/login';
-import Signup from './pages/signup';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Routines from './pages/Routines';
 import Tasks from './pages/Tasks';
-import Goals from './pages/Goals';
+import GoalsPage from './pages/GoalsPage';
+import GoalDetail from './pages/GoalDetail';
+import GroupGoalDetail from './pages/GroupGoalDetail';
 import HabitPage from './pages/HabitPage';
 import Friends from './pages/Friends';
 import Help from './pages/Help';
@@ -47,7 +49,19 @@ function App() {
         
         <Route path="/goals" element={
           <ProtectedRoute>
-            <Goals />
+            <GoalsPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/goals/:goalId" element={
+          <ProtectedRoute>
+            <GoalDetail />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/group-goals/:goalId" element={
+          <ProtectedRoute>
+            <GroupGoalDetail />
           </ProtectedRoute>
         } />
         

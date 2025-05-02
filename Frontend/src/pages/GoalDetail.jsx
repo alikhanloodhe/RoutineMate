@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
+import Header from '../components/header/Header';
+import Sidebar from '../components/sidebar/Sidebar';
 import { getGoalById, updateGoal } from '../utils/goalData';
 import { MilestoneFormModal, ActivityFormModal } from '../components/goal/activity';
 
