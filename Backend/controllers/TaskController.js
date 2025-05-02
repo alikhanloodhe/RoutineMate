@@ -6,7 +6,7 @@ exports.addTask = async (req, res) => {
 console.log(req.body);
     // const { title, description, type, user_id, dueDate, priority_id, tags, subTasks } = req.body;
     const { name, description,dueDate,category_id, priority_id, subtasks,status,estimated_time } = req.body;
-    console.log(category_id);
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -16,6 +16,7 @@ console.log(req.body);
         [user_id,name, description,category_id,priority_id,status,estimated_time,dueDate]
       );
       const task_id = insertTaskResult.rows[0].task_id;
+      console.log('Inserted task with ID:', task_id);
   
       console.log(subtasks);
       // 4. Insert subtasks
