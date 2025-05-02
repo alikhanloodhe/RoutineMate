@@ -7,6 +7,7 @@ import { getGoalById, updateGoal } from '../utils/goalData';
 import { MilestoneFormModal, ActivityFormModal } from '../components/goal/activity';
 
 const GoalDetail = () => {
+  // removed goal visisbility
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [goal, setGoal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -351,11 +352,6 @@ const GoalDetail = () => {
                     <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full mr-2 ${getStatusColor(goal.status)}`}>
                       {goal.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                     </span>
-                    {goal.visibility && (
-                      <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-800">
-                        {goal.visibility.charAt(0).toUpperCase() + goal.visibility.slice(1)}
-                      </span>
-                    )}
                   </div>
                   <h1 className="text-2xl font-bold text-[#1C1C1C]">{goal.title}</h1>
                   <p className="text-gray-600 mt-2">{goal.description}</p>
@@ -730,7 +726,7 @@ const GoalDetail = () => {
                 </div>
                 
                 {/* Timeline View Toggle */}
-                {goal.activities.length > 0 && (
+                {/* {goal.activities.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center">
                     <button
                       onClick={() => setActivityFilter("all")}
@@ -764,7 +760,7 @@ const GoalDetail = () => {
                       </button>
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
             )}
           </motion.div>

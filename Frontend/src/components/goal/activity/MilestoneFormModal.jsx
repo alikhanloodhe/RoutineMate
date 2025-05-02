@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => {
+  // excluded status show
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -142,21 +143,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                   </div>
                   
                   {/* Status */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="overdue">Overdue</option>
-                    </select>
-                  </div>
+          
                   
                   {/* Due Date */}
                   <div className="mb-4">
