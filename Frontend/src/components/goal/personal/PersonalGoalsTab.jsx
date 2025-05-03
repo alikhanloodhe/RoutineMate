@@ -28,9 +28,25 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
   };
 
   // Handle delete goal
-  const handleDeleteGoal = (goal) => {
+  const handleDeleteGoal = async (goal) => {
     // Delete from central data
     const deletedGoal = deleteGoal(goal.goal_id);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteGoal/${goal.goal_id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+    }
+    catch (error) {
+      console.error('Error deleting goal:', error);
+    }
     
     if (deletedGoal) {
       // You would typically need to update the parent component's state
@@ -40,17 +56,53 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
   };
 
   // Handle goal form submission
-  const handleSubmitGoal = (goalData) => {
+  // here fetch api to create personal goal
+  const handleSubmitGoal = async (goalData) => {
+
     if (goalData.goal_id) {
       // Update existing goal
       updateGoal(goalData.goal_id, goalData);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalData.goal_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(goalData),
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      }
+      catch (error) {
+        console.error('Error adding goal:', error);
+      } 
+
     } else {
       // Add new goal with personal type
       addGoal({
         ...goalData,
         goal_type: 'personal'
       });
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/addGoal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(goalData),
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      }
+      catch (error) {
+        console.error('Error adding goal:', error);
+      } 
     }
+    
     
     setShowFormModal(false);
   };

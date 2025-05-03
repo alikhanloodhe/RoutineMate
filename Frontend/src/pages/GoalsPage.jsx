@@ -28,13 +28,40 @@ const GoalsPage = () => {
     setIsLoading(true);
     
     // Simulating API call delay
-    setTimeout(() => {
-      const allGoals = getAllGoals();
-      setGoals(allGoals);
-      setIsLoading(false);
-    }, 500);
-  }, []);
+    // setTimeout(() => {
+    //   const allGoals = getAllGoals();
+    //   setGoals(allGoals);
+    //   setIsLoading(false);
+    // }, 500);
+    const fetchGoals = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/fetchGoals`, {
+          headers: {
+            METHOD : 'GET',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
 
+        if (!res.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+
+        const data = await res.json();
+        console.log(data);
+
+        setGoals(data.goals);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }finally{
+        setIsLoading(false);
+      }
+    };
+
+    fetchGoals();
+    
+  }, []);
+  
   // View goal details
   const handleViewGoal = (goal) => {
     if (goal.goal_type === 'personal') {
@@ -45,6 +72,7 @@ const GoalsPage = () => {
       navigate(`/group-goals/${goal.goal_id}`);
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-[#f6f6f6]">

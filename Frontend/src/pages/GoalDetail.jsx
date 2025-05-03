@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '../components/header/Header';
 import Sidebar from '../components/sidebar/Sidebar';
-import { getGoalById, updateGoal } from '../utils/goalData';
+import { updateGoal } from '../utils/goalData';
 import { MilestoneFormModal, ActivityFormModal } from '../components/goal/activity';
 
 const GoalDetail = () => {
@@ -42,84 +42,55 @@ const GoalDetail = () => {
     setShowMilestoneModal(true);
   };
 
-  const handleMilestoneSubmit = (milestoneData) => {
+  const handleMilestoneSubmit = async (milestoneData) => {
     let updatedMilestones;
     
-    if (milestoneData.milestone_id) {
-      // Update existing milestone
-      updatedMilestones = goal.milestones.map(m => 
-        m.milestone_id === milestoneData.milestone_id ? milestoneData : m
-      );
-    } else {
-      // Add new milestone with a new ID
-      const newMilestone = {
-        ...milestoneData,
-        milestone_id: `milestone-${Date.now()}`,
-        created_at: new Date().toISOString()
-      };
-      updatedMilestones = [...goal.milestones, newMilestone];
-    }
-    
-    // Calculate new progress based on completed milestones
-    const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
-    const totalCount = updatedMilestones.length;
-    const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
-    
-    // Update the goal with new milestones and progress
-    const updatedGoal = {
-      ...goal,
-      milestones: updatedMilestones,
-      progress: newProgress
-    };
-    
-    // Update state and persisted data
-    setGoal(updatedGoal);
-    updateGoal(goal.goal_id, updatedGoal);
-    
-    // Close the modal
-    setShowMilestoneModal(false);
-  };
-
-  // Toggle milestone completion status
-  const handleToggleMilestoneCompletion = (milestone) => {
-    const newStatus = milestone.status === 'completed' ? 'pending' : 'completed';
-    const updatedMilestone = {
-      ...milestone,
-      status: newStatus,
-      completion_date: newStatus === 'completed' ? new Date().toISOString() : null
-    };
-    
-    // Update milestone directly in the goal's milestones array
-    const updatedMilestones = goal.milestones.map(m => 
-      m.milestone_id === milestone.milestone_id ? updatedMilestone : m
-    );
-    
-    // Calculate new progress based on completed milestones
-    const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
-    const totalCount = updatedMilestones.length;
-    const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
-    
-    // Update the goal with new milestones and progress
-    const updatedGoal = {
-      ...goal,
-      milestones: updatedMilestones,
-      progress: newProgress
-    };
-    
-    // Update state and persisted data
-    setGoal(updatedGoal);
-    updateGoal(goal.goal_id, updatedGoal);
-  };
-
-  // Delete milestone
-  const handleDeleteMilestone = (milestoneId) => {
-    if (window.confirm('Are you sure you want to delete this milestone?')) {
-      const updatedMilestones = goal.milestones.filter(m => m.milestone_id !== milestoneId);
+    try {
+      if (milestoneData.milestone_id) {
+        // Update existing milestone in the UI
+        updatedMilestones = goal.milestones.map(m => 
+          m.milestone_id === milestoneData.milestone_id ? milestoneData : m
+        );
+        
+        // Update milestone in the backend
+        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateMilestone/${goalId}/${milestoneData.milestone_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(milestoneData),
+        });
+      } else {
+        // Add new milestone with a new ID
+        const newMilestone = {
+          ...milestoneData,
+          milestone_id: `milestone-${Date.now()}`, // Frontend temporary ID
+          created_at: new Date().toISOString()
+        };
+        
+        // Add to UI right away for better UX
+        updatedMilestones = [...goal.milestones, newMilestone];
+        
+        // Save to backend
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/addMilestone/${goalId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(newMilestone),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      }
       
       // Calculate new progress based on completed milestones
       const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
       const totalCount = updatedMilestones.length;
-      const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
       
       // Update the goal with new milestones and progress
       const updatedGoal = {
@@ -128,9 +99,138 @@ const GoalDetail = () => {
         progress: newProgress
       };
       
-      // Update state and persisted data
+      // Update state
       setGoal(updatedGoal);
+      
+      // Update goal progress in the backend
+      await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ progress: newProgress }),
+      });
+      
+      // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
+    } catch (error) {
+      console.error('Error with milestone operation:', error);
+      alert('Error adding or updating milestone. Please try again.');
+    }
+    
+    // Close the modal
+    setShowMilestoneModal(false);
+  };
+
+  // Toggle milestone completion status
+  const handleToggleMilestoneCompletion = async (milestone) => {
+    try {
+      const newStatus = milestone.status === 'completed' ? 'pending' : 'completed';
+      const updatedMilestone = {
+        ...milestone,
+        status: newStatus,
+        completion_date: newStatus === 'completed' ? new Date().toISOString() : null
+      };
+      
+      // Update UI immediately for better UX
+      const updatedMilestones = goal.milestones.map(m => 
+        m.milestone_id === milestone.milestone_id ? updatedMilestone : m
+      );
+      
+      // Calculate new progress based on completed milestones
+      const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
+      const totalCount = updatedMilestones.length;
+      const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
+      
+      // Update the goal with new milestones and progress
+      const updatedGoal = {
+        ...goal,
+        milestones: updatedMilestones,
+        progress: newProgress
+      };
+      
+      // Update state
+      setGoal(updatedGoal);
+      
+      // Update milestone in the backend
+      await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateMilestone/${goalId}/${updatedMilestone.milestone_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ 
+          status: newStatus, 
+          completion_date: updatedMilestone.completion_date 
+        }),
+      });
+      
+      // Also update goal progress
+      await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ progress: newProgress }),
+      });
+      
+      // Keep local state in sync (will be removed once backend API is complete)
+      updateGoal(goal.goal_id, updatedGoal);
+    } catch (error) {
+      console.error('Error updating milestone status:', error);
+      alert('Error updating milestone status. Please try again.');
+    }
+  };
+
+  // Delete milestone
+  const handleDeleteMilestone = async (milestoneId) => {
+    if (window.confirm('Are you sure you want to delete this milestone?')) {
+      try {
+        // Update UI immediately for better UX
+        const updatedMilestones = goal.milestones.filter(m => m.milestone_id !== milestoneId);
+        
+        // Calculate new progress based on completed milestones
+        const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
+        const totalCount = updatedMilestones.length;
+        const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+        
+        // Update the goal with new milestones and progress
+        const updatedGoal = {
+          ...goal,
+          milestones: updatedMilestones,
+          progress: newProgress
+        };
+        
+        // Update state
+        setGoal(updatedGoal);
+        
+        // Delete milestone in the backend
+        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteMilestone/${goalId}/${milestoneId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          }
+        });
+        
+        // Also update goal progress
+        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ progress: newProgress }),
+        });
+        
+        // Keep local state in sync (will be removed once backend API is complete)
+        updateGoal(goal.goal_id, updatedGoal);
+      } catch (error) {
+        console.error('Error deleting milestone:', error);
+        alert('Error deleting milestone. Please try again.');
+      }
     }
   };
 
@@ -145,41 +245,57 @@ const GoalDetail = () => {
     setShowActivityModal(true);
   };
 
-  const handleActivitySubmit = (activityData) => {
+  const handleActivitySubmit = async (activityData) => {
     let updatedActivities;
     
-    if (activityData.activity_id) {
-      // Update existing activity
-      updatedActivities = goal.activities.map(a => 
-        a.activity_id === activityData.activity_id ? activityData : a
-      );
-    } else {
-      // Add new activity with a new ID
-      const newActivity = {
-        ...activityData,
-        activity_id: `activity-${Date.now()}`
-      };
-      updatedActivities = [newActivity, ...(goal.activities || [])];
-    }
-    
-    // Update the goal with new activities
-    const updatedGoal = {
-      ...goal,
-      activities: updatedActivities
-    };
-    
-    // Update state and persisted data
-    setGoal(updatedGoal);
-    updateGoal(goal.goal_id, updatedGoal);
-    
-    // Close the modal
-    setShowActivityModal(false);
-  };
-  
-  // Delete activity
-  const handleDeleteActivity = (activityId) => {
-    if (window.confirm('Are you sure you want to delete this activity?')) {
-      const updatedActivities = goal.activities.filter(a => a.activity_id !== activityId);
+    try {
+      if (activityData.activity_id) {
+        // Update existing activity in the UI
+        updatedActivities = goal.activities.map(a => 
+          a.activity_id === activityData.activity_id ? activityData : a
+        );
+        
+        // TODO: Add API endpoint for updating activity
+        /* 
+        // Uncomment once the API endpoint is created
+        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateActivity/${goalId}/${activityData.activity_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(activityData),
+        });
+        */
+      } else {
+        // Add new activity with a new ID
+        const newActivity = {
+          ...activityData,
+          activity_id: `activity-${Date.now()}`, // Frontend temporary ID
+          timestamp: new Date().toISOString()
+        };
+        
+        // Add to UI right away for better UX
+        updatedActivities = [newActivity, ...(goal.activities || [])];
+        
+        // TODO: Add API endpoint for adding activity
+        
+        // Uncomment once the API endpoint is created
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/activities/addActivity/${goalId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(newActivity),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        
+
+      }
       
       // Update the goal with new activities
       const updatedGoal = {
@@ -187,9 +303,54 @@ const GoalDetail = () => {
         activities: updatedActivities
       };
       
-      // Update state and persisted data
+      // Update state
       setGoal(updatedGoal);
+      
+      // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
+    } catch (error) {
+      console.error('Error with activity operation:', error);
+      alert('Error adding or updating activity. Please try again.');
+    }
+    
+    // Close the modal
+    setShowActivityModal(false);
+  };
+  
+  // Delete activity
+  const handleDeleteActivity = async (activityId) => {
+    if (window.confirm('Are you sure you want to delete this activity?')) {
+      try {
+        // Update UI immediately for better UX
+        const updatedActivities = goal.activities.filter(a => a.activity_id !== activityId);
+        
+        // Update the goal with new activities
+        const updatedGoal = {
+          ...goal,
+          activities: updatedActivities
+        };
+        
+        // Update state
+        setGoal(updatedGoal);
+        
+        // TODO: Add API endpoint for deleting activity
+        /* 
+        // Uncomment once the API endpoint is created
+        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteActivity/${goalId}/${activityId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          }
+        });
+        */
+        
+        // Keep local state in sync (will be removed once backend API is complete)
+        updateGoal(goal.goal_id, updatedGoal);
+      } catch (error) {
+        console.error('Error deleting activity:', error);
+        alert('Error deleting activity. Please try again.');
+      }
     }
   };
 
@@ -197,31 +358,41 @@ const GoalDetail = () => {
   useEffect(() => {
     setIsLoading(true);
     
-    // Small timeout to simulate API call
-    setTimeout(() => {
+    const fetchGoalById = async () => {
       try {
-        const foundGoal = getGoalById(goalId);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/fetchGoal/${goalId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch goal details');
+        }
+
+        const data = await res.json();
         
-        if (foundGoal && foundGoal.goal_type === 'personal') {
+        if (data.goal && data.goal.goal_type === 'personal') {
           // Ensure milestones and activities arrays exist
-          if (!foundGoal.milestones) foundGoal.milestones = [];
-          if (!foundGoal.activities) foundGoal.activities = [];
+          if (!data.goal.milestones) data.goal.milestones = [];
+          if (!data.goal.activities) data.goal.activities = [];
           
-          setGoal(foundGoal);
-          setIsLoading(false);
+          setGoal(data.goal);
         } else {
-          console.error('Personal goal not found:', goalId);
-          alert('Personal goal not found. Redirecting to goals page.');
-          navigate('/goals');
+          throw new Error('Personal goal not found');
         }
       } catch (error) {
         console.error('Error fetching goal data:', error);
-        setIsLoading(false);
         alert('Error loading goal details. Redirecting to goals page.');
         navigate('/goals');
+      } finally {
+        setIsLoading(false);
       }
-    }, 500);
-  }, [goalId, navigate]);
+    };
+
+    fetchGoalById();
+    }, [goalId, navigate]);
 
   // Format date
   const formatDate = (dateString) => {

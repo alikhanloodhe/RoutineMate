@@ -5,7 +5,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('personal');
+  const [category, setCategory] = useState('Physical');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [visibility, setVisibility] = useState('private');
@@ -18,13 +18,13 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const [milestoneDescription, setMilestoneDescription] = useState('');
   const [milestoneDueDate, setMilestoneDueDate] = useState('');
   const [currentMilestoneIndex, setCurrentMilestoneIndex] = useState(null);
-
+  const [reminderAt, setReminderAt] = useState('');
   // Set form values when editing an existing goal
   useEffect(() => {
     if (goal) {
       setTitle(goal.title || '');
       setDescription(goal.description || '');
-      setCategory(goal.category || 'personal');
+      setCategory(goal.category || 'Physical');
       setStartDate(goal.start_date || '');
       setEndDate(goal.end_date || '');
       setVisibility(goal.visibility || 'private');
@@ -40,7 +40,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setCategory('personal');
+    setCategory('Physical');
     setStartDate('');
     setEndDate('');
     setVisibility('private');
@@ -96,6 +96,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       description: milestoneDescription,
       due_date: milestoneDueDate,
       status: 'pending', // New milestones always start as pending
+      reminder_at: reminderAt,
       completion_date: null
     };
 
@@ -135,8 +136,8 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       category,
       start_date: startDate,
       end_date: endDate,
-      visibility,
-      status,
+      // visibility,
+      // status: 'active',
       milestones,
       progress: 0, // Initialize progress at 0%
       goal_type: 'personal',
@@ -243,17 +244,16 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         onChange={(e) => setCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       >
-                        <option value="personal">Personal</option>
-                        <option value="health">Health</option>
-                        <option value="career">Career</option>
-                        <option value="education">Education</option>
-                        <option value="finance">Finance</option>
-                        <option value="social">Social</option>
+                        <option value="Physical">Physical</option>
+                        <option value="Mental">Mental</option>
+                        <option value="Spiritual">Spiritual</option>
+                        <option value="Social">Social</option>
+
                       </select>
                     </div>
                     
                     {/* Status */}
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Status
                       </label>
@@ -268,7 +268,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         <option value="paused">Paused</option>
                       </select>
                     </div>
-                  </div>
+                  </div> */}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* Start Date */}
@@ -301,7 +301,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                   </div>
                   
                   {/* Visibility */}
-                  <div className="mb-6">
+                  {/* <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Visibility
                     </label>
@@ -339,7 +339,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         />
                         Public
                       </label>
-                    </div>
+                    </div> */}
                   </div>
                   
                   {/* Milestones Section */}
@@ -413,6 +413,19 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
                           />
                         </div>
+                         
+                  {/* Reminder */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Set Reminder (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={reminderAt}
+                      onChange={(e) => setReminderAt(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                    />
+                  </div>
                         
                         <div className="flex justify-end gap-2">
                           <button

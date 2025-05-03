@@ -101,7 +101,6 @@ export const sampleGoals = [
     status: 'completed',
     progress: 100,
     created_at: '2024-11-15',
-    visibility: 'private',
     milestones: [],
     activities: []
   },
@@ -436,7 +435,7 @@ export const getAllGoals = () => {
 };
 
 // Helper function to add a new goal
-export const addGoal = (goal) => {
+export const addGoal = async (goal) => {
   const newGoal = {
     ...goal,
     goal_id: Date.now().toString(),
@@ -447,6 +446,7 @@ export const addGoal = (goal) => {
   };
   
   sampleGoals.push(newGoal);
+
   return newGoal;
 };
 

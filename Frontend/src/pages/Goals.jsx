@@ -82,7 +82,8 @@ const Goals = () => {
   };
 
   // Handle personal goal form submission
-  const handleSubmitPersonalGoal = (goalData) => {
+  // here fetch api to creat personal goal
+  const handleSubmitPersonalGoal = async (goalData) => {
     if (goalData.goal_id) {
       // Update existing goal
       const updatedGoal = updateGoal(goalData.goal_id, goalData);
@@ -98,6 +99,8 @@ const Goals = () => {
         ...goalData,
         goal_type: 'personal'
       });
+      
+
       
       setGoals(prev => [...prev, newGoal]);
     }
