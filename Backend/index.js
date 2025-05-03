@@ -1,16 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import ensureDirectoriesExist from './utils/ensureDirectories.js';
 
-const authRoutes = require('./routes/authRoutes.js');
-const habitRoutes = require('./routes/habitRoutes.js');
-const trackingRoutes = require('./routes/trackingRoutes.js');
-const friendsRoute = require('./routes/friendsRoute');
-const taskRoutes = require('./routes/taskRoutes.js');
-const goalRoutes = require('./routes/goalRoutes.js');
-const addMilestoneRoutes = require('./routes/goalRoutes.js');
-const deleteGoalRoutes = require('./routes/goalRoutes.js');
-const activityRoutes = require('./routes/activityRoutes.js');
+import authRoutes from './routes/authRoutes.js';
+import habitRoutes from './routes/habitRoutes.js';
+import trackingRoutes from './routes/trackingRoutes.js';
+import friendsRoute from './routes/friendsRoute.js';
+import taskRoutes from './routes/taskRoutes.js';
+import goalRoutes from './routes/goalRoutes.js';
+import activityRoutes from './routes/activityRoutes.js';
+
+dotenv.config();
+
+// Ensure required directories exist
+ensureDirectoriesExist();
 
 const app = express();
 
@@ -21,11 +25,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/tracking', trackingRoutes);
-app.use('/api/friends',friendsRoute);
-app.use('/api/Tasks',taskRoutes);
+app.use('/api/friends', friendsRoute);
+app.use('/api/tasks', taskRoutes);
 app.use('/api/goals', goalRoutes);
-app.use('/api/addMilestone', addMilestoneRoutes);
-app.use('/api/deleteGoal', deleteGoalRoutes);
 app.use('/api/activities', activityRoutes);
 
 const PORT = process.env.PORT || 5000;

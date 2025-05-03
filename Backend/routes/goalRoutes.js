@@ -1,5 +1,5 @@
-const express = require('express');
-const { 
+import express from 'express';
+import { 
   addGoal, 
   fetchGoals, 
   fetchGoalById, 
@@ -8,8 +8,8 @@ const {
   deleteMilestone, 
   updateGoal,
   deleteGoal
-} = require('../controllers/goalController');
-const { authenticate } = require('../middleware/auth');
+} from '../controllers/goalController.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -26,4 +26,4 @@ router.post('/addMilestone/:goalId', addMilestone);
 router.put('/updateMilestone/:goalId/:milestoneId', updateMilestone);
 router.delete('/deleteMilestone/:goalId/:milestoneId', deleteMilestone);
 
-module.exports = router;
+export default router;

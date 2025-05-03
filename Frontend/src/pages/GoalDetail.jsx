@@ -12,18 +12,21 @@ const GoalDetail = () => {
   const [goal, setGoal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   // Activity view state
   const [activityView, setActivityView] = useState('feed');
   const [activityFilter, setActivityFilter] = useState('all');
-  
+
   // Modal state
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [currentMilestone, setCurrentMilestone] = useState(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [currentActivity, setCurrentActivity] = useState(null);
-  
-  const { goalId } = useParams();
+
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  const { goalId } = useParams(); /// wehere its activities are renedered
+
   const navigate = useNavigate();
 
   // Toggle sidebar
@@ -44,14 +47,14 @@ const GoalDetail = () => {
 
   const handleMilestoneSubmit = async (milestoneData) => {
     let updatedMilestones;
-    
+
     try {
       if (milestoneData.milestone_id) {
         // Update existing milestone in the UI
-        updatedMilestones = goal.milestones.map(m => 
+        updatedMilestones = goal.milestones.map(m =>
           m.milestone_id === milestoneData.milestone_id ? milestoneData : m
         );
-        
+
         // Update milestone in the backend
         await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateMilestone/${goalId}/${milestoneData.milestone_id}`, {
           method: 'PUT',
@@ -68,10 +71,10 @@ const GoalDetail = () => {
           milestone_id: `milestone-${Date.now()}`, // Frontend temporary ID
           created_at: new Date().toISOString()
         };
-        
+
         // Add to UI right away for better UX
         updatedMilestones = [...goal.milestones, newMilestone];
-        
+
         // Save to backend
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/addMilestone/${goalId}`, {
           method: 'POST',
@@ -81,27 +84,27 @@ const GoalDetail = () => {
           },
           body: JSON.stringify(newMilestone),
         });
-        
+
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
       }
-      
+
       // Calculate new progress based on completed milestones
       const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
       const totalCount = updatedMilestones.length;
       const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
-      
+
       // Update the goal with new milestones and progress
       const updatedGoal = {
         ...goal,
         milestones: updatedMilestones,
         progress: newProgress
       };
-      
+
       // Update state
       setGoal(updatedGoal);
-      
+
       // Update goal progress in the backend
       await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
         method: 'PUT',
@@ -111,14 +114,14 @@ const GoalDetail = () => {
         },
         body: JSON.stringify({ progress: newProgress }),
       });
-      
+
       // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
     } catch (error) {
       console.error('Error with milestone operation:', error);
       alert('Error adding or updating milestone. Please try again.');
     }
-    
+
     // Close the modal
     setShowMilestoneModal(false);
   };
@@ -132,27 +135,27 @@ const GoalDetail = () => {
         status: newStatus,
         completion_date: newStatus === 'completed' ? new Date().toISOString() : null
       };
-      
+
       // Update UI immediately for better UX
-      const updatedMilestones = goal.milestones.map(m => 
+      const updatedMilestones = goal.milestones.map(m =>
         m.milestone_id === milestone.milestone_id ? updatedMilestone : m
       );
-      
+
       // Calculate new progress based on completed milestones
       const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
       const totalCount = updatedMilestones.length;
       const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : goal.progress;
-      
+
       // Update the goal with new milestones and progress
       const updatedGoal = {
         ...goal,
         milestones: updatedMilestones,
         progress: newProgress
       };
-      
+
       // Update state
       setGoal(updatedGoal);
-      
+
       // Update milestone in the backend
       await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateMilestone/${goalId}/${updatedMilestone.milestone_id}`, {
         method: 'PUT',
@@ -160,12 +163,12 @@ const GoalDetail = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ 
-          status: newStatus, 
-          completion_date: updatedMilestone.completion_date 
+        body: JSON.stringify({
+          status: newStatus,
+          completion_date: updatedMilestone.completion_date
         }),
       });
-      
+
       // Also update goal progress
       await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
         method: 'PUT',
@@ -175,7 +178,7 @@ const GoalDetail = () => {
         },
         body: JSON.stringify({ progress: newProgress }),
       });
-      
+
       // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
     } catch (error) {
@@ -190,22 +193,22 @@ const GoalDetail = () => {
       try {
         // Update UI immediately for better UX
         const updatedMilestones = goal.milestones.filter(m => m.milestone_id !== milestoneId);
-        
+
         // Calculate new progress based on completed milestones
         const completedCount = updatedMilestones.filter(m => m.status === 'completed').length;
         const totalCount = updatedMilestones.length;
         const newProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-        
+
         // Update the goal with new milestones and progress
         const updatedGoal = {
           ...goal,
           milestones: updatedMilestones,
           progress: newProgress
         };
-        
+
         // Update state
         setGoal(updatedGoal);
-        
+
         // Delete milestone in the backend
         await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteMilestone/${goalId}/${milestoneId}`, {
           method: 'DELETE',
@@ -214,7 +217,7 @@ const GoalDetail = () => {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           }
         });
-        
+
         // Also update goal progress
         await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
           method: 'PUT',
@@ -224,7 +227,7 @@ const GoalDetail = () => {
           },
           body: JSON.stringify({ progress: newProgress }),
         });
-        
+
         // Keep local state in sync (will be removed once backend API is complete)
         updateGoal(goal.goal_id, updatedGoal);
       } catch (error) {
@@ -246,106 +249,103 @@ const GoalDetail = () => {
   };
 
   const handleActivitySubmit = async (activityData) => {
-    let updatedActivities;
-    
-    try {
-      if (activityData.activity_id) {
-        // Update existing activity in the UI
-        updatedActivities = goal.activities.map(a => 
-          a.activity_id === activityData.activity_id ? activityData : a
-        );
-        
-        // TODO: Add API endpoint for updating activity
-        /* 
-        // Uncomment once the API endpoint is created
-        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateActivity/${goalId}/${activityData.activity_id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify(activityData),
-        });
-        */
-      } else {
-        // Add new activity with a new ID
-        const newActivity = {
-          ...activityData,
-          activity_id: `activity-${Date.now()}`, // Frontend temporary ID
-          timestamp: new Date().toISOString()
-        };
-        
-        // Add to UI right away for better UX
-        updatedActivities = [newActivity, ...(goal.activities || [])];
-        
-        // TODO: Add API endpoint for adding activity
-        
-        // Uncomment once the API endpoint is created
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/activities/addActivity/${goalId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify(newActivity),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        
-
-      }
-      
-      // Update the goal with new activities
-      const updatedGoal = {
-        ...goal,
-        activities: updatedActivities
-      };
-      
-      // Update state
-      setGoal(updatedGoal);
-      
-      // Keep local state in sync (will be removed once backend API is complete)
-      updateGoal(goal.goal_id, updatedGoal);
-    } catch (error) {
-      console.error('Error with activity operation:', error);
-      alert('Error adding or updating activity. Please try again.');
+    for (let pair of activityData.entries()) {
+      console.log(pair[0], pair[1]);
     }
     
-    // Close the modal
-    setShowActivityModal(false);
-  };
+    try {
+      // Check if we're editing an existing activity or creating a new one
+      const isEditing = currentActivity !== null;
+      const activityId = currentActivity?.id;
+      
+      let endpoint, method;
+      
+      if (isEditing) {
+        // Update existing activity
+        endpoint = `${import.meta.env.VITE_API_URL}/api/activities/${activityId}`;
+        method = 'PUT';
+      } else {
+        // Create new activity
+        endpoint = `${import.meta.env.VITE_API_URL}/api/activities/addActivity/${goalId}`;
+        method = 'POST';
+      }
+      
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          // Don't set 'Content-Type' for FormData
+        },
+        body: activityData,
+      });
   
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEditing ? 'update' : 'submit'} activity`);
+      }
+  
+      const responseData = await response.json();
+      console.log('Server response:', responseData);
+  
+      // Update the UI based on whether we're adding or editing
+      let updatedGoal;
+      
+      if (isEditing) {
+        // Replace the edited activity with the updated one
+        updatedGoal = {
+          ...goal,
+          activities: goal.activities.map(activity => 
+            activity.id === activityId ? responseData.activity : activity
+          ),
+        };
+      } else {
+        // Add new activity to the beginning of the list
+        updatedGoal = {
+          ...goal,
+          activities: [responseData.activity, ...(goal.activities || [])],
+        };
+      }
+  
+      setGoal(updatedGoal);
+      updateGoal(goal.goal_id, updatedGoal);
+    } catch (err) {
+      console.error('Error submitting activity:', err);
+      alert('Something went wrong while processing the activity');
+    }
+  
+    setShowActivityModal(false);
+    setCurrentActivity(null);
+  };
+
   // Delete activity
   const handleDeleteActivity = async (activityId) => {
     if (window.confirm('Are you sure you want to delete this activity?')) {
       try {
-        // Update UI immediately for better UX
-        const updatedActivities = goal.activities.filter(a => a.activity_id !== activityId);
-        
-        // Update the goal with new activities
-        const updatedGoal = {
-          ...goal,
-          activities: updatedActivities
-        };
-        
-        // Update state
-        setGoal(updatedGoal);
-        
-        // TODO: Add API endpoint for deleting activity
-        /* 
-        // Uncomment once the API endpoint is created
-        await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteActivity/${goalId}/${activityId}`, {
+        // Call the actual API endpoint for deleting an activity
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/activities/${activityId}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           }
         });
-        */
-        
-        // Keep local state in sync (will be removed once backend API is complete)
+
+        if (!response.ok) {
+          throw new Error('Failed to delete activity');
+        }
+
+        // Update UI after successful deletion
+        const updatedActivities = goal.activities.filter(a => a.id !== activityId);
+
+        // Update the goal with new activities
+        const updatedGoal = {
+          ...goal,
+          activities: updatedActivities
+        };
+
+        // Update state
+        setGoal(updatedGoal);
+
+        // Keep local state in sync
         updateGoal(goal.goal_id, updatedGoal);
       } catch (error) {
         console.error('Error deleting activity:', error);
@@ -354,10 +354,23 @@ const GoalDetail = () => {
     }
   };
 
+  // Toggle dropdown menu for activities
+  const toggleDropdown = (activityId, event) => {
+    // Stop propagation to prevent immediate closing
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    // Toggle the dropdown
+    setActiveDropdown(prevActive => 
+      prevActive === activityId ? null : activityId
+    );
+  };
+
   // Fetch goal details
   useEffect(() => {
     setIsLoading(true);
-    
+
     const fetchGoalById = async () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/fetchGoal/${goalId}`, {
@@ -372,12 +385,12 @@ const GoalDetail = () => {
         }
 
         const data = await res.json();
-        
+
         if (data.goal && data.goal.goal_type === 'personal') {
           // Ensure milestones and activities arrays exist
           if (!data.goal.milestones) data.goal.milestones = [];
           if (!data.goal.activities) data.goal.activities = [];
-          
+          console.log(data.goal.activities);
           setGoal(data.goal);
         } else {
           throw new Error('Personal goal not found');
@@ -392,7 +405,7 @@ const GoalDetail = () => {
     };
 
     fetchGoalById();
-    }, [goalId, navigate]);
+  }, [goalId, navigate]);
 
   // Format date
   const formatDate = (dateString) => {
@@ -406,33 +419,29 @@ const GoalDetail = () => {
   // Format timestamp for activities
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
       year: 'numeric',
-      hour: 'numeric', 
-      minute: 'numeric', 
-      hour12: true 
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
     });
   };
 
   // Add click outside handler for activity dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
-      const dropdowns = document.querySelectorAll('[id^="dropdown-"]');
-      dropdowns.forEach(dropdown => {
-        if (!dropdown.contains(event.target) && 
-            !event.target.closest('button[type="button"]')?.nextElementSibling?.id?.startsWith('dropdown-')) {
-          dropdown.classList.add('hidden');
-        }
-      });
+      if (activeDropdown && !event.target.closest('.dropdown-menu-container')) {
+        setActiveDropdown(null);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [activeDropdown]);
 
   // Get status color
   const getStatusColor = (status) => {
@@ -478,7 +487,7 @@ const GoalDetail = () => {
           <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} flex justify-center items-center`}>
             <div className="text-center">
               <h2 className="text-xl font-bold text-gray-700">Goal not found</h2>
-              <button 
+              <button
                 onClick={() => navigate('/goals')}
                 className="mt-4 bg-[#4A2BAF] text-white px-4 py-2 rounded-lg hover:bg-[#3D2291] transition-colors"
               >
@@ -494,10 +503,10 @@ const GoalDetail = () => {
   return (
     <div className="min-h-screen bg-[#FAF3E0]">
       <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
+
       <div className="flex h-[calc(100vh-60px)]">
         <Sidebar sidebarOpen={sidebarOpen} />
-        
+
         <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -505,7 +514,7 @@ const GoalDetail = () => {
             transition={{ duration: 0.5 }}
           >
             {/* Back button */}
-            <button 
+            <button
               onClick={() => navigate('/goals')}
               className="flex items-center text-gray-600 hover:text-[#4A2BAF] mb-6 transition-colors"
             >
@@ -528,7 +537,7 @@ const GoalDetail = () => {
                   <p className="text-gray-600 mt-2">{goal.description}</p>
                 </div>
                 <div className="flex space-x-2">
-                  <button 
+                  <button
                     onClick={() => navigate(`/goals/edit/${goal.goal_id}`)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors"
                   >
@@ -538,7 +547,7 @@ const GoalDetail = () => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <div className="text-xs text-gray-500 mb-1">Category</div>
@@ -557,15 +566,15 @@ const GoalDetail = () => {
                   <div className="font-medium">{formatDate(goal.created_at)}</div>
                 </div>
               </div>
-              
+
               <div className="mb-2">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>Overall Progress</span>
                   <span>{goal.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2.5 rounded-full" 
+                  <div
+                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2.5 rounded-full"
                     style={{ width: `${goal.progress}%` }}
                   ></div>
                 </div>
@@ -577,21 +586,19 @@ const GoalDetail = () => {
               <nav className="flex space-x-8">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`py-4 px-1 text-center border-b-2 font-medium text-sm ${
-                    activeTab === 'overview'
-                      ? 'border-[#4A2BAF] text-[#4A2BAF]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'overview'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
                   Milestones
                 </button>
                 <button
                   onClick={() => setActiveTab('activity')}
-                  className={`py-4 px-1 text-center border-b-2 font-medium text-sm ${
-                    activeTab === 'activity'
-                      ? 'border-[#4A2BAF] text-[#4A2BAF]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'activity'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
                   Activity Feed
                 </button>
@@ -603,7 +610,7 @@ const GoalDetail = () => {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-[#1C1C1C]">Milestones</h2>
-                  <button 
+                  <button
                     onClick={handleAddMilestone}
                     className="bg-[#4A2BAF] text-white px-3 py-1.5 rounded-lg text-sm flex items-center hover:bg-[#3D2291] transition-colors"
                   >
@@ -613,25 +620,24 @@ const GoalDetail = () => {
                     Add Milestone
                   </button>
                 </div>
-                
+
                 <div className="space-y-4">
                   {goal.milestones.map((milestone) => (
-                    <div 
+                    <div
                       key={milestone.milestone_id}
                       className="border border-gray-200 rounded-lg p-4"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-3">
-                          <div 
-                            className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full ${
-                              milestone.status === 'completed' 
-                                ? 'bg-green-500' 
-                                : milestone.status === 'in_progress' 
+                          <div
+                            className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full ${milestone.status === 'completed'
+                              ? 'bg-green-500'
+                              : milestone.status === 'in_progress'
                                 ? 'bg-blue-500'
                                 : milestone.status === 'overdue'
-                                ? 'bg-red-500'
-                                : 'bg-gray-300'
-                            } flex items-center justify-center cursor-pointer`}
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-300'
+                              } flex items-center justify-center cursor-pointer`}
                             onClick={() => handleToggleMilestoneCompletion(milestone)}
                             title={milestone.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
                           >
@@ -670,7 +676,7 @@ const GoalDetail = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="mt-3 text-xs text-gray-500 flex justify-between">
                         <div>
                           <span className="font-medium text-gray-700">Due:</span> {formatDate(milestone.due_date)}
@@ -681,16 +687,15 @@ const GoalDetail = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Completion Toggle Button */}
                       <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
                         <button
                           onClick={() => handleToggleMilestoneCompletion(milestone)}
-                          className={`px-3 py-1 text-xs rounded-lg flex items-center ${
-                            milestone.status === 'completed'
-                              ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              : 'bg-green-50 text-green-700 hover:bg-green-100'
-                          }`}
+                          className={`px-3 py-1 text-xs rounded-lg flex items-center ${milestone.status === 'completed'
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            }`}
                         >
                           {milestone.status === 'completed' ? (
                             <>
@@ -711,7 +716,7 @@ const GoalDetail = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {goal.milestones.length === 0 && (
                     <div className="text-center p-8 border border-gray-200 rounded-lg">
                       <div className="bg-gray-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -721,7 +726,7 @@ const GoalDetail = () => {
                       </div>
                       <h3 className="text-lg font-medium text-gray-900 mb-1">No milestones yet</h3>
                       <p className="text-gray-500 mb-4">Break down your goal into smaller manageable steps</p>
-                      <button 
+                      <button
                         onClick={handleAddMilestone}
                         className="bg-[#4A2BAF] text-white px-4 py-2 rounded-lg text-sm flex items-center hover:bg-[#3D2291] transition-colors mx-auto"
                       >
@@ -740,7 +745,7 @@ const GoalDetail = () => {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-[#1C1C1C]">Activity Feed (Private)</h2>
-                  <button 
+                  <button
                     onClick={handleAddActivity}
                     className="bg-[#4A2BAF] text-white px-3 py-1.5 rounded-lg text-sm flex items-center hover:bg-[#3D2291] transition-colors"
                   >
@@ -750,12 +755,12 @@ const GoalDetail = () => {
                     Add Activity
                   </button>
                 </div>
-                
+
                 {/* Activity List */}
                 <div className="space-y-4">
                   {goal.activities.map((activity) => (
-                    <motion.div 
-                      key={activity.activity_id}
+                    <motion.div
+                      key={activity.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all"
@@ -763,68 +768,73 @@ const GoalDetail = () => {
                       <div className="flex items-start">
                         <div className="flex-shrink-0 mr-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl
-                            ${activity.mood === 'great' ? 'bg-green-50 text-green-600' : 
-                              activity.mood === 'okay' ? 'bg-blue-50 text-blue-600' : 
-                              activity.mood === 'challenging' ? 'bg-orange-50 text-orange-600' : 
-                              activity.mood === 'milestone' ? 'bg-purple-50 text-purple-600' : 
-                              'bg-[#4A2BAF]/10 text-[#4A2BAF]'}
-                          `}>
-                            {activity.mood === 'great' && '😊'}
-                            {activity.mood === 'okay' && '😐'}
-                            {activity.mood === 'challenging' && '😟'}
-                            {activity.mood === 'milestone' && '🎉'}
+  ${activity.mood === 'happy' ? 'bg-green-50 text-green-600' :
+                              activity.mood === 'motivated' ? 'bg-purple-50 text-purple-600' :
+                                activity.mood === 'tired' ? 'bg-yellow-50 text-yellow-600' :
+                                  activity.mood === 'stressed' ? 'bg-red-50 text-red-600' :
+                                    'bg-gray-100 text-gray-600'}
+`}>
+                            {activity.mood === 'happy' && '😊'}
+                            {activity.mood === 'motivated' && '💪'}
+                            {activity.mood === 'tired' && '😴'}
+                            {activity.mood === 'stressed' && '😣'}
+                            {activity.mood === 'neutral' && '😐'}
                             {!activity.mood && (
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                               </svg>
                             )}
                           </div>
+
                         </div>
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <h3 className="font-medium text-gray-900">{activity.title}</h3>
                             <div className="flex items-center">
                               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full mr-2">
-                                {formatTimestamp(activity.timestamp)}
+                                {formatTimestamp(activity.created_at)}
                               </span>
-                              <div className="relative inline-block text-left">
-                                <button 
+                              <div className="relative inline-block text-left dropdown-menu-container">
+                                <button
                                   type="button"
                                   className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                                  onClick={() => {
-                                    const dropdown = document.getElementById(`dropdown-${activity.activity_id}`);
-                                    if (dropdown) {
-                                      dropdown.classList.toggle('hidden');
-                                    }
-                                  }}
+                                  onClick={(e) => toggleDropdown(activity.id, e)}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                   </svg>
                                 </button>
-                                <div 
-                                  id={`dropdown-${activity.activity_id}`}
-                                  className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200"
-                                >
-                                  <button 
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    onClick={() => handleEditActivity(activity)}
+                                {activeDropdown === activity.id && (
+                                  <div
+                                    className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    Edit activity
-                                  </button>
-                                  <button 
-                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                                    onClick={() => handleDeleteActivity(activity.activity_id)}
-                                  >
-                                    Delete activity
-                                  </button>
-                                </div>
+                                    <button
+                                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                      onClick={() => {
+                                        handleEditActivity(activity);
+                                        setActiveDropdown(null);
+                                      }}
+                                    >
+                                      Edit activity
+                                    </button>
+                                    <button
+                                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                      onClick={() => {
+                                        handleDeleteActivity(activity.id);
+                                        setActiveDropdown(null);
+                                      }}
+                                    >
+                                      Delete activity
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
-                          
+
                           <p className="text-gray-600 mt-1 mb-3">{activity.description}</p>
-                          
+
                           {/* Photo Grid */}
                           {activity.photos && activity.photos.length > 0 && (
                             <div className="mb-3">
@@ -834,41 +844,56 @@ const GoalDetail = () => {
                                 </svg>
                                 {activity.photos.length} {activity.photos.length === 1 ? 'photo' : 'photos'}
                               </p>
-                              <div className={`grid ${
-                                activity.photos.length === 1 ? 'grid-cols-1 max-w-[200px]' : 
-                                activity.photos.length === 2 ? 'grid-cols-2 max-w-[300px]' : 
+                              <div className={`grid ${activity.photos.length === 1 ? 'grid-cols-1 max-w-[200px]' :
+                                activity.photos.length === 2 ? 'grid-cols-2 max-w-[300px]' :
+                                activity.photos.length === 3 ? 'grid-cols-3 max-w-[360px]' :
+                                activity.photos.length === 4 ? 'grid-cols-2 max-w-[300px]' :
                                 'grid-cols-3 max-w-[360px]'
-                              } gap-2`}>
-                                {activity.photos.map((photo, index) => (
+                                } gap-2`}>
+                                {activity.photos.slice(0, activity.photos.length > 4 ? 4 : activity.photos.length).map((photo, index) => (
                                   <div key={index} className="aspect-square bg-gray-100 rounded-md overflow-hidden max-h-24">
-                                    <img 
-                                      src={photo} 
-                                      alt={`Activity photo ${index + 1}`} 
+                                    <img
+                                      src={photo.photo_url || photo}
+                                      alt={`Activity photo ${index + 1}`}
                                       className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                     />
                                   </div>
                                 ))}
+                                {activity.photos.length > 4 && (
+                                  <div className="aspect-square bg-gray-100 rounded-md overflow-hidden max-h-24 relative">
+                                    <img
+                                      src={activity.photos[4].photo_url || activity.photos[4]}
+                                      alt={`Activity photo 5`}
+                                      className="h-full w-full object-cover filter blur-[1px]"
+                                    />
+                                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-medium">
+                                      {activity.photos.length > 5 ? `+${activity.photos.length - 4}` : ""}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
-                          
+
                           {/* Add timestamp at the bottom */}
-                          <div className="mt-2 flex justify-between items-center">
+                          {/* <div className="mt-2 flex justify-between items-center">
                             <div className="flex items-center text-xs text-gray-500">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              {formatTimestamp(activity.timestamp)}
+                              {formatTimestamp(activity.created_at)}  
                             </div>
                             {activity.mood && (
                               <span className="text-sm">
-                                {activity.mood === 'great' && '😊'}
-                                {activity.mood === 'okay' && '😐'}
-                                {activity.mood === 'challenging' && '😟'}
-                                {activity.mood === 'milestone' && '🎉'}
+                                {activity.mood === 'happy' && '😊'}
+                                {activity.mood === 'motivated' && '💪'}
+                                {activity.mood === 'tired' && '😴'}
+                                {activity.mood === 'stressed' && '😣'}
+                                {activity.mood === 'neutral' && '😐'}
                               </span>
                             )}
-                          </div>
+
+                          </div> */}
                         </div>
                       </div>
                     </motion.div>
@@ -883,7 +908,7 @@ const GoalDetail = () => {
                       </div>
                       <h3 className="text-lg font-medium text-gray-900 mb-1">No activities yet</h3>
                       <p className="text-gray-500 mb-4">Record your progress to keep track of your journey</p>
-                      <button 
+                      <button
                         onClick={handleAddActivity}
                         className="bg-[#4A2BAF] text-white px-4 py-2 rounded-lg hover:bg-[#3D2291] transition-colors inline-flex items-center"
                       >
@@ -895,7 +920,7 @@ const GoalDetail = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Timeline View Toggle */}
                 {/* {goal.activities.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center">
@@ -937,16 +962,16 @@ const GoalDetail = () => {
           </motion.div>
         </div>
       </div>
-      
+
       {/* Modals */}
-      <MilestoneFormModal 
+      <MilestoneFormModal
         isOpen={showMilestoneModal}
         onClose={() => setShowMilestoneModal(false)}
         onSubmit={handleMilestoneSubmit}
         milestone={currentMilestone}
       />
-      
-      <ActivityFormModal 
+
+      <ActivityFormModal
         isOpen={showActivityModal}
         onClose={() => setShowActivityModal(false)}
         onSubmit={handleActivitySubmit}

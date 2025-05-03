@@ -1,20 +1,20 @@
-const pool = require('../config/db');
+import pool from '../config/db.js';
 
-exports.addGoal = async (req, res) => {
+export const addGoal = async (req, res) => {
     console.log('Request body:', req.body); // Log the request body for debugging
     const {title,description,category,start_date,end_date,milestones,progress,goal_type } = req.body;
     const user_id = req.user.id; // Assuming you have user ID from authentication middleware
 
     const status = 'active'; // Default status for new goals
 
-    const categoryText =category;
+    try {
+      const categoryText =category;
       const categoryResult = await pool.query('SELECT id FROM categories where name = $1',[categoryText]);
       if (categoryResult.rows.length === 0) {
         throw new Error('status not found');
       }
       const category_id = categoryResult.rows[0].id;
     
-    try {
         const newGoal = await pool.query(
         'INSERT INTO goals (creator_id, title, description, goal_type,category_id,start_date,end_date,status,progress) VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9) RETURNING *',
         [user_id, title, description, goal_type,category_id,start_date,end_date,status,progress]
@@ -24,7 +24,7 @@ exports.addGoal = async (req, res) => {
         const status2 = 'in_progress'; // Default status for new milestones
         if (Array.isArray(milestones) &&  milestones.length > 0) {
             for (let i = 0; i < milestones.length; i++) {
-              await client.query(
+              await pool.query(
                 'INSERT INTO goal_milestones(goal_id,title,description,due_date,reminder_at,status) VALUES($1, $2, $3, $4, $5, $6)',
                 [goal_id, milestones[i].title, milestones[i].description, milestones[i].due_date, milestones[i].reminder_at, status2]
               );
@@ -38,7 +38,7 @@ exports.addGoal = async (req, res) => {
     }
     }
 
-    exports.addMilestone = async (req, res) => {
+    export const addMilestone = async (req, res) => {
         const status2 = 'in_progress';
         const { title, description, due_date, reminder_at } = req.body;
         const { goalId } = req.params;
@@ -56,7 +56,7 @@ exports.addGoal = async (req, res) => {
         }
     }
 
-exports.fetchGoals = async (req, res) => {
+export const fetchGoals = async (req, res) => {
         const userId = req.user.id; // from auth middleware
       
         try {
@@ -82,11 +82,11 @@ exports.fetchGoals = async (req, res) => {
             `, [goal.goal_id]);
       
             // Fetch activities for this goal
-            const activitiesResult = await pool.query(`
-              SELECT * FROM activities
-              WHERE goal_id = $1
-              ORDER BY created_at DESC
-            `, [goal.goal_id]);
+            // const activitiesResult = await pool.query(`
+            //   SELECT * FROM activities
+            //   WHERE goal_id = $1
+            //   ORDER BY created_at DESC
+            // `, [goal.goal_id]);
       
             fullGoals.push({
               goal_id: goal.goal_id,
@@ -100,7 +100,7 @@ exports.fetchGoals = async (req, res) => {
               progress: goal.progress,
               created_at: goal.created_at,
               milestones: milestonesResult.rows,
-              activities: activitiesResult.rows,
+              // activities: activitiesResult.rows,
             });
           }
       
@@ -111,7 +111,7 @@ exports.fetchGoals = async (req, res) => {
         }
       };
       
-exports.fetchGoalById = async (req, res) => {
+export const fetchGoalById = async (req, res) => {
   const userId = req.user.id; // from auth middleware
   const { goalId } = req.params;
 
@@ -143,7 +143,23 @@ exports.fetchGoalById = async (req, res) => {
       WHERE goal_id = $1
       ORDER BY created_at DESC
     `, [goalId]);
+    
+    // For each activity, get its photos
+    const activitiesWithPhotos = await Promise.all(
+      activitiesResult.rows.map(async (activity) => {
+        const photos = await pool.query(
+          `SELECT id, photo_url, uploaded_at FROM activity_photos 
+           WHERE activity_id = $1`,
+          [activity.id]
+        );
 
+        return {
+          ...activity,
+          photos: photos.rows
+        };
+      })
+    );
+    console.log('Fetched Actiitees in goal by id',activitiesWithPhotos);
     const fullGoal = {
       goal_id: goal.goal_id,
       title: goal.title,
@@ -156,7 +172,7 @@ exports.fetchGoalById = async (req, res) => {
       progress: goal.progress,
       created_at: goal.created_at,
       milestones: milestonesResult.rows,
-      activities: activitiesResult.rows,
+      activities: activitiesWithPhotos,
     };
 
     res.status(200).json({ goal: fullGoal });
@@ -166,7 +182,7 @@ exports.fetchGoalById = async (req, res) => {
   }
 };
 
-exports.updateMilestone = async (req, res) => {
+export const updateMilestone = async (req, res) => {
   const { goalId, milestoneId } = req.params;
   const userId = req.user.id;
   const updateData = req.body;
@@ -297,7 +313,7 @@ exports.updateMilestone = async (req, res) => {
 //     res.status(500).json({ error: 'Server error' });
 //   }
 // };
-exports.updateGoal = async (req, res) => {
+export const updateGoal = async (req, res) => {
     const { goalId } = req.params;
     console.log(goalId);
     const {
@@ -358,7 +374,7 @@ exports.updateGoal = async (req, res) => {
           for (let i = 0; i < milestones.length; i++) {
             await pool.query(
               'INSERT INTO goal_milestones(goal_id,title,description,due_date,reminder_at,status) VALUES($1, $2, $3, $4, $5, $6)',
-              [goal_id, milestones[i].title, milestones[i].description, milestones[i].due_date, milestones[i].reminder_at, status2]
+              [goalId, milestones[i].title, milestones[i].description, milestones[i].due_date, milestones[i].reminder_at, status2]
             );
           }
       }
@@ -370,7 +386,7 @@ exports.updateGoal = async (req, res) => {
   };
 
 
-exports.deleteMilestone = async (req, res) => {
+export const deleteMilestone = async (req, res) => {
   const { goalId, milestoneId } = req.params;
   const userId = req.user.id;
 
@@ -402,7 +418,7 @@ exports.deleteMilestone = async (req, res) => {
   }
 };
 
-exports.deleteGoal = async (req, res) => {
+export const deleteGoal = async (req, res) => {
     const { goalId } = req.params;
     const userId = req.user.id; // from auth middleware
     

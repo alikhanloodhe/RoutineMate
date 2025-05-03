@@ -16,7 +16,8 @@ const GroupGoalForm = ({
   const [milestones, setMilestones] = useState([]);
   const [members, setMembers] = useState([]);
   const [visibility, setVisibility] = useState('private');
-  
+  const [friends, setFriends] = useState([]);
+  const token = localStorage.getItem('token') || '';
   // Friend search
   const [friendSearch, setFriendSearch] = useState('');
   const [selectedFriends, setSelectedFriends] = useState([]);
@@ -49,14 +50,30 @@ const GroupGoalForm = ({
   ];
 
   // Sample friends data (in a real app, this would be fetched from the API)
-  const friends = [
-    { id: '1', name: 'Alex Kim', avatar: '' },
-    { id: '2', name: 'Jordan Lee', avatar: '' },
-    { id: '3', name: 'Taylor Wong', avatar: '' },
-    { id: '4', name: 'Jamie Smith', avatar: '' },
-    { id: '5', name: 'Casey Johnson', avatar: '' },
-  ];
-
+  // const friends = [
+  //   { id: '1', name: 'Alex Kim', avatar: '' },
+  //   { id: '2', name: 'Jordan Lee', avatar: '' },
+  //   { id: '3', name: 'Taylor Wong', avatar: '' },
+  //   { id: '4', name: 'Jamie Smith', avatar: '' },
+  //   { id: '5', name: 'Casey Johnson', avatar: '' },
+  // ];
+  
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/friends/getFriends`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      if (res.ok) setFriends(data);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  };
+  fetchFriends();
+  
   // If editing, populate form with goal data
   useEffect(() => {
     if (goal) {
@@ -78,6 +95,7 @@ const GroupGoalForm = ({
         setSelectedFriends(formattedMembers);
       }
     }
+   
   }, [goal]);
 
   // Format date for input fields (YYYY-MM-DD)

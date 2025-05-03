@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const pool = require('../config/db');
+import jwt from 'jsonwebtoken';
+import pool from '../config/db.js';
 
-exports.authenticate = async (req, res, next) => {
+export  const authenticate = async (req, res, next) => {
   try {
     // Get token from header
     const token = req.header('Authorization')?.replace('Bearer ', '');

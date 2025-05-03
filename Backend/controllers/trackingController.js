@@ -1,7 +1,7 @@
-const pool = require('../config/db');
+import pool from '../config/db.js';
 
 // Get tracking data for a specific habit
-exports.getTrackingByHabit = async (req, res) => {
+export const getTrackingByHabit = async (req, res) => {
   try {
     const habitId = req.params.habitId;
     const userId = req.user.id;
@@ -30,7 +30,7 @@ exports.getTrackingByHabit = async (req, res) => {
 };
 
 // Get tracking data for all habits on a specific date
-exports.getTrackingForDate = async (req, res) => {
+export const getTrackingForDate = async (req, res) => {
   try {
     const date = req.params.date;
     const userId = req.user.id;
@@ -91,7 +91,7 @@ exports.getTrackingForDate = async (req, res) => {
 };
 
 // Toggle habit completion status for a specific date
-exports.toggleHabitCompletion = async (req, res) => {
+export const toggleHabitCompletion = async (req, res) => {
   try {
     const { habit_id, date, completed } = req.body;
     const userId = req.user.id;

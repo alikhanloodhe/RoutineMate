@@ -13,7 +13,7 @@ const ActivityItem = ({
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
-    onAddComment(activity.activity_id, newComment);
+    onAddComment(activity.id, newComment);
     setNewComment('');
   };
 
@@ -40,7 +40,7 @@ const ActivityItem = ({
             {/* Only show delete for admin or post author */}
             {(currentUser.role === 'admin' || activity.user.id === currentUser.id) && (
               <button
-                onClick={() => onDelete(activity.activity_id)}
+                onClick={() => onDelete(activity.id)}
                 className="text-gray-400 hover:text-red-500"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -65,7 +65,7 @@ const ActivityItem = ({
             {activity.photos.map((photo, index) => (
               <img
                 key={index}
-                src={photo}
+                src={photo.photo_url || photo}
                 alt={`Activity photo ${index + 1}`}
                 className="w-full h-48 object-cover rounded-lg"
               />
@@ -76,7 +76,7 @@ const ActivityItem = ({
         {/* Like and Comment Buttons */}
         <div className="flex items-center space-x-4 mb-4">
           <button
-            onClick={() => onLike(activity.activity_id)}
+            onClick={() => onLike(activity.id)}
             className={`flex items-center space-x-1 ${
               isLiked
                 ? 'text-[#4A2BAF] font-medium'

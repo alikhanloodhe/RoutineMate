@@ -1,8 +1,8 @@
-const pool = require('../config/db');
+import pool from '../config/db.js';
 
 // Get all habits for a user
 // CRUD // Read
-exports.getHabits = async (req, res) => {
+export const getHabits = async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -19,7 +19,7 @@ exports.getHabits = async (req, res) => {
 };
 // Read
 // Get a single habit by ID
-exports.getHabitById = async (req, res) => {
+export const getHabitById = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
@@ -42,7 +42,7 @@ exports.getHabitById = async (req, res) => {
 
 // Create a new habit
 // Create
-exports.createHabit = async (req, res) => {
+export const createHabit = async (req, res) => {
   try {
     const userId = req.user.id;
     const {
@@ -80,7 +80,7 @@ exports.createHabit = async (req, res) => {
 };
 
 // Update a habit // Update
-exports.updateHabit = async (req, res) => {
+export const updateHabit = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
@@ -138,7 +138,7 @@ exports.updateHabit = async (req, res) => {
 };
 
 // Delete a habit // Delete
-exports.deleteHabit = async (req, res) => {
+export const deleteHabit = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;

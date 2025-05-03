@@ -16,7 +16,7 @@ const ActivityFeed = ({
   // Handle adding a new activity
   const handleAddActivity = (activityData) => {
     const newActivity = {
-      activity_id: Date.now().toString(),
+      id: Date.now().toString(),
       title: activityData.title,
       description: activityData.description,
       timestamp: new Date().toISOString(),
@@ -93,7 +93,7 @@ const ActivityFeed = ({
         {safeActivities.length > 0 ? (
           safeActivities.map(activity => (
             <ActivityItem 
-              key={activity.activity_id}
+              key={activity.id}
               activity={activity}
               currentUser={currentUser}
               onAddComment={onAddComment}

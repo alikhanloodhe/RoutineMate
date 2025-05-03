@@ -7,6 +7,7 @@ import { personal, group, shared } from '../components/goal';
 import { getAllGoals, addGoal, updateGoal, deleteGoal } from '../utils/goalData';
 
 const Goals = () => {
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeType, setActiveType] = useState('personal');
   const [goals, setGoals] = useState([]);

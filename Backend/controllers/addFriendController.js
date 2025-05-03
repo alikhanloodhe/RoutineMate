@@ -1,6 +1,6 @@
-const pool = require('../config/db');
+import pool from '../config/db.js';
 
-exports.searchAddFriend = async (req, res) => {
+export const searchAddFriend = async (req, res) => {
   const { query } = req.query; // GET params
   const user_id = req.user.id;
   try {
@@ -16,7 +16,7 @@ exports.searchAddFriend = async (req, res) => {
   }
 };
 
-exports.AddFriend = async (req, res) => {
+export const AddFriend = async (req, res) => {
   const user_id = req.user.id;
   const { friend_id } = req.body;
   const status = 'pending';
@@ -44,7 +44,7 @@ exports.AddFriend = async (req, res) => {
   }
 };
 
-exports.getSentRequests = async (req, res) => {
+export const getSentRequests = async (req, res) => {
   const user_id = req.user.id;
   const client = await pool.connect();
   const status = 'pending';
@@ -67,7 +67,7 @@ exports.getSentRequests = async (req, res) => {
   }
 };
 
-exports.getReceivedRequests = async (req, res) => {
+export const getReceivedRequests = async (req, res) => {
   const user_id = req.user.id;
   const status = 'pending';
   const client = await pool.connect();
@@ -90,7 +90,7 @@ exports.getReceivedRequests = async (req, res) => {
 };
 
 
-exports.acceptFriend = async (req, res) => {
+export const acceptFriend = async (req, res) => {
   const user_id = req.user.id;
   const { requestId } = req.body;
   const client = await pool.connect();
@@ -124,7 +124,7 @@ exports.acceptFriend = async (req, res) => {
 };
 
 
-exports.declineFriend = async (req, res) => {
+export const declineFriend = async (req, res) => {
   const user_id = req.user.id;
   const { requestId } = req.body;
   const client = await pool.connect();
@@ -148,7 +148,7 @@ exports.declineFriend = async (req, res) => {
   }
 };
 
-exports.cancelFriend = async (req, res) => {
+export const cancelFriend = async (req, res) => {
   const user_id = req.user.id;
   const { requestId } = req.body;
   const client = await pool.connect();
@@ -171,7 +171,7 @@ exports.cancelFriend = async (req, res) => {
   }
 };
 
-exports.getAllFriends = async (req, res) => {
+export const getAllFriends = async (req, res) => {
   const user_id = req.user.id;
   const client = await pool.connect();
   try {

@@ -33,7 +33,7 @@ const ActivityTab = ({
     onUpdate({
       ...goal,
       activities: (goal.activities || []).map(activity => {
-        if (activity.activity_id === activityId) {
+        if (activity.id === activityId) {
           return {
             ...activity,
             comments: [...(activity.comments || []), comment]
@@ -49,7 +49,7 @@ const ActivityTab = ({
     onUpdate({
       ...goal,
       activities: (goal.activities || []).map(activity => {
-        if (activity.activity_id === activityId) {
+        if (activity.id === activityId) {
           const userAlreadyLiked = activity.likes && activity.likes.includes(currentUser.id);
           
           return {
@@ -70,7 +70,7 @@ const ActivityTab = ({
       onUpdate({
         ...goal,
         activities: (goal.activities || []).filter(
-          activity => activity.activity_id !== activityId
+          activity => activity.id !== activityId
         )
       });
     }

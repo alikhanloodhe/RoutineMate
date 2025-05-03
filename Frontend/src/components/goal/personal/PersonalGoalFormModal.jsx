@@ -153,6 +153,15 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     resetForm();
     onClose();
   };
+  const formatDateForInput = (dateStr) => {
+    console.log(dateStr);
+    const d = new Date(dateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // this is what <input type="date"> expects
+  };
+  
 
   return (
     <AnimatePresence>
@@ -278,7 +287,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={startDate}
+                        value={formatDateForInput(startDate)}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                         required
@@ -292,7 +301,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={endDate}
+                        value={formatDateForInput(endDate)}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                         required

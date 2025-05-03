@@ -8,6 +8,8 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
   const [photos, setPhotos] = useState([]);
   const [mood, setMood] = useState(null);
   const [previewPhotos, setPreviewPhotos] = useState([]);
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const [removedPhotoIds, setRemovedPhotoIds] = useState([]);
 
   // Set form values when editing an existing activity
   useEffect(() => {
@@ -15,8 +17,30 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
       setTitle(activity.title || '');
       setDescription(activity.description || '');
       setMood(activity.mood || null);
-      // We don't restore photos when editing since they're likely already uploaded
-      setPreviewPhotos(activity.photos || []);
+      
+      // Handle existing photos from the database
+      if (activity.photos && activity.photos.length > 0) {
+        // Format existing photos for preview
+        const formattedPhotos = activity.photos.map(photo => ({
+          id: photo.id,
+          url: photo.photo_url,
+          isExisting: true
+        }));
+        setExistingPhotos(formattedPhotos);
+        
+        // Add all existing photos to the preview
+        const photoUrls = activity.photos.map(photo => photo.photo_url);
+        setPreviewPhotos(photoUrls);
+        
+        console.log('Setting preview photos:', photoUrls);
+      } else {
+        setExistingPhotos([]);
+        setPreviewPhotos([]);
+      }
+      
+      // Reset new photos and removed photo IDs
+      setPhotos([]);
+      setRemovedPhotoIds([]);
     } else {
       // Reset form for new activity
       resetForm();
@@ -29,6 +53,8 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
     setDescription('');
     setPhotos([]);
     setPreviewPhotos([]);
+    setExistingPhotos([]);
+    setRemovedPhotoIds([]);
     setMood(null);
   };
 
@@ -41,51 +67,98 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
   // Handle photo upload
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length > 5) {
-      alert('You can only upload up to 5 images');
+    
+    // Check for combined total (existing + new) to not exceed 5
+    const totalPhotos = photos.length + existingPhotos.length - removedPhotoIds.length + files.length;
+    if (totalPhotos > 5) {
+      alert(`You can only upload up to 5 images. You've selected ${files.length} new images, but you already have ${existingPhotos.length - removedPhotoIds.length} existing and ${photos.length} new images.`);
       return;
     }
     
-    setPhotos(files);
+    console.log(`Adding ${files.length} photos. Total will be ${totalPhotos}`);
     
-    // Create preview URLs
-    const previews = files.map(file => URL.createObjectURL(file));
-    setPreviewPhotos(previews);
+    // Set the new combined photos array
+    setPhotos(prevPhotos => [...prevPhotos, ...files]);
+    
+    // Create preview URLs for new photos and add to existing previews
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviewPhotos(prevPreviewPhotos => [...prevPreviewPhotos, ...newPreviews]);
   };
 
   // Handle removing a preview photo
   const handleRemovePhoto = (indexToRemove) => {
+    // Check if this is an existing photo from the database
+    const removedPhotoUrl = previewPhotos[indexToRemove];
+    const existingPhotoIndex = existingPhotos.findIndex(photo => photo.url === removedPhotoUrl);
+    
+    if (existingPhotoIndex !== -1) {
+      // If it's an existing photo, add its ID to the removed list
+      const photoId = existingPhotos[existingPhotoIndex].id;
+      setRemovedPhotoIds(prev => [...prev, photoId]);
+      
+      // Remove from existingPhotos array
+      setExistingPhotos(prev => prev.filter((_, index) => index !== existingPhotoIndex));
+    } else {
+      // If it's a new photo, remove from photos array
+      // Calculate the actual index in the photos array
+      const newPhotoIndex = indexToRemove - existingPhotos.length + removedPhotoIds.length;
+      if (newPhotoIndex >= 0) {
+        setPhotos(prevPhotos => 
+          prevPhotos.filter((_, index) => index !== newPhotoIndex)
+        );
+      }
+    }
+    
+    // Remove from previewPhotos array
     setPreviewPhotos(prevPhotos => 
       prevPhotos.filter((_, index) => index !== indexToRemove)
     );
-    setPhotos(prevPhotos => 
-      prevPhotos.filter((_, index) => index !== indexToRemove)
-    );
   };
-  
+
   // Handle mood selection
   const handleMoodSelect = (selectedMood) => {
     setMood(selectedMood);
   };
 
   // Submit form
-  const handleSubmit = (e) => {
+  const handleSubmit =  (e) => {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       alert('Please enter an activity title');
       return;
     }
-
-    const activityData = {
-      activity_id: activity?.activity_id, // Only included when editing
-      title,
-      description,
-      timestamp: new Date().toISOString(),
-      type: 'note',
-      mood,
-      photos: previewPhotos // In a real app, we would upload photos to server
-    };
+    
+    const activityData = new FormData();
+    
+    // Basic activity data
+    activityData.append('title', title);
+    activityData.append('description', description || '');
+    activityData.append('timestamp', new Date().toISOString());
+    activityData.append('type', 'note');
+    if (mood) {
+      activityData.append('mood', mood);
+    }
+    
+    // Append new photos
+    photos.forEach((photo) => {
+      activityData.append('photos', photo);
+    });
+    
+    // If editing, include activity ID and removed photo IDs
+    if (activity) {
+      activityData.append('activity_id', activity.id);
+      
+      // If there are removed photos, add their IDs
+      if (removedPhotoIds.length > 0) {
+        activityData.append('removedPhotoIds', JSON.stringify(removedPhotoIds));
+      }
+    }
+    
+    // Debug what's being sent
+    for (let pair of activityData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
 
     onSubmit(activityData);
     resetForm();
@@ -103,7 +176,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={handleClose}
           />
-          
+
           {/* Modal */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -138,7 +211,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                   </svg>
                 </button>
               </div>
-              
+
               {/* Body - scrollable */}
               <div className="p-6 overflow-y-auto">
                 <form onSubmit={handleSubmit}>
@@ -147,43 +220,43 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                     <label htmlFor="activity-title" className="block text-sm font-medium text-gray-700 mb-1">
                       Title*
                     </label>
-                    <input 
+                    <input
                       id="activity-title"
-                      type="text" 
-                      placeholder="What did you accomplish?" 
+                      type="text"
+                      placeholder="What did you accomplish?"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
                     />
                   </div>
-                  
+
                   {/* Description */}
                   <div className="mb-4">
                     <label htmlFor="activity-description" className="block text-sm font-medium text-gray-700 mb-1">
                       Description
                     </label>
-                    <textarea 
+                    <textarea
                       id="activity-description"
-                      placeholder="Describe your progress, thoughts, or challenges..." 
+                      placeholder="Describe your progress, thoughts, or challenges..."
                       rows="3"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                     ></textarea>
                   </div>
-                  
+
                   {/* Photo Upload Section */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Photos (Optional)
+                      Photos (Optional) {previewPhotos.length > 0 && `(${previewPhotos.length}/5)`}
                     </label>
                     <div className="grid grid-cols-5 gap-2 mb-2 relative">
-                      {previewPhotos.map((photo, index) => (
+                      {previewPhotos.map((photoSrc, index) => (
                         <div key={index} className="aspect-square bg-gray-100 rounded-md overflow-hidden relative group">
-                          <img 
-                            src={photo} 
-                            alt={`Preview ${index + 1}`} 
+                          <img
+                            src={typeof photoSrc === 'string' ? photoSrc : URL.createObjectURL(photoSrc)}
+                            alt={`Preview ${index + 1}`}
                             className="h-full w-full object-cover"
                           />
                           <button
@@ -208,7 +281,6 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Upload up to 5 images</p>
                   </div>
-                  
                   {/* Mood Selector */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -217,39 +289,48 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                     <div className="flex space-x-4">
                       <button
                         type="button"
-                        onClick={() => handleMoodSelect('great')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'great' ? 'bg-green-50 text-green-600' : 'hover:bg-gray-100'}`}
+                        onClick={() => handleMoodSelect('happy')}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'happy' ? 'bg-green-50 text-green-600' : 'hover:bg-gray-100'}`}
                       >
                         <span className="text-2xl mb-1">😊</span>
-                        <span className="text-xs">Great</span>
+                        <span className="text-xs">Happy</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleMoodSelect('okay')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'okay' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'}`}
+                        onClick={() => handleMoodSelect('motivated')}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'motivated' ? 'bg-purple-50 text-purple-600' : 'hover:bg-gray-100'}`}
+                      >
+                        <span className="text-2xl mb-1">💪</span>
+                        <span className="text-xs">Motivated</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoodSelect('tired')}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'tired' ? 'bg-yellow-50 text-yellow-600' : 'hover:bg-gray-100'}`}
+                      >
+                        <span className="text-2xl mb-1">😴</span>
+                        <span className="text-xs">Tired</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoodSelect('stressed')}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'stressed' ? 'bg-red-50 text-red-600' : 'hover:bg-gray-100'}`}
+                      >
+                        <span className="text-2xl mb-1">😣</span>
+                        <span className="text-xs">Stressed</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoodSelect('neutral')}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'neutral' ? 'bg-gray-100 text-gray-600' : 'hover:bg-gray-100'}`}
                       >
                         <span className="text-2xl mb-1">😐</span>
-                        <span className="text-xs">Okay</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMoodSelect('challenging')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'challenging' ? 'bg-orange-50 text-orange-600' : 'hover:bg-gray-100'}`}
-                      >
-                        <span className="text-2xl mb-1">😟</span>
-                        <span className="text-xs">Challenging</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMoodSelect('milestone')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'milestone' ? 'bg-purple-50 text-purple-600' : 'hover:bg-gray-100'}`}
-                      >
-                        <span className="text-2xl mb-1">🎉</span>
-                        <span className="text-xs">Milestone!</span>
+                        <span className="text-xs">Neutral</span>
                       </button>
                     </div>
                   </div>
-                  
+
+
                   {/* Form Actions */}
                   <div className="flex justify-end space-x-3">
                     <button

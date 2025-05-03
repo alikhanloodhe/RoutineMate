@@ -1,8 +1,8 @@
-const pool = require('../config/db');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+import pool from '../config/db.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 // Excluding verify e-mail everything is same like I have
-exports.signUp = async (req, res) => {
+export const signUp = async (req, res) => {
     try {
         // Log request body for debugging
         console.log('Signup request body:', req.body);
@@ -55,7 +55,7 @@ exports.signUp = async (req, res) => {
     }
 };
 
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
         

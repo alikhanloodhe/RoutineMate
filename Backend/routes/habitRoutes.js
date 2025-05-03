@@ -1,13 +1,14 @@
-const express = require('express');
-const router = express.Router();
-const { 
+import express from 'express';
+import { 
   getHabits, 
   getHabitById, 
   createHabit, 
   updateHabit, 
   deleteHabit 
-} = require('../controllers/habitController');
-const { authenticate } = require('../middleware/auth');
+} from '../controllers/habitController.js';
+import { authenticate } from '../middleware/auth.js';
+
+const router = express.Router();
 
 // Apply authentication middleware to all habit routes
 router.use(authenticate);
@@ -27,4 +28,4 @@ router.put('/updateHabit/:id', updateHabit);
 // DELETE /api/habits/deleteHabit/:id - Delete a specific habit
 router.delete('/deleteHabit/:id', deleteHabit);
 
-module.exports = router; 
+export default router;
