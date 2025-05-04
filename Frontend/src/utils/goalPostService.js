@@ -48,32 +48,57 @@ export const getGoalPosts = async (goalId) => {
 };
 
 // Add a new post
-export const addGoalPost = async (goalId, content, photo) => {
+export const addGoalPost = async (goalId, formDataOrContent, photo) => {
   try {
-    console.log('addGoalPost called with:', { goalId, content, photo });
+    console.log('addGoalPost called with:', { goalId, formDataOrContent, photo });
     
     if (!goalId) {
       console.error('Missing goalId in addGoalPost');
       throw new Error('Missing goalId');
     }
     
-    const formData = new FormData();
-    formData.append('content', content || '');
+    let formData;
     
-    if (photo && photo instanceof File) {
-      console.log('Photo object details:', {
-        name: photo.name,
-        size: photo.size,
-        type: photo.type,
-        lastModified: photo.lastModified
-      });
-      console.log('Appending photo to form data:', photo);
-      formData.append('photo', photo);
-    } else if (photo) {
-      console.warn('Photo is not a File object:', photo);
+    // Check if formDataOrContent is already a FormData object
+    if (formDataOrContent instanceof FormData) {
+      console.log('Using provided FormData object');
+      formData = formDataOrContent;
+      
+      // Check if FormData has content field
+      let hasContent = false;
+      for (let [key] of formData.entries()) {
+        if (key === 'content') {
+          hasContent = true;
+          break;
+        }
+      }
+      
+      if (!hasContent) {
+        console.warn('FormData missing content field');
+        formData.append('content', '');
+      }
+    } else {
+      // Create a new FormData object
+      console.log('Creating new FormData object');
+      formData = new FormData();
+      formData.append('content', formDataOrContent || '');
+      
+      if (photo && photo instanceof File) {
+        console.log('Photo object details:', {
+          name: photo.name,
+          size: photo.size,
+          type: photo.type,
+          lastModified: photo.lastModified
+        });
+        console.log('Appending photo to form data:', photo);
+        formData.append('photo', photo);
+      } else if (photo) {
+        console.warn('Photo is not a File object:', photo);
+      }
     }
     
     // Log form data for debugging
+    console.log('Form data entries:');
     for (let [key, value] of formData.entries()) {
       console.log(`Form data entry - ${key}: ${value instanceof File ? 'File: ' + value.name + ', type: ' + value.type + ', size: ' + value.size : value}`);
     }
@@ -98,7 +123,15 @@ export const addGoalPost = async (goalId, content, photo) => {
     }
     
     // Verify photo_url is in the response
-    if (photo && !response.data.post.photo_url) {
+    let hasPhoto = false;
+    for (let [key, value] of formData.entries()) {
+      if (key === 'photo' && value instanceof File) {
+        hasPhoto = true;
+        break;
+      }
+    }
+    
+    if (hasPhoto && !response.data.post.photo_url) {
       console.warn('Photo was uploaded but no photo_url in response:', response.data);
     }
     
@@ -210,14 +243,16 @@ export const deleteComment = async (commentId) => {
 };
 
 // Toggle like on a post
-export const toggleLike = async (postId) => {
+export const toggleLike = async (postId, shouldUnlike = false) => {
   try {
-    console.log(`Toggling like on post ${postId}`);
-    const response = await axios.post(
-      `${API_URL}/api/goal-posts/like/${postId}`, 
-      {}, 
-      getAuthHeader()
-    );
+    const method = shouldUnlike ? 'DELETE' : 'POST';
+    console.log(`Toggling like on post ${postId} with method: ${method}`);
+    
+    const response = await axios({
+      method: method,
+      url: `${API_URL}/api/goal-posts/like/${postId}`,
+      ...getAuthHeader()
+    });
     
     console.log('Toggle like API response:', response.data);
     return response.data;
@@ -225,6 +260,7 @@ export const toggleLike = async (postId) => {
     console.error('Error toggling like:', error);
     if (error.response) {
       console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
     }
     throw error;
   }

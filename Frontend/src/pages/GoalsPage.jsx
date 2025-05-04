@@ -27,38 +27,49 @@ const GoalsPage = () => {
   useEffect(() => {
     setIsLoading(true);
     
-    // Simulating API call delay
-    // setTimeout(() => {
-    //   const allGoals = getAllGoals();
-    //   setGoals(allGoals);
-    //   setIsLoading(false);
-    // }, 500);
-    const fetchGoals = async () => {
+    const fetchAllGoals = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/fetchGoals`, {
+        // Fetch personal goals
+        const personalGoalsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/fetchGoals`, {
           headers: {
-            METHOD : 'GET',
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
         });
 
-        if (!res.ok) {
-          throw new Error('Failed to fetch tasks');
+        // Fetch group goals (this will include goals where user is a member/collaborator)
+        const groupGoalsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoals`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+
+        if (!personalGoalsRes.ok || !groupGoalsRes.ok) {
+          throw new Error('Failed to fetch goals');
         }
 
-        const data = await res.json();
-        console.log(data);
+        const personalGoalsData = await personalGoalsRes.json();
+        const groupGoalsData = await groupGoalsRes.json();
 
-        setGoals(data.goals);
+        console.log('Personal goals:', personalGoalsData);
+        console.log('Group goals:', groupGoalsData);
+
+        // Combine both personal and group goals
+        const allGoals = [
+          ...(personalGoalsData.goals || []), 
+          ...(groupGoalsData.goals || [])
+        ];
+        
+        setGoals(allGoals);
       } catch (error) {
-        console.error('Error fetching tasks:', error);
-      }finally{
+        console.error('Error fetching goals:', error);
+      } finally {
         setIsLoading(false);
       }
     };
 
-    fetchGoals();
+    fetchAllGoals();
     
   }, []);
   

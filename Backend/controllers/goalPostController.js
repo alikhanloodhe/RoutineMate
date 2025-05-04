@@ -210,6 +210,7 @@ export const deletePost = async (req, res) => {
   const { postId } = req.params;
   const user_id = req.user.id;
   const client = await pool.connect();
+
   
   try {
     await client.query('BEGIN');
@@ -225,17 +226,20 @@ export const deletePost = async (req, res) => {
     }
     
     const post = postCheck.rows[0];
-    
+    console.log('User Id of logged in user',user_id);
+    console.log('User  Id of post owner',post.user_id)
     // Check if user is post owner
     if (post.user_id !== user_id) {
+      console.log('Checking if current user is the admin of this post');
       // Check if user is a goal admin
       const isAdmin = await client.query(
         `SELECT gm.* FROM goal_members gm
          WHERE gm.goal_id = $1 AND gm.user_id = $2 AND gm.role = 'admin'`,
         [post.goal_id, user_id]
       );
-      
+      console.log('Current user is admin!!? ',isAdmin.rows);
       if (isAdmin.rows.length === 0) {
+        console.log('can not delte!');
         return res.status(403).json({ error: 'You do not have permission to delete this post' });
       }
     }

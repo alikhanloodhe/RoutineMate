@@ -26,7 +26,7 @@ const GroupGoalDetail = () => {
   const [milestoneReminderDate, setMilestoneReminderDate] = useState('');
   const [milestoneStatus, setMilestoneStatus] = useState('in_progress');
   const [milestoneAssignedTo, setMilestoneAssignedTo] = useState('');
-  
+  const [currentUser, setCurrentUser] = useState(null);
   // Member management state
   const [showAddMemberForm, setShowAddMemberForm] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
@@ -38,12 +38,31 @@ const GroupGoalDetail = () => {
   const [currentMilestoneId, setCurrentMilestoneId] = useState(null);
   
   // Current user info (in a real app, this would come from auth context)
-  const [currentUser, setCurrentUser] = useState({
-    id: 'current-user-id',
-    name: 'You',
-    role: 'admin', // or 'collaborator'
-    avatar: null
-  });
+  useEffect(() => {
+    // Fetch current user info from API or context
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/getUser`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        const userWithRole = {
+          ...data,
+          role: 'admin'
+        };
+        setCurrentUser(userWithRole);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    fetchCurrentUser();
+  },[]);
   
   // Track personal milestone completion
   const [personalMilestoneProgress, setPersonalMilestoneProgress] = useState({});
@@ -82,42 +101,32 @@ const GroupGoalDetail = () => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`; // this is what <input type="date"> expects
   };
-  // Handle personal milestone completion
+  // Handle personal completion of a milestone
   const handlePersonalMilestoneCompletion = async (milestoneId, isComplete) => {
-    console.log(milestoneId);
     try {
-      // Update the personal milestone progress state
+      // Update local state immediately for better UX
       setPersonalMilestoneProgress(prev => ({
         ...prev,
         [milestoneId]: isComplete
       }));
       
-      // Update the milestone status in the goal state
+      // Update the UI to reflect the change
       setGoal(prevGoal => {
-        const updatedMilestones = prevGoal.milestones.map(milestone => 
-          milestone.milestone_id === milestoneId 
-            ? {...milestone, status: isComplete ? 'completed' : 'in_progress'} 
-            : milestone
-        );
-        
-        // Calculate new progress
-        const totalMilestones = updatedMilestones.length;
-        let completedCount = 0;
-        
-        updatedMilestones.forEach(milestone => {
-          if (milestone.status === 'completed') {
-            completedCount++;
-          }
-        });
-        
-        const newProgress = Math.round((completedCount / totalMilestones) * 100);
-        
         return {
           ...prevGoal,
-          milestones: updatedMilestones,
-          progress: newProgress,
-          completedMilestones: completedCount,
-          totalMilestones: totalMilestones
+          milestones: prevGoal.milestones.map(milestone => {
+            if (milestone.milestone_id === milestoneId) {
+              const updatedMilestone = {
+                ...milestone,
+                member_progress: {
+                  ...milestone.member_progress,
+                  [currentUser.id]: isComplete
+                }
+              };
+              return updatedMilestone;
+            }
+            return milestone;
+          })
         };
       });
       
@@ -138,12 +147,16 @@ const GroupGoalDetail = () => {
         });
         
         if (!response.ok) {
-          throw new Error('Failed to update milestone status');
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update milestone status');
         }
+        
+        // Refresh goal data to ensure state is in sync with server
+        fetchGoalData();
       }
     } catch (error) {
       console.error('Error updating milestone status:', error);
-      alert('Failed to update milestone status. Please try again.');
+      alert(`Failed to update milestone status. ${error.message || 'Please try again.'}`);
       
       // Revert the state changes on error
       setPersonalMilestoneProgress(prev => ({
@@ -152,11 +165,19 @@ const GroupGoalDetail = () => {
       }));
       
       setGoal(prevGoal => {
-        const originalStatus = prevGoal.milestones.find(m => m.id === milestoneId)?.status;
+        const originalStatus = !isComplete;
         return {
           ...prevGoal,
           milestones: prevGoal.milestones.map(milestone => 
-            milestone.milestone_id === milestoneId ? {...milestone, status: originalStatus} : milestone
+            milestone.milestone_id === milestoneId 
+            ? {
+                ...milestone,
+                member_progress: {
+                  ...milestone.member_progress,
+                  [currentUser.id]: originalStatus
+                }
+              } 
+            : milestone
           )
         };
       });
@@ -529,44 +550,89 @@ const GroupGoalDetail = () => {
       navigate('/goals');
     }
   };
-  useEffect(() => {
-    const fetchGoalData = async () => {
-      setIsLoading(true);
-  
-      try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-  
-  
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-  
-        if (!res.ok) {
-          throw new Error('Failed to fetch goal details');
-        }
-  
-        const data = await res.json();
-        if (data.goal && data.goal.goal_type === 'group') {
-          setGoal(data.goal);
-        } else {
-          console.error('Group goal not found:', goalId);
-          alert('Group goal not found. Redirecting to goals page.');
-          navigate('/goals');
-        }
-  
-      } catch (error) {
-        console.error('Error fetching goal data:', error);
-        alert('Error loading goal details. Redirecting to goals page.');
-        navigate('/goals');
-      } finally {
-        setIsLoading(false);
+
+  // Define fetchGoalData outside useEffect to reuse it
+  const fetchGoalData = async () => {
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch goal details');
       }
-    };
-  
+
+      const data = await res.json();
+      if (data.goal && data.goal.goal_type === 'group') {
+        // Process milestone user data to create member_progress map
+        const processedGoal = {
+          ...data.goal,
+          milestones: data.goal.milestones.map(milestone => {
+            // Fetch milestone_users data for this milestone
+            return fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/getMilestoneUsers/${milestone.milestone_id}`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              },
+            })
+            .then(response => response.json())
+            .then(userData => {
+              // Create member_progress map from milestone_users
+              const memberProgress = {};
+              userData.users.forEach(user => {
+                memberProgress[user.user_id] = user.status === 'completed';
+              });
+              
+              return {
+                ...milestone,
+                member_progress: memberProgress
+              };
+            })
+            .catch(err => {
+              console.error("Error fetching milestone user data:", err);
+              return milestone;
+            });
+          })
+        };
+        
+        // Wait for all milestone user data to be fetched
+        const finalGoal = {
+          ...processedGoal,
+          milestones: await Promise.all(processedGoal.milestones)
+        };
+        
+        // Calculate personal completion progress
+        const personalProgress = {};
+        finalGoal.milestones.forEach(milestone => {
+          if (milestone.member_progress) {
+            personalProgress[milestone.milestone_id] = 
+              milestone.member_progress[currentUser?.id] || false;
+          }
+        });
+        
+        setPersonalMilestoneProgress(personalProgress);
+        setGoal(finalGoal);
+      } else {
+        console.error('Group goal not found:', goalId);
+        alert('Group goal not found. Redirecting to goals page.');
+        navigate('/goals');
+      }
+
+    } catch (error) {
+      console.error('Error fetching goal data:', error);
+      alert('Error loading goal details. Redirecting to goals page.');
+      navigate('/goals');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchGoalData();
   }, [goalId, navigate]);
 
@@ -916,8 +982,8 @@ const GroupGoalDetail = () => {
                           activeMilestoneTab === 'all' 
                             ? true
                             : activeMilestoneTab === 'completed' 
-                              ? milestone.status === 'completed' 
-                              : milestone.status !== 'completed'
+                              ? milestone.member_progress?.[currentUser.id] 
+                              : !milestone.member_progress?.[currentUser.id]
                         ).map(milestone => (
                           <div 
                             key={milestone.milestone_id}
@@ -927,7 +993,7 @@ const GroupGoalDetail = () => {
                               <div className="flex items-start gap-3 flex-1">
                                 <input
                                   type="checkbox"
-                                  checked={milestone.status === 'completed'}
+                                  checked={milestone.member_progress?.[currentUser.id] || false}
                                   onChange={(e) => handlePersonalMilestoneCompletion(milestone.milestone_id, e.target.checked)}
                                   className="mt-1.5 h-4 w-4 rounded border-gray-300 text-[#4A2BAF] focus:ring-[#4A2BAF]"
                                 />
@@ -935,9 +1001,14 @@ const GroupGoalDetail = () => {
                                   <div className="flex items-center justify-between">
                                     <h3 className="font-medium text-[#1C1C1C]">{milestone.title}</h3>
                                     <div className="flex items-center space-x-2">
-                                      {milestone.status === 'completed' && (
+                                      {milestone.member_progress?.[currentUser.id] && (
                                         <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
-                                          Completed
+                                          Completed by You
+                                        </span>
+                                      )}
+                                      {milestone.status === 'completed' && (
+                                        <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
+                                          Completed by Team
                                         </span>
                                       )}
                                       {currentUser.role === 'admin' && (
@@ -982,7 +1053,7 @@ const GroupGoalDetail = () => {
                                     )}
                                   </div>
                                   
-                                  {milestone.status === 'completed' && (
+                                  {milestone.member_progress?.[currentUser.id] && (
                                     <button 
                                       onClick={() => handlePersonalMilestoneCompletion(milestone.milestone_id, false)}
                                       className="mt-3 text-xs text-gray-500 hover:text-gray-700 flex items-center"
@@ -1003,8 +1074,8 @@ const GroupGoalDetail = () => {
                           activeMilestoneTab === 'all' 
                             ? true
                             : activeMilestoneTab === 'completed' 
-                              ? milestone.status === 'completed' 
-                              : milestone.status !== 'completed'
+                              ? milestone.member_progress?.[currentUser.id] 
+                              : !milestone.member_progress?.[currentUser.id]
                         ).length === 0 && (
                           <div className="text-center py-8">
                             <p className="text-gray-500">
@@ -1078,7 +1149,8 @@ const GroupGoalDetail = () => {
                                       <div className="ml-4">
                                         <div className="text-sm font-medium text-gray-900">
                                           {member.name}
-                                          {member.user_id === currentUser.id && (
+                                          {console.log(currentUser)}
+                                          {member.id === currentUser.id && (
                                             <span className="ml-1 text-xs text-gray-500">(You)</span>
                                           )}
                                         </div>
@@ -1110,7 +1182,8 @@ const GroupGoalDetail = () => {
                                         onClick={() => handleRemoveMember(member.id,goal.goal_id)}
                                         className="text-red-600 hover:text-red-900"
                                       >
-                                        Remove
+                                      {member.id === currentUser.id ?'Leave':'Remove'}
+                               
                                       </button>
                                     )}
                                   </td>

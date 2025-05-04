@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 const ActivityItem = ({ 
   activity, 
@@ -13,6 +13,8 @@ const ActivityItem = ({
   const [newComment, setNewComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(activity.content || '');
+  const [isLikeProcessing, setIsLikeProcessing] = useState(false);
+  const likeDebounceTimer = useRef(null);
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
@@ -30,55 +32,47 @@ const ActivityItem = ({
     setIsEditing(false);
   };
 
+  // Check if the current user is the activity owner
+  // Use the explicit flag if available, otherwise check the IDs
+  const isActivityOwner = activity.isCurrentUserCreator || activity.user.id === currentUser.id;
+  
   // Ensure activity has likes and comments arrays
   const likes = activity.likes || [];
   const comments = activity.comments || [];
-  const isLiked = activity.liked_by_user || likes.includes(currentUser.id);
-  const likesCount = activity.likes_count !== undefined ? activity.likes_count : likes.length;
+  // Use either liked_by_user or user_has_liked property for backward compatibility
+  const isLiked = activity.liked_by_user || activity.user_has_liked || likes.includes(currentUser.id) || false;
+  // Ensure likes_count is a number, not a string
+  const likesCount = activity.likes_count !== undefined ? parseInt(activity.likes_count, 10) : likes.length;
   
   // Get the photo URL from various possible locations
   const getPhotoUrl = () => {
-    console.log('Resolving photo URL for activity:', {
-      id: activity.id,
-      post_id: activity.post_id,
-      photo_url: activity.photo_url,
-      photos: activity.photos,
-      _file: activity._file // Check for temporary file reference
-    });
-    
     // Direct photo_url property takes precedence
     if (activity.photo_url) {
-      console.log('Using direct photo_url property:', activity.photo_url);
       return activity.photo_url;
     }
     
     // Check for temporary file reference (for preview while uploading)
     if (activity._file && activity._file instanceof File) {
-      console.log('Using temporary file reference for preview');
       return URL.createObjectURL(activity._file);
     }
     
     // Check photos array
     if (activity.photos && activity.photos.length > 0) {
       const firstPhoto = activity.photos[0];
-      console.log('First photo in photos array:', firstPhoto);
       
       // Skip if it's a File object as it can't be displayed directly
       if (firstPhoto instanceof File) {
-        console.log('Photo is a File object, creating temporary URL');
         return URL.createObjectURL(firstPhoto);
       }
       
       // If the photo is a string URL
       if (typeof firstPhoto === 'string') {
-        console.log('Photo is a string URL:', firstPhoto);
         return firstPhoto;
       }
       
       // If the photo is an object with photo_url
       if (firstPhoto && typeof firstPhoto === 'object') {
         if (firstPhoto.photo_url) {
-          console.log('Photo has photo_url property:', firstPhoto.photo_url);
           return firstPhoto.photo_url;
         }
         
@@ -86,19 +80,42 @@ const ActivityItem = ({
         const possibleProps = ['url', 'src', 'path', 'uri'];
         for (const prop of possibleProps) {
           if (firstPhoto[prop]) {
-            console.log(`Found photo URL in ${prop} property:`, firstPhoto[prop]);
             return firstPhoto[prop];
           }
         }
       }
     }
     
-    console.log('No photo URL found for activity:', activity.id || activity.post_id);
     return null;
   };
   
   const photoUrl = getPhotoUrl();
-  console.log('Final photo URL:', photoUrl);
+
+  // Handle like toggle with debounce to prevent multiple rapid clicks
+  const handleLikeToggle = () => {
+    // Prevent multiple clicks
+    if (isLikeProcessing) {
+      return;
+    }
+
+    // Set processing state to prevent multiple clicks
+    setIsLikeProcessing(true);
+    
+    // Clear any existing timer
+    if (likeDebounceTimer.current) {
+      clearTimeout(likeDebounceTimer.current);
+    }
+
+    console.log(`Toggle like for activity ${activity.id}, current state: ${isLiked}, count: ${likesCount}`);
+    onLike(activity.id);
+
+    // Reset processing state after a delay
+    likeDebounceTimer.current = setTimeout(() => {
+      setIsLikeProcessing(false);
+    }, 1000); // 1 second debounce
+  };
+
+  console.log("Current activity:", activity.id, "Owner:", isActivityOwner, "Current user:", currentUser.id, "Activity user:", activity.user.id);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
@@ -115,22 +132,26 @@ const ActivityItem = ({
               </span>
             </div>
             
-            {/* Action buttons for post owner or admin */}
-            {(currentUser.role === 'admin' || activity.user.id === currentUser.id) && (
+            {/* Action buttons - only show if user is admin or post owner */}
+            {(currentUser.role === 'admin' || isActivityOwner) && (
               <div className="flex gap-2">
-                {activity.user.id === currentUser.id && (
+                {/* Edit button - only show to post owner */}
+                {isActivityOwner && (
                   <button
                     onClick={() => setIsEditing(true)}
                     className="text-gray-400 hover:text-[#4A2BAF]"
+                    title="Edit post"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                   </button>
                 )}
+                {/* Delete button - show to admin or post owner */}
                 <button
                   onClick={() => onDelete(activity.id)}
                   className="text-gray-400 hover:text-red-500"
+                  title="Delete post"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -229,15 +250,28 @@ const ActivityItem = ({
         {/* Like and Comment Buttons */}
         <div className="flex items-center space-x-4 mb-4">
           <button
-            onClick={() => onLike(activity.id)}
+            onClick={handleLikeToggle}
+            disabled={isLikeProcessing}
             className={`flex items-center space-x-1 ${
               isLiked
                 ? 'text-[#4A2BAF] font-medium'
                 : 'text-gray-500 hover:text-[#4A2BAF]'
-            }`}
+            } ${isLikeProcessing ? 'opacity-70 cursor-not-allowed' : 'transition-colors duration-200 transform hover:scale-105 active:scale-95'}`}
+            title={isLiked ? "Unlike" : "Like"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill={isLiked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isLiked ? 0 : 2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className={`h-5 w-5 ${isLikeProcessing ? '' : 'transition-transform transform hover:scale-110 active:scale-90'}`}
+              fill={isLiked ? 'currentColor' : 'none'} 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={isLiked ? 0 : 2} 
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+              />
             </svg>
             <span>{likesCount} {likesCount === 1 ? 'Like' : 'Likes'}</span>
           </button>

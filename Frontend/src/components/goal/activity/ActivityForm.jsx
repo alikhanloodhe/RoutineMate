@@ -54,9 +54,11 @@ const ActivityForm = ({ onAddActivity, onCancel }) => {
     try {
       // Create a temporary local object for immediate display
       const newActivity = {
-        content,
+        content: content,
+        text: content,
         // For the server upload, we need the File object
-        photos: activityPhoto ? [activityPhoto] : []
+        photos: activityPhoto ? [activityPhoto] : [],
+        photo: activityPhoto
       };
       
       // Store the result from onAddActivity

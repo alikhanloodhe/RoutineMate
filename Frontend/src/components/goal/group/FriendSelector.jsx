@@ -136,6 +136,7 @@ const FriendSelector = ({ isOpen, onClose, onSelectFriends, initialSelectedFrien
                 </div>
 
                 {/* Friends List - scrollable */}
+                {console.log(friends)}
                 <div className="p-6 overflow-y-auto">
                   {loading ? (
                     <div className="flex justify-center py-8">
@@ -144,6 +145,7 @@ const FriendSelector = ({ isOpen, onClose, onSelectFriends, initialSelectedFrien
                   ) : filteredFriends.length > 0 ? (
                     <div className="space-y-2">
                       {filteredFriends.map((friend) => (
+                        
                         <div
                           key={friend.id}
                           role="button"
@@ -154,6 +156,7 @@ const FriendSelector = ({ isOpen, onClose, onSelectFriends, initialSelectedFrien
                               handleToggleFriend(e, friend);
                             }
                           }}
+                          
                           className={`flex justify-between items-center p-3 border rounded-lg cursor-pointer transition-colors ${
                             isFriendSelected(friend.id)
                               ? 'bg-[#4A2BAF]/10 border-[#4A2BAF]/30'

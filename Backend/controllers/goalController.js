@@ -42,12 +42,38 @@ export const addGoal = async (req, res) => {
         const status2 = 'in_progress';
         const { title, description, due_date, reminder_at } = req.body;
         const { goalId } = req.params;
-
+        // If a milestone is added against a goal it must be entered in the milestone_user table as well
         try {
+            // First insert the milestone and get its ID
             const newMilestone = await pool.query(
-                'INSERT INTO goal_milestones(goal_id, title, description, due_date, reminder_at,status) VALUES ($1, $2, $3, $4, $5,$6) RETURNING *',
-                [goalId, title, description, due_date, reminder_at,status2]
+                'INSERT INTO goal_milestones(goal_id, title, description, due_date, reminder_at, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                [goalId, title, description, due_date, reminder_at, status2]
             );
+            
+            const milestone_id = newMilestone.rows[0].milestone_id;
+            
+            // Check if this is a group goal
+            const goalTypeResult = await pool.query(
+                'SELECT goal_type FROM goals WHERE goal_id = $1',
+                [goalId]
+            );
+            
+            // If it's a group goal, add all members to milestone_users table
+            if (goalTypeResult.rows.length > 0 && goalTypeResult.rows[0].goal_type === 'group') {
+                // Get all members of this group goal
+                const membersResult = await pool.query(
+                    'SELECT user_id FROM goal_members WHERE goal_id = $1',
+                    [goalId]
+                );
+                
+                // Add each member to the milestone_users table
+                for (const member of membersResult.rows) {
+                    await pool.query(
+                        'INSERT INTO milestone_users (milestone_id, user_id, status) VALUES ($1, $2, $3)',
+                        [milestone_id, member.user_id, 'in_progress']
+                    );
+                }
+            }
 
             res.status(201).json({ milestone: newMilestone.rows[0] });
         } catch (error) {
@@ -60,12 +86,12 @@ export const fetchGoals = async (req, res) => {
         const userId = req.user.id; // from auth middleware
       
         try {
-          // Fetch all goals of this user
+          // Fetch all personal goals of this user
           const goalsResult = await pool.query(`
             SELECT g.*, c.name AS category
             FROM goals g
             LEFT JOIN categories c ON g.category_id = c.id
-            WHERE g.creator_id = $1
+            WHERE g.creator_id = $1 AND g.goal_type = 'personal'
           `, [userId]);
       
           const goals = goalsResult.rows;
@@ -192,52 +218,156 @@ export const updateMilestone = async (req, res) => {
   const { goalId, milestoneId } = req.params;
   const userId = req.user.id;
   const updateData = req.body;
-  console.log('milestone id',milestoneId)
+  console.log('Goal ID:', goalId);
+  console.log('Milestone ID:', milestoneId);
   console.log('Update data:', updateData); // Log the update data for debugging
   
-
   try {
-    // First verify that the goal belongs to this user
-    const goalCheck = await pool.query(
-      'SELECT * FROM goals WHERE goal_id = $1 AND creator_id = $2',
-      [goalId, userId]
+    // Check if this is a personal or group goal
+    const goalTypeResult = await pool.query(
+      'SELECT goal_type FROM goals WHERE goal_id = $1',
+      [goalId]
     );
-
-    if (goalCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'You do not have permission to update this goal' });
+    
+    if (goalTypeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Goal not found' });
     }
-
-    // Update the milestone
-    const updatedMilestone = await pool.query(
-      `UPDATE goal_milestones 
-       SET title = COALESCE($1, title),
-           description = COALESCE($2, description),
-           due_date = COALESCE($3, due_date),
-           reminder_at = COALESCE($4, reminder_at),
-           status = COALESCE($5, status),
-           completion_date = COALESCE($6, completion_date)
-       WHERE milestone_id = $7 AND goal_id = $8
-       RETURNING *`,
-      [
-        updateData.title, 
-        updateData.description,
-        updateData.due_date,
-        updateData.reminder_at,
-        updateData.status,
-        updateData.completion_date,
-        milestoneId,
-        goalId
-      ]
-    );
-
-    if (updatedMilestone.rows.length === 0) {
-      return res.status(404).json({ error: 'Milestone not found' });
+    
+    const goalType = goalTypeResult.rows[0].goal_type;
+    let updatedMilestone = null;
+    
+    if (goalType === 'personal') {
+      // For personal goals, update the milestone directly
+      updatedMilestone = await pool.query(
+        `UPDATE goal_milestones 
+         SET title = COALESCE($1, title),
+             description = COALESCE($2, description),
+             due_date = COALESCE($3, due_date),
+             reminder_at = COALESCE($4, reminder_at),
+             status = COALESCE($5, status),
+             completion_date = COALESCE($6, completion_date)
+         WHERE milestone_id = $7 AND goal_id = $8
+         RETURNING *`,
+        [
+          updateData.title, 
+          updateData.description,
+          updateData.due_date,
+          updateData.reminder_at,
+          updateData.status,
+          updateData.completion_date,
+          milestoneId,
+          goalId
+        ]
+      );
+      
+      if (updatedMilestone.rows.length === 0) {
+        return res.status(404).json({ error: 'Milestone not found' });
+      }
+    } else if (goalType === 'group') {
+      // For group goals, we need to check if this user is an admin or a regular member
+      const memberRole = await pool.query(
+        'SELECT role FROM goal_members WHERE goal_id = $1 AND user_id = $2',
+        [goalId, userId]
+      );
+      
+      if (memberRole.rows.length === 0) {
+        return res.status(403).json({ error: 'You are not a member of this goal' });
+      }
+      
+      const isAdmin = memberRole.rows[0].role === 'admin';
+      
+      if (isAdmin && updateData.title) {
+        // If admin is updating milestone details
+        updatedMilestone = await pool.query(
+          `UPDATE goal_milestones 
+           SET title = COALESCE($1, title),
+               description = COALESCE($2, description),
+               due_date = COALESCE($3, due_date),
+               reminder_at = COALESCE($4, reminder_at),
+               completion_date = COALESCE($5, completion_date)
+           WHERE milestone_id = $6 AND goal_id = $7
+           RETURNING *`,
+          [
+            updateData.title, 
+            updateData.description,
+            updateData.due_date,
+            updateData.reminder_at,
+            updateData.completion_date,
+            milestoneId,
+            goalId
+          ]
+        );
+        
+        if (updatedMilestone.rows.length === 0) {
+          return res.status(404).json({ error: 'Milestone not found' });
+        }
+      } else {
+        // This is for updating the user's personal status for this milestone
+        // Check if a record exists first
+        const existingRecord = await pool.query(
+          'SELECT * FROM milestone_users WHERE milestone_id = $1 AND user_id = $2',
+          [milestoneId, userId]
+        );
+        
+        if (existingRecord.rows.length === 0) {
+          // If no record exists, insert a new one
+          updatedMilestone = await pool.query(
+            'INSERT INTO milestone_users (milestone_id, user_id, status, completion_date) VALUES ($1, $2, $3, $4) RETURNING *',
+            [milestoneId, userId, updateData.status, updateData.completion_date]
+          );
+        } else {
+          // Update existing record
+          updatedMilestone = await pool.query(
+            `UPDATE milestone_users 
+             SET status = COALESCE($1, status),
+                 completion_date = COALESCE($2, completion_date)
+             WHERE milestone_id = $3 AND user_id = $4
+             RETURNING *`,
+            [
+              updateData.status,
+              updateData.completion_date,
+              milestoneId,
+              userId
+            ]
+          );
+        }
+        
+        // After individual update, check if all members have completed this milestone
+        // and update the overall milestone status if needed
+        if (isAdmin) {
+          const allMembers = await pool.query(
+            'SELECT user_id FROM goal_members WHERE goal_id = $1',
+            [goalId]
+          );
+          
+          const completedMembers = await pool.query(
+            `SELECT user_id FROM milestone_users 
+             WHERE milestone_id = $1 AND status = 'completed'`,
+            [milestoneId]
+          );
+          
+          // If all members have completed the milestone, update the milestone's overall status
+          if (completedMembers.rows.length === allMembers.rows.length) {
+            await pool.query(
+              `UPDATE goal_milestones
+               SET status = 'completed', 
+                   completion_date = CURRENT_TIMESTAMP
+               WHERE milestone_id = $1`,
+              [milestoneId]
+            );
+          }
+        }
+      }
     }
-
-    res.status(200).json({ milestone: updatedMilestone.rows[0] });
+    
+    // Return the updated milestone record
+    res.status(200).json({ 
+      milestone: updatedMilestone.rows[0],
+      message: 'Milestone updated successfully'
+    });
   } catch (error) {
     console.error('Error updating milestone:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', message: error.message });
   }
 };
 

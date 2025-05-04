@@ -55,8 +55,9 @@ export const addGroupGoals = async (req, res) => {
                 
                 await client.query(
                     'INSERT INTO goal_members (goal_id, user_id, role) VALUES ($1, $2, $3)',
-                    [goal_id, member.id, member.role] // Using 'collabrator' role as specified
+                    [goal_id, member.id, 'collaborator']
                 );
+                
             }
         }
         
@@ -65,10 +66,17 @@ export const addGroupGoals = async (req, res) => {
             const milestoneStatus = 'in_progress'; // Default status for new milestones
             
             for (const milestone of milestones) {
-                await client.query(
-                    'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5)',
+                const milestone_id = await client.query(
+                    'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING milestone_id',
                     [goal_id, milestone.title, milestone.description, milestone.due_date, milestoneStatus]
                 );
+     
+                for(const member of members){
+                    await client.query(
+                        'INSERT INTO milestone_users (milestone_id,user_id,status) VALUES ($1, $2, $3)',
+                        [milestone_id.rows[0].milestone_id, member.id, 'in_progress']
+                    );
+                }
             }
         }
         
@@ -186,7 +194,7 @@ export const updateGroupGoals = async (req, res) => {
                     // Add new member
                     await client.query(
                         'INSERT INTO goal_members (goal_id, user_id, role) VALUES ($1, $2, $3)',
-                        [goalId, member.id, 'collabrator']
+                        [goalId, member.id, 'collaborator']
                     );
                 }
             }
@@ -218,13 +226,27 @@ export const updateGroupGoals = async (req, res) => {
             const milestoneStatus = 'in_progress';
             
             for (const milestone of milestones) {
-                // Check if this is a new milestone (no ID) or existing (has ID)
-
-                    await client.query(
-                        'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5)',
-                        [goalId, milestone.title, milestone.description, milestone.due_date, milestoneStatus]
-                    );
+                // Insert new milestone and get its ID
+                const newMilestoneResult = await client.query(
+                    'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING milestone_id',
+                    [goalId, milestone.title, milestone.description, milestone.due_date, milestoneStatus]
+                );
                 
+                const milestone_id = newMilestoneResult.rows[0].milestone_id;
+                
+                // Get all current members of this goal
+                const membersResult = await client.query(
+                    'SELECT user_id FROM goal_members WHERE goal_id = $1',
+                    [goalId]
+                );
+                
+                // Add all members to this milestone in milestone_users table
+                for (const member of membersResult.rows) {
+                    await client.query(
+                        'INSERT INTO milestone_users (milestone_id, user_id, status) VALUES ($1, $2, $3)',
+                        [milestone_id, member.user_id, 'in_progress']
+                    );
+                }
             }
         }
         
@@ -234,7 +256,7 @@ export const updateGroupGoals = async (req, res) => {
         // Fetch the updated goal with its members and milestones
         const fullGoal = await fetchFullGroupGoal(client, goalId);
         
-        res.status(200).json({
+        res.status(200).json({  
             message: 'Group goal updated successfully',
             goal: fullGoal
         });
@@ -512,28 +534,113 @@ async function fetchFullGroupGoal(client, goalId) {
 
 export const addMember = async (req, res) => {
     const user_id = req.user.id; // From authentication middleware
-    console.log('Adding member to group goal',req.body);
+    console.log('Adding member to group goal', req.body);
     const { goalId } = req.params;
     const { members } = req.body; // Expecting an array of member objects with id and role
-    const client =await  pool.connect();
-     // Then add other members with 'collaborator' role
-     for (const member of members) {
-        // Skip if it's the current user (creator) as they're already added
-        if (member.user_id === 'current-user-id' || member.id === user_id.toString()) {
-            continue;
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Check if the user making the request is an admin of this goal
+        const adminCheck = await client.query(
+            `SELECT * FROM goal_members 
+             WHERE goal_id = $1 AND user_id = $2 AND role = 'admin'`,
+            [goalId, user_id]
+        );
+        
+        if (adminCheck.rows.length === 0) {
+            return res.status(403).json({ message: 'You do not have permission to add members to this goal' });
         }
         
-        await client.query(
-            'INSERT INTO goal_members (goal_id, user_id, role) VALUES ($1, $2, $3)',
-            [goalId, member.user_id, member.role] // Using 'collabrator' role as specified
+        // Arrays to track newly added members
+        const addedMemberIds = [];
+        
+        // Then add other members with 'collaborator' role
+        for (const member of members) {
+            // Skip if it's the current user (creator) as they're already added
+            if (member.user_id === 'current-user-id' || member.user_id === user_id.toString()) {
+                continue;
+            }
+            
+            // Check if the member is already part of the goal
+            const memberCheck = await client.query(
+                'SELECT * FROM goal_members WHERE goal_id = $1 AND user_id = $2',
+                [goalId, member.user_id]
+            );
+            
+            if (memberCheck.rows.length === 0) {
+                await client.query(
+                    'INSERT INTO goal_members (goal_id, user_id, role) VALUES ($1, $2, $3)',
+                    [goalId, member.user_id, 'collaborator']
+                );
+                
+                // Track this member as newly added
+                addedMemberIds.push(member.user_id);
+            }
+        }
+        
+        // If new members were added, add them to all existing milestones
+        if (addedMemberIds.length > 0) {
+            // Get all milestones for this goal
+            const milestonesResult = await client.query(
+                'SELECT milestone_id FROM goal_milestones WHERE goal_id = $1',
+                [goalId]
+            );
+            
+            // For each new member, add them to each milestone
+            for (const memberId of addedMemberIds) {
+                for (const milestone of milestonesResult.rows) {
+                    // Add the member to the milestone_users table
+                    await client.query(
+                        'INSERT INTO milestone_users (milestone_id, user_id, status) VALUES ($1, $2, $3)',
+                        [milestone.milestone_id, memberId, 'in_progress']
+                    );
+                }
+            }
+        }
+        
+        await client.query('COMMIT');
+        
+        // Fetch updated members list
+        const updatedMembers = await client.query(
+            `SELECT gm.role, u.id, u.name, u.email
+             FROM goal_members gm
+             JOIN users u ON gm.user_id = u.id
+             WHERE gm.goal_id = $1`,
+            [goalId]
         );
+        
+        res.status(200).json({ 
+            message: 'Members added successfully',
+            members: updatedMembers.rows
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error adding members:', error);
+        res.status(500).json({ message: 'Error adding members', error: error.message });
+    } finally {
+        client.release();
     }
 }
 
 export const removeMember = async (req, res) => {  
     const user_id = req.user.id; // From authentication middleware
     const { goalId,memberId } = req.params;
-
+    // req. params will show the goalId and memberId of the member to remove
+    // user_id is the person who is trying to remove the member
+    if(user_id !== memberId){
+        const isAdmin = await client.query(
+            `SELECT gm.* FROM goal_members gm
+             WHERE gm.goal_id = $1 AND gm.user_id = $2 AND gm.role = 'admin'`,
+            [goalId, user_id]
+          );
+          if (isAdmin.rows.length === 0) {
+            console.log('can not delte!');
+            return res.status(403).json({ error: 'You do not have permission to delete this post' });
+          }
+    }
     
     try {
         await pool.query(

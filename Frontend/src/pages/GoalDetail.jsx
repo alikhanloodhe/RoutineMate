@@ -129,7 +129,7 @@ const GoalDetail = () => {
   // Toggle milestone completion status
   const handleToggleMilestoneCompletion = async (milestone) => {
     try {
-      const newStatus = milestone.status === 'completed' ? 'pending' : 'completed';
+      const newStatus = milestone.status === 'completed' ? 'in_progress' : 'completed';
       const updatedMilestone = {
         ...milestone,
         status: newStatus,

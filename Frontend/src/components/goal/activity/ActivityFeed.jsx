@@ -39,10 +39,12 @@ const ActivityFeed = ({
       // Update activities state first
       activities.unshift(tempActivity);
       
-      // Then make the API call
+      // Then make the API call, mapping from ActivityForm data structure to what the API expects
       const result = await onAddActivity({
         content: activityData.content,
+        text: activityData.content, // Add text field for compatibility with both APIs
         photos: activityData.photos || [],
+        photo: activityData.photos && activityData.photos.length > 0 ? activityData.photos[0] : null
       });
       
       console.log('ActivityFeed: Activity added with result:', result);
