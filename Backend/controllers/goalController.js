@@ -181,7 +181,13 @@ export const fetchGoalById = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+export const fetchMilestoneById = async (req, res) => {
+  const { goalId, milestoneId } = req.params; 
+  const userId = req.user.id; // from auth middleware
+  
 
+
+}
 export const updateMilestone = async (req, res) => {
   const { goalId, milestoneId } = req.params;
   const userId = req.user.id;

@@ -129,9 +129,11 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
               </span>
             </div>
             
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-              {goal.description}
-            </p>
+            {goal.goal_type !== 'group' && (
+              <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                {goal.description}
+              </p>
+            )}
             
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700">Progress:</span>

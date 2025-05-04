@@ -1,31 +1,25 @@
 import express from 'express';
-import { 
-  getHabits, 
-  getHabitById, 
-  createHabit, 
-  updateHabit, 
-  deleteHabit 
-} from '../controllers/habitController.js';
+import habitController from '../controllers/habitController.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Apply authentication middleware to all habit routes
+// Protect all habit routes with authentication
 router.use(authenticate);
 
-// GET /api/habits/getHabits - Get all habits for the logged-in user
-router.get('/getHabits', getHabits);
+// Get all habits for the current user
+router.get('/', habitController.getHabits);
 
-// GET /api/habits/:id - Get a specific habit by ID
-router.get('/:id', getHabitById);
+// Create a new habit
+router.post('/', habitController.createHabit);
 
-// POST /api/habits/createHabit - Create a new habit
-router.post('/createHabit', createHabit);
+// Get a specific habit by ID
+router.get('/:id', habitController.getHabitById);
 
-// PUT /api/habits/updateHabit/:id - Update a specific habit
-router.put('/updateHabit/:id', updateHabit);
+// Update a habit
+router.put('/:id', habitController.updateHabit);
 
-// DELETE /api/habits/deleteHabit/:id - Delete a specific habit
-router.delete('/deleteHabit/:id', deleteHabit);
+// Delete a habit
+router.delete('/:id', habitController.deleteHabit);
 
-export default router;
+export default router; 

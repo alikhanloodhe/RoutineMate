@@ -1,6 +1,5 @@
 // components/habit/HabitForm.jsx
 import React, { useState, useEffect } from 'react';
-import Button from '../ui/Button';
 import FrequencySelector from './FrequencySelector';
 import DatePicker from './DatePicker';
 import ReminderTimePicker from './ReminderTimePicker';
@@ -75,7 +74,7 @@ const HabitForm = ({ habit, onSubmit }) => {
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-sm">
       <div className="mb-8 text-center">
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+        <h3 className="text-2xl font-bold text-[#1C1C1C] mb-2">
           {habit ? 'Update Your Habit' : 'Create a New Habit'}
         </h3>
         <p className="text-gray-600">
@@ -84,7 +83,7 @@ const HabitForm = ({ habit, onSubmit }) => {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-blue-50 p-5 rounded-lg border-l-4 border-blue-500 mb-6">
+        <div className="bg-[#4A2BAF]/5 p-5 rounded-lg border-l-4 border-[#4A2BAF] mb-6">
           <div>
             <label htmlFor="title" className="block font-semibold text-gray-800 mb-2">Habit Title*</label>
             <input
@@ -94,7 +93,7 @@ const HabitForm = ({ habit, onSubmit }) => {
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
               placeholder="Enter Your Habit Title"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors"
             />
            
           </div>
@@ -109,7 +108,7 @@ const HabitForm = ({ habit, onSubmit }) => {
               onChange={(e) => handleChange('description', e.target.value)}
               placeholder="Add details about what this habit entails"
               rows="3"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors"
             />
           </div>
 
@@ -121,7 +120,7 @@ const HabitForm = ({ habit, onSubmit }) => {
               onChange={(e) => handleChange('why_reason', e.target.value)}
               placeholder="Why is this habit important to you? How will it benefit your life?"
               rows="3"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors"
             />
             <p className="text-sm text-gray-500 mt-1">Understanding your motivation makes habits more likely to stick</p>
           </div>
@@ -155,14 +154,14 @@ const HabitForm = ({ habit, onSubmit }) => {
         <div className="bg-gray-50 p-5 rounded-lg">
           <h4 className="font-semibold text-gray-800 mb-4">Habit Goal</h4>
           
-          <div className="flex space-x-6">
-            <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50" onClick={() => handleChange('goal_type', 'lifelong')}>
+          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6">
+            <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:border-[#4A2BAF] hover:bg-[#4A2BAF]/5" onClick={() => handleChange('goal_type', 'lifelong')}>
               <input
                 type="radio"
                 value="lifelong"
                 checked={formData.goal_type === 'lifelong'}
                 onChange={() => {}}
-                className="mr-3 h-5 w-5 text-blue-600"
+                className="mr-3 h-5 w-5 text-[#4A2BAF]"
               />
               <div>
                 <div className="font-medium">Lifelong Habit</div>
@@ -170,13 +169,13 @@ const HabitForm = ({ habit, onSubmit }) => {
               </div>
             </label>
             
-            <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50" onClick={() => handleChange('goal_type', 'fixed')}>
+            <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:border-[#4A2BAF] hover:bg-[#4A2BAF]/5" onClick={() => handleChange('goal_type', 'fixed')}>
               <input
                 type="radio"
                 value="fixed"
                 checked={formData.goal_type === 'fixed'}
                 onChange={() => {}}
-                className="mr-3 h-5 w-5 text-blue-600"
+                className="mr-3 h-5 w-5 text-[#4A2BAF]"
               />
               <div>
                 <div className="font-medium">Fixed Duration</div>
@@ -195,7 +194,7 @@ const HabitForm = ({ habit, onSubmit }) => {
                 value={formData.total_target_days || ''}
                 onChange={(e) => handleChange('total_target_days', e.target.value)}
                 placeholder="e.g., 30 days, 60 days, 90 days"
-                className="w-full md:w-1/3 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full md:w-1/3 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors"
               />
             </div>
           )}
@@ -203,21 +202,20 @@ const HabitForm = ({ habit, onSubmit }) => {
       </div>
 
       <div className="mt-8 pt-5 border-t flex justify-between">
-        <Button 
+        <button 
           type="button"
-          variant="outline"
-          onClick={() => onSubmit(null)} // Cancel form
+          onClick={() => onSubmit(null)}
+          className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         >
           Cancel
-        </Button>
+        </button>
         
-        <Button 
+        <button 
           type="submit"
-          variant="primary"
-          size="lg"
+          className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200"
         >
           {habit ? 'Save Changes' : 'Create Habit'}
-        </Button>
+        </button>
       </div>
     </form>
   );

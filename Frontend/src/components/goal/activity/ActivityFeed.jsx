@@ -7,32 +7,52 @@ const ActivityFeed = ({
   currentUser, 
   onAddActivity, 
   onAddComment, 
-  onLikeActivity, 
+  onLikeActivity,
+  onEditActivity,
   onDeleteActivity,
   formatTimestamp
 }) => {
   const [showActivityForm, setShowActivityForm] = useState(false);
 
   // Handle adding a new activity
-  const handleAddActivity = (activityData) => {
-    const newActivity = {
-      id: Date.now().toString(),
-      title: activityData.title,
-      description: activityData.description,
-      timestamp: new Date().toISOString(),
-      type: 'note',
-      user: { 
-        id: currentUser.id,
-        name: currentUser.name, 
-        role: currentUser.role 
-      },
-      photos: activityData.photos || [], 
-      likes: [],
-      comments: []
-    };
-    
-    onAddActivity(newActivity);
-    setShowActivityForm(false);
+  const handleAddActivity = async (activityData) => {
+    try {
+      console.log('ActivityFeed: Preparing to add new activity');
+      
+      // Create a temporary activity to show while uploading
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const tempActivity = {
+        id: tempId,
+        content: activityData.content,
+        timestamp: new Date().toISOString(),
+        user: { 
+          id: currentUser.id,
+          name: currentUser.name, 
+          role: currentUser.role 
+        },
+        photos: activityData.photos || [],
+        likes: [],
+        comments: [],
+        isTemporary: true // Flag to identify temporary activities
+      };
+      
+      // Update activities state first
+      activities.unshift(tempActivity);
+      
+      // Then make the API call
+      const result = await onAddActivity({
+        content: activityData.content,
+        photos: activityData.photos || [],
+      });
+      
+      console.log('ActivityFeed: Activity added with result:', result);
+      
+      setShowActivityForm(false);
+      return result;
+    } catch (error) {
+      console.error('Error in ActivityFeed.handleAddActivity:', error);
+      throw error;
+    }
   };
 
   // Get role badge color
@@ -50,6 +70,8 @@ const ActivityFeed = ({
   // Ensure every activity has the required properties
   const safeActivities = activities.map(activity => ({
     ...activity,
+    // Ensure id exists for React keys
+    id: activity.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     likes: activity.likes || [],
     comments: activity.comments || [],
     photos: activity.photos || [],
@@ -82,7 +104,7 @@ const ActivityFeed = ({
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
               </div>
-              <span>Share an update or progress with the team...</span>
+              <span>Share an update with the team...</span>
             </div>
           </button>
         )}
@@ -98,6 +120,7 @@ const ActivityFeed = ({
               currentUser={currentUser}
               onAddComment={onAddComment}
               onLike={onLikeActivity}
+              onEdit={onEditActivity}
               onDelete={onDeleteActivity}
               formatTimestamp={formatTimestamp}
               getRoleBadgeColor={getRoleBadgeColor}

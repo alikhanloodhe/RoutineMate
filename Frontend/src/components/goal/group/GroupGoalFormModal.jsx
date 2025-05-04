@@ -1,49 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import FriendSelector from './FriendSelector';
 
 const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('personal');
+  const [category, setCategory] = useState('Physical');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [visibility, setVisibility] = useState('private');
-  const [status, setStatus] = useState('pending');
   const [milestones, setMilestones] = useState([]);
   const [members, setMembers] = useState([]);
-  
+  const [showFriendSelector, setShowFriendSelector] = useState(false);
+
   // Milestone temp state
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
   const [milestoneTitle, setMilestoneTitle] = useState('');
   const [milestoneDescription, setMilestoneDescription] = useState('');
   const [milestoneDueDate, setMilestoneDueDate] = useState('');
   const [currentMilestoneIndex, setCurrentMilestoneIndex] = useState(null);
-  
-  // Member temp state
-  const [showMemberForm, setShowMemberForm] = useState(false);
-  const [memberEmail, setMemberEmail] = useState('');
-  const [memberRole, setMemberRole] = useState('collaborator');
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Current user info (in a real app, this would come from auth context)
-  const currentUser = {
-    id: 'current-user-id',
-    name: 'You',
-    email: 'you@example.com',
-    role: 'admin',
-    avatar: null
-  };
+  // const currentUser = {
+  //   id: 'current-user-id',
+  //   name: 'You',
+  //   email: 'you@example.com',
+  //   role: 'admin',
+  //   avatar: null
+  // };
+  useEffect(() => {
+    // Fetch current user info from API or context
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/getUser`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        const userWithRole = {
+          ...data,
+          role: 'admin'
+        };
+        setCurrentUser(userWithRole);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    fetchCurrentUser();
+  },[]);
 
   // Set form values when editing an existing goal
   useEffect(() => {
     if (goal) {
       setTitle(goal.title || '');
       setDescription(goal.description || '');
-      setCategory(goal.category || 'personal');
+      setCategory(goal.category || 'Physical');
       setStartDate(goal.start_date || '');
       setEndDate(goal.end_date || '');
       setVisibility(goal.visibility || 'private');
-      setStatus(goal.status || 'pending');
       setMilestones(goal.milestones || []);
       setMembers(goal.members || [{ ...currentUser }]);
     } else {
@@ -52,19 +73,28 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     }
   }, [goal, isOpen]);
 
+  const formatDateForInput = (dateStr) => {
+    // console.log(dateStr);
+    const d = new Date(dateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // this is what <input type="date"> expects
+
+  };
+  
   // Reset form to default values
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setCategory('personal');
+    setCategory('Physical');
     setStartDate('');
     setEndDate('');
     setVisibility('private');
-    setStatus('pending');
     setMilestones([]);
     setMembers([{ ...currentUser }]);
     resetMilestoneForm();
-    resetMemberForm();
+    setShowFriendSelector(false);
   };
 
   // Reset milestone form
@@ -76,21 +106,18 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     setShowMilestoneForm(false);
   };
 
-  // Reset member form
-  const resetMemberForm = () => {
-    setMemberEmail('');
-    setMemberRole('collaborator');
-    setShowMemberForm(false);
-  };
-
   // Open milestone form for new milestone
-  const handleAddMilestone = () => {
+  const handleAddMilestone = (e) => {
+    // Prevent form submission
+    e.preventDefault();
     resetMilestoneForm();
     setShowMilestoneForm(true);
   };
 
   // Open milestone form for editing
-  const handleEditMilestone = (index) => {
+  const handleEditMilestone = (e, index) => {
+    // Prevent form submission
+    e.preventDefault();
     const milestone = milestones[index];
     setMilestoneTitle(milestone.title);
     setMilestoneDescription(milestone.description);
@@ -100,14 +127,19 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   };
 
   // Delete milestone
-  const handleDeleteMilestone = (index) => {
+  const handleDeleteMilestone = (e, index) => {
+    // Prevent form submission
+    e.preventDefault();
     setMilestones(prevMilestones => 
       prevMilestones.filter((_, i) => i !== index)
     );
   };
 
   // Save milestone
-  const handleSaveMilestone = () => {
+  const handleSaveMilestone = (e) => {
+    // Prevent form submission
+    e.preventDefault();
+    
     if (!milestoneTitle.trim()) {
       alert('Please enter a milestone title');
       return;
@@ -120,7 +152,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       title: milestoneTitle,
       description: milestoneDescription,
       due_date: milestoneDueDate,
-      status: 'pending', // New milestones always start as pending
+      status: 'in_progress', // New milestones always start as in progress
       completion_date: null
     };
 
@@ -135,42 +167,44 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       // Add new milestone
       setMilestones(prevMilestones => [...prevMilestones, newMilestone]);
     }
+   ;
 
     resetMilestoneForm();
   };
 
-  // Open member form
-  const handleAddMember = () => {
-    setShowMemberForm(true);
+  // Open friend selector
+  const handleAddMember = (e) => {
+    // Prevent form submission
+    e.preventDefault();
+    setShowFriendSelector(true);
   };
 
-  // Save member
-  const handleSaveMember = () => {
-    if (!memberEmail.trim()) {
-      alert('Please enter a member email');
-      return;
+  // Handle friends selected from the FriendSelector component
+  const handleFriendsSelected = (selectedFriends) => {
+    // Filter out any friends that are already members
+    const newMembers = selectedFriends.filter(
+      friend => !members.some(member => member.id === friend.id)
+    );
+    
+    // Add new members to the existing members list
+    if (newMembers.length > 0) {
+      setMembers(prevMembers => [
+        ...prevMembers,
+        ...newMembers.map(friend => ({
+          ...friend,
+          role: 'collaborator' // Set all friends as collaborators
+        }))
+      ]);
     }
-
-    // Check if member already exists
-    if (members.some(m => m.email === memberEmail)) {
-      alert('This member is already added to the goal');
-      return;
-    }
-
-    const newMember = {
-      id: `member-${Date.now()}`,
-      name: memberEmail.split('@')[0], // Mock: Extract name from email
-      email: memberEmail,
-      role: memberRole,
-      avatar: null
-    };
-
-    setMembers(prevMembers => [...prevMembers, newMember]);
-    resetMemberForm();
+    
+    setShowFriendSelector(false);
   };
 
   // Delete member
-  const handleDeleteMember = (index) => {
+  const handleDeleteMember = (e, index) => {
+    // Prevent form submission
+    e.preventDefault();
+    
     // Don't allow deleting yourself (first member)
     if (index === 0) {
       alert("You cannot remove yourself from the goal");
@@ -203,8 +237,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       category,
       start_date: startDate,
       end_date: endDate,
-      visibility,
-      status,
+      status: 'active', // Default status is pending for new goals
       milestones,
       members,
       progress: 0, // Initialize progress at 0%
@@ -312,29 +345,10 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         onChange={(e) => setCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       >
-                        <option value="personal">Personal</option>
-                        <option value="health">Health</option>
-                        <option value="career">Career</option>
-                        <option value="education">Education</option>
-                        <option value="finance">Finance</option>
-                        <option value="social">Social</option>
-                      </select>
-                    </div>
-                    
-                    {/* Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="paused">Paused</option>
+                        <option value="Physical">Physical</option>
+                        <option value="Mental">Mental</option>
+                        <option value="Spiritual">Spiritual</option>
+                        <option value="Social">Social</option>
                       </select>
                     </div>
                   </div>
@@ -347,7 +361,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={startDate}
+                        value={goal?formatDateForInput(startDate):startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                         required
@@ -361,7 +375,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={endDate}
+                        value={goal ?formatDateForInput(endDate):endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                         required
@@ -392,63 +406,17 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             d="M12 4v16m8-8H4"
                           />
                         </svg>
-                        Add Member
+                        Add Members
                       </button>
                     </div>
                     
-                    {/* Member Form */}
-                    {showMemberForm && (
-                      <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-3">
-                          Add Member
-                        </h5>
-                        
-                        <div className="mb-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Email*
-                          </label>
-                          <input
-                            type="email"
-                            value={memberEmail}
-                            onChange={(e) => setMemberEmail(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
-                            placeholder="Enter member email"
-                          />
-                        </div>
-                        
-                        <div className="mb-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Role
-                          </label>
-                          <select
-                            value={memberRole}
-                            onChange={(e) => setMemberRole(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
-                          >
-                            <option value="collaborator">Collaborator</option>
-                            <option value="admin">Admin</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
-                        </div>
-                        
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={resetMemberForm}
-                            className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-100"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSaveMember}
-                            className="px-3 py-1.5 bg-[#4A2BAF] text-white text-sm rounded-lg hover:bg-[#3D2291]"
-                          >
-                            Add Member
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    {/* Friend Selector Component */}
+                    <FriendSelector 
+                      isOpen={showFriendSelector}
+                      onClose={() => setShowFriendSelector(false)}
+                      onSelectFriends={handleFriendsSelected}
+                      initialSelectedFriends={members.filter(member => member.id !== currentUser.id)}
+                    />
                     
                     {/* Members List */}
                     <div className="space-y-2 max-h-[150px] overflow-y-auto">
@@ -475,7 +443,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             {index !== 0 && (
                               <button
                                 type="button"
-                                onClick={() => handleDeleteMember(index)}
+                                onClick={(e) => handleDeleteMember(e, index)}
                                 className="text-red-500 p-1 hover:bg-red-50 rounded"
                               >
                                 <svg
@@ -526,7 +494,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         Add Milestone
                       </button>
                     </div>
-                    
+                    {/* Here I should use the milestone componenet*/}
                     {/* Milestone Form */}
                     {showMilestoneForm && (
                       <div className="bg-gray-50 p-4 rounded-lg mb-4">
@@ -610,7 +578,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => handleEditMilestone(index)}
+                                onClick={(e) => handleEditMilestone(e, index)}
                                 className="text-[#4A2BAF] p-1 hover:bg-[#4A2BAF]/5 rounded"
                               >
                                 <svg
@@ -630,7 +598,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteMilestone(index)}
+                                onClick={(e) => handleDeleteMilestone(e, index)}
                                 className="text-red-500 p-1 hover:bg-red-50 rounded"
                               >
                                 <svg
@@ -658,25 +626,24 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </p>
                     )}
                   </div>
+                
+                  {/* Form Actions */}
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90"
+                    >
+                      {goal ? 'Save Changes' : 'Create Group Goal'}
+                    </button>
+                  </div>
                 </form>
-              </div>
-              
-              {/* Footer */}
-              <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90"
-                >
-                  {goal ? 'Save Changes' : 'Create Group Goal'}
-                </button>
               </div>
             </div>
           </motion.div>

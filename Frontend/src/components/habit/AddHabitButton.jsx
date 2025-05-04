@@ -1,25 +1,17 @@
 // components/habit/AddHabitButton.jsx
 import React from 'react';
-import Button from '../ui/Button';
 
 const AddHabitButton = ({ onClick }) => {
   return (
-    <Button 
+    <button 
       onClick={onClick} 
-      variant="primary" 
-      size="md"
-      className="flex items-center shadow-md hover:shadow-lg transform transition-all duration-300 hover:scale-105"
+      className="px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
     >
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        className="h-5 w-5 mr-2" 
-        viewBox="0 0 20 20" 
-        fill="currentColor"
-      >
-        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
       </svg>
-      Add New Habit
-    </Button>
+      <span>Add New Habit</span>
+    </button>
   );
 };
 

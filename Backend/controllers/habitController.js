@@ -1,48 +1,51 @@
-import pool from '../config/db.js';
+import db from '../config/db.js';
 
-// Get all habits for a user
-// CRUD // Read
-export const getHabits = async (req, res) => {
+// Get all habits for the current user
+const getHabits = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const habits = await pool.query(
-      'SELECT * FROM habits WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
-    );
+    const query = `
+      SELECT * FROM habits
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `;
     
-    res.json(habits.rows);
-  } catch (err) {
-    console.error('Error fetching habits:', err);
-    res.status(500).json({ msg: 'Server error' });
+    const result = await db.query(query, [userId]);
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching habits:', error);
+    res.status(500).json({ message: 'Server error while fetching habits' });
   }
 };
-// Read
-// Get a single habit by ID
-export const getHabitById = async (req, res) => {
+
+// Get a specific habit by ID
+const getHabitById = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
     
-    const habit = await pool.query(
-      'SELECT * FROM habits WHERE id = $1 AND user_id = $2',
-      [habitId, userId]
-    );
+    const query = `
+      SELECT * FROM habits
+      WHERE id = $1 AND user_id = $2
+    `;
     
-    if (habit.rows.length === 0) {
-      return res.status(404).json({ msg: 'Habit not found' });
+    const result = await db.query(query, [habitId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Habit not found' });
     }
     
-    res.json(habit.rows[0]);
-  } catch (err) {
-    console.error('Error fetching habit:', err);
-    res.status(500).json({ msg: 'Server error' });
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching habit:', error);
+    res.status(500).json({ message: 'Server error while fetching habit' });
   }
 };
 
 // Create a new habit
-// Create
-export const createHabit = async (req, res) => {
+const createHabit = async (req, res) => {
   try {
     const userId = req.user.id;
     const {
@@ -56,31 +59,50 @@ export const createHabit = async (req, res) => {
       total_target_days
     } = req.body;
     
-    // Check for required fields
+    // Validate required fields
     if (!title) {
-      return res.status(400).json({ msg: 'Title is required' });
+      return res.status(400).json({ message: 'Title is required' });
     }
     
-    const newHabit = await pool.query(
-      `INSERT INTO habits (
-        user_id, title, description, frequency, reminder_time, 
-        why_reason, start_date, goal_type, total_target_days
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [
-        userId, title, description, frequency, reminder_time,
-        why_reason, start_date, goal_type, total_target_days
-      ]
-    );
+    const query = `
+      INSERT INTO habits (
+        user_id,
+        title,
+        description,
+        frequency,
+        reminder_time,
+        why_reason,
+        start_date,
+        goal_type,
+        total_target_days
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
     
-    res.status(201).json(newHabit.rows[0]);
-  } catch (err) {
-    console.error('Error creating habit:', err);
-    res.status(500).json({ msg: 'Server error' });
+    const values = [
+      userId,
+      title,
+      description || null,
+      frequency || 'daily',
+      reminder_time || null,
+      why_reason || null,
+      start_date || new Date().toISOString().split('T')[0],
+      goal_type || 'lifelong',
+      total_target_days || null
+    ];
+    
+    const result = await db.query(query, values);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating habit:', error);
+    res.status(500).json({ message: 'Server error while creating habit' });
   }
 };
 
-// Update a habit // Update
-export const updateHabit = async (req, res) => {
+// Update a habit
+const updateHabit = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
@@ -95,73 +117,98 @@ export const updateHabit = async (req, res) => {
       total_target_days
     } = req.body;
     
-    // Check for required fields
-    if (!title) {
-      return res.status(400).json({ msg: 'Title is required' });
+    // Validate ownership
+    const checkQuery = `
+      SELECT * FROM habits
+      WHERE id = $1 AND user_id = $2
+    `;
+    
+    const checkResult = await db.query(checkQuery, [habitId, userId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Habit not found or not authorized' });
     }
     
-    // Check if habit exists and belongs to user
-    const habitCheck = await pool.query(
-      'SELECT * FROM habits WHERE id = $1 AND user_id = $2',
-      [habitId, userId]
-    );
-    
-    if (habitCheck.rows.length === 0) {
-      return res.status(404).json({ msg: 'Habit not found or not authorized' });
-    }
-    
-    const updatedHabit = await pool.query(
-      `UPDATE habits SET
-        title = $1,
-        description = $2,
-        frequency = $3,
-        reminder_time = $4,
-        why_reason = $5,
-        start_date = $6,
-        goal_type = $7,
-        total_target_days = $8,
+    // Update the habit
+    const updateQuery = `
+      UPDATE habits
+      SET 
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        frequency = COALESCE($3, frequency),
+        reminder_time = COALESCE($4, reminder_time),
+        why_reason = COALESCE($5, why_reason),
+        start_date = COALESCE($6, start_date),
+        goal_type = COALESCE($7, goal_type),
+        total_target_days = COALESCE($8, total_target_days),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $9 AND user_id = $10
-      RETURNING *`,
-      [
-        title, description, frequency, reminder_time,
-        why_reason, start_date, goal_type, total_target_days,
-        habitId, userId
-      ]
-    );
+      RETURNING *
+    `;
     
-    res.json(updatedHabit.rows[0]);
-  } catch (err) {
-    console.error('Error updating habit:', err);
-    res.status(500).json({ msg: 'Server error' });
+    const updateValues = [
+      title,
+      description,
+      frequency,
+      reminder_time,
+      why_reason,
+      start_date,
+      goal_type,
+      total_target_days,
+      habitId,
+      userId
+    ];
+    
+    const result = await db.query(updateQuery, updateValues);
+    
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating habit:', error);
+    res.status(500).json({ message: 'Server error while updating habit' });
   }
 };
 
-// Delete a habit // Delete
-export const deleteHabit = async (req, res) => {
+// Delete a habit
+const deleteHabit = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
     
-    // Check if habit exists and belongs to user
-    const habitCheck = await pool.query(
-      'SELECT * FROM habits WHERE id = $1 AND user_id = $2',
-      [habitId, userId]
-    );
+    // Validate ownership
+    const checkQuery = `
+      SELECT * FROM habits
+      WHERE id = $1 AND user_id = $2
+    `;
     
-    if (habitCheck.rows.length === 0) {
-      return res.status(404).json({ msg: 'Habit not found or not authorized' });
+    const checkResult = await db.query(checkQuery, [habitId, userId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Habit not found or not authorized' });
     }
     
     // Delete the habit
-    await pool.query(
-      'DELETE FROM habits WHERE id = $1 AND user_id = $2',
-      [habitId, userId]
-    );
+    const deleteQuery = `
+      DELETE FROM habits
+      WHERE id = $1 AND user_id = $2
+      RETURNING *
+    `;
     
-    res.json({ msg: 'Habit deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting habit:', err);
-    res.status(500).json({ msg: 'Server error' });
+    const result = await db.query(deleteQuery, [habitId, userId]);
+    
+    res.status(200).json({
+      message: 'Habit successfully deleted',
+      habit: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting habit:', error);
+    res.status(500).json({ message: 'Server error while deleting habit' });
   }
+};
+
+export default {
+  getHabits,
+  getHabitById,
+  createHabit,
+  updateHabit,
+  deleteHabit
 }; 

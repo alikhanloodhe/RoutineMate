@@ -9,7 +9,7 @@ const CalendarView = ({ habit, trackingData = [] }) => {
   
   // Create an array of dates for the current month
   const daysInMonth = [];
-  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate()+ 1)) {
     daysInMonth.push(new Date(d));
   }
   
@@ -24,8 +24,12 @@ const CalendarView = ({ habit, trackingData = [] }) => {
   if (Array.isArray(trackingData)) {
     trackingData.forEach(item => {
       if (item && item.completed) {
-        const dateStr = new Date(item.date).toISOString().split('T')[0];
+        // const dateStr = new Date(item.date).toISOString().split('T')[0];
+        const dateStr = new Date(item.date).toLocaleDateString('en-CA');
+
+        console.log("Date String:",dateStr);
         completedDates[dateStr] = true;
+        
       }
     });
   }
@@ -36,7 +40,7 @@ const CalendarView = ({ habit, trackingData = [] }) => {
   
   return (
     <div className="mb-8">
-      <h3 className="font-semibold text-xl mb-4 text-gray-800">Progress Calendar</h3>
+  
       <div className="bg-white rounded-xl shadow-md p-5 border border-gray-100">
         <div className="text-center mb-4">
           <h4 className="text-lg font-medium text-gray-700">{monthName} {year}</h4>
@@ -58,7 +62,8 @@ const CalendarView = ({ habit, trackingData = [] }) => {
           
           {/* Calendar days */}
           {daysInMonth.map(date => {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = date.toLocaleDateString('en-CA');
+
             const isCompleted = completedDates[dateStr];
             const isToday = date.toDateString() === today.toDateString();
             const isPast = date < today && !isToday;

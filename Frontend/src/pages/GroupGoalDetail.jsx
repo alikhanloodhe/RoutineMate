@@ -5,8 +5,10 @@ import Sidebar from '../components/sidebar/Sidebar';
 import { motion } from 'framer-motion';
 import { group, activity } from '../components/goal';
 import { getGoalById, updateGoal } from '../utils/goalData';
+import FriendSelector from '../components/goal/group/FriendSelector';
 
 const GroupGoalDetail = () => {
+  const token = localStorage.getItem('token');
   const { goalId } = useParams();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -14,7 +16,7 @@ const GroupGoalDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [activeMilestoneTab, setActiveMilestoneTab] = useState('pending');
+  const [activeMilestoneTab, setActiveMilestoneTab] = useState('all');
   
   // Milestone form state
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
@@ -22,13 +24,18 @@ const GroupGoalDetail = () => {
   const [milestoneDescription, setMilestoneDescription] = useState('');
   const [milestoneDueDate, setMilestoneDueDate] = useState('');
   const [milestoneReminderDate, setMilestoneReminderDate] = useState('');
-  const [milestoneStatus, setMilestoneStatus] = useState('pending');
+  const [milestoneStatus, setMilestoneStatus] = useState('in_progress');
   const [milestoneAssignedTo, setMilestoneAssignedTo] = useState('');
   
   // Member management state
   const [showAddMemberForm, setShowAddMemberForm] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState('collaborator');
+  const [showFriendSelector, setShowFriendSelector] = useState(false);
+  
+  // For milestone editing
+  const [isEditingMilestone, setIsEditingMilestone] = useState(false);
+  const [currentMilestoneId, setCurrentMilestoneId] = useState(null);
   
   // Current user info (in a real app, this would come from auth context)
   const [currentUser, setCurrentUser] = useState({
@@ -45,87 +52,258 @@ const GroupGoalDetail = () => {
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-
-  // Handle personal milestone completion
-  const handlePersonalMilestoneCompletion = (milestoneId, isComplete) => {
-    setPersonalMilestoneProgress(prev => ({
-      ...prev,
-      [milestoneId]: isComplete
-    }));
-    
-    // In a real app, this would save to the backend
-    
-    // Update the goal's overall progress calculation
-    calculateGoalProgress();
-  };
   
-  // Calculate goal progress based on all members' milestone completions
-  const calculateGoalProgress = () => {
-    if (!goal || !goal.milestones || goal.milestones.length === 0) return;
-    
-    // In a real app, this would use data from all members
-    // For now, we'll just use the current user's progress
-    const totalMilestones = goal.milestones.length;
-    let completedCount = 0;
-    
-    goal.milestones.forEach(milestone => {
-      if (personalMilestoneProgress[milestone.id]) {
-        completedCount++;
+  // Initialize current user data from goal members
+  useEffect(() => {
+    if (goal && goal.members) {
+      // Find current user in the goal members
+      const userData = localStorage.getItem('userData');
+      if (userData) {
+        const parsedUserData = JSON.parse(userData);
+        const currentUserId = parsedUserData.userId;
+        
+        const member = goal.members.find(m => m.id === currentUserId);
+        if (member) {
+          setCurrentUser({
+            id: member.id,
+            name: member.name,
+            role: member.role,
+            avatar: null
+          });
+        }
       }
-    });
-    
-    const newProgress = Math.round((completedCount / totalMilestones) * 100);
-    
-    setGoal(prevGoal => ({
-      ...prevGoal,
-      progress: newProgress
-    }));
+    }
+  }, [goal]);
+  
+  const formatDateForInput = (dateStr) => {
+    const d = new Date(dateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // this is what <input type="date"> expects
+  };
+  // Handle personal milestone completion
+  const handlePersonalMilestoneCompletion = async (milestoneId, isComplete) => {
+    console.log(milestoneId);
+    try {
+      // Update the personal milestone progress state
+      setPersonalMilestoneProgress(prev => ({
+        ...prev,
+        [milestoneId]: isComplete
+      }));
+      
+      // Update the milestone status in the goal state
+      setGoal(prevGoal => {
+        const updatedMilestones = prevGoal.milestones.map(milestone => 
+          milestone.milestone_id === milestoneId 
+            ? {...milestone, status: isComplete ? 'completed' : 'in_progress'} 
+            : milestone
+        );
+        
+        // Calculate new progress
+        const totalMilestones = updatedMilestones.length;
+        let completedCount = 0;
+        
+        updatedMilestones.forEach(milestone => {
+          if (milestone.status === 'completed') {
+            completedCount++;
+          }
+        });
+        
+        const newProgress = Math.round((completedCount / totalMilestones) * 100);
+        
+        return {
+          ...prevGoal,
+          milestones: updatedMilestones,
+          progress: newProgress,
+          completedMilestones: completedCount,
+          totalMilestones: totalMilestones
+        };
+      });
+      
+      // Make API call to update milestone status
+      const milestone = goal.milestones.find(m => m.milestone_id === milestoneId);
+
+      if (milestone) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${milestoneId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            status: isComplete ? 'completed' : 'in_progress',
+            completion_date: isComplete ? new Date().toISOString() : null
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update milestone status');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating milestone status:', error);
+      alert('Failed to update milestone status. Please try again.');
+      
+      // Revert the state changes on error
+      setPersonalMilestoneProgress(prev => ({
+        ...prev,
+        [milestoneId]: !isComplete
+      }));
+      
+      setGoal(prevGoal => {
+        const originalStatus = prevGoal.milestones.find(m => m.id === milestoneId)?.status;
+        return {
+          ...prevGoal,
+          milestones: prevGoal.milestones.map(milestone => 
+            milestone.milestone_id === milestoneId ? {...milestone, status: originalStatus} : milestone
+          )
+        };
+      });
+    }
   };
 
-  // Handle adding a new member
-  const handleAddMember = () => {
-    if (!memberEmail.trim()) {
-      alert('Please enter an email address');
+  // Handle adding members from friend selector
+  const handleFriendsSelected = async (selectedFriends) => {
+    if (!selectedFriends || selectedFriends.length === 0) {
       return;
     }
     
-    // In a real app, this would send an invitation to the email
-    // For now, we'll just add a mock member
-    const newMember = {
-      user_id: Date.now().toString(),
-      name: memberEmail.split('@')[0],
-      role: memberRole,
-      status: 'active',
-      join_date: new Date().toISOString(),
-      progress: 0,
-      completed_milestones: 0
-    };
-    
-    setGoal(prevGoal => {
-      // Update member_progress for all milestones to include the new member
-      const updatedMilestones = prevGoal.milestones.map(milestone => ({
-        ...milestone,
-        member_progress: {
-          ...milestone.member_progress,
-          [newMember.user_id]: false
-        }
+    try {
+      // Filter out any friends that are already members
+      const newMembers = selectedFriends.filter(
+        friend => !goal.members.some(member => member.user_id === friend.id)
+      );
+      
+      if (newMembers.length === 0) {
+        alert('Selected friends are already members of this goal');
+        return;
+      }
+      
+      // Prepare new members data
+      const membersToAdd = newMembers.map(friend => ({
+        user_id: friend.id,
+        name: friend.name,
+        email: friend.email,
+        role: 'collaborator',
+        status: 'active',
+        join_date: new Date().toISOString(),
+        progress: 0,
+        completed_milestones: 0
       }));
       
-      return {
+      // In a real app, this would call an API to add members
+      const updatedMembers = [
+        ...goal.members,
+        ...membersToAdd
+      ];
+      
+      // Make API call to update group members
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addMembers/${goalId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ members: membersToAdd }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add members');
+      }
+      
+      // Update goal with new members
+      setGoal(prevGoal => ({
         ...prevGoal,
-        members: [...prevGoal.members, newMember],
-        milestones: updatedMilestones
-      };
-    });
-    
-    // Reset form
-    setMemberEmail('');
-    setMemberRole('collaborator');
-    setShowAddMemberForm(false);
+        members: updatedMembers
+      }));
+      
+      // Reset form
+      setShowFriendSelector(false);
+      
+    } catch (error) {
+      console.error('Error adding members:', error);
+      alert('Failed to add members. Please try again.');
+    }
   };
 
-  // Handle adding a new milestone (admin only)
-  const handleAddMilestone = () => {
+  // Handle editing a milestone
+  const handleEditMilestone = (milestone) => {
+    setMilestoneTitle(milestone.title);
+    setMilestoneDescription(milestone.description);
+    setMilestoneDueDate(milestone.due_date);
+    setMilestoneReminderDate(milestone.reminder_date || '');
+    setCurrentMilestoneId(milestone.milestone_id);
+    setIsEditingMilestone(true);
+    setShowMilestoneForm(true);
+  };
+
+  // Handle deleting a milestone
+  const handleDeleteMilestone = async (milestoneId) => {
+    if (!window.confirm('Are you sure you want to delete this milestone?')) {
+      return;
+    }
+    
+    try {
+      // First update state
+      setGoal(prevGoal => {
+        const updatedMilestones = prevGoal.milestones.filter(m => m.id !== milestoneId);
+        const totalMilestones = updatedMilestones.length;
+        let completedCount = 0;
+        
+        updatedMilestones.forEach(milestone => {
+          if (milestone.status === 'completed') {
+            completedCount++;
+          }
+        });
+        
+        const newProgress = totalMilestones > 0 
+          ? Math.round((completedCount / totalMilestones) * 100)
+          : 0;
+        
+        return {
+          ...prevGoal,
+          milestones: updatedMilestones,
+          progress: newProgress,
+          completedMilestones: completedCount,
+          totalMilestones: totalMilestones
+        };
+      });
+      
+      // Then call API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete milestone');
+      }
+      
+    } catch (error) {
+      console.error('Error deleting milestone:', error);
+      alert('Failed to delete milestone. Please try again.');
+      
+      // Refresh goal data to restore state
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setGoal(data.goal);
+      }
+    }
+  };
+
+  // Handle saving a milestone (new or edited)
+  const handleSaveMilestone = async () => {
     if (!milestoneTitle.trim()) {
       alert('Please enter a milestone title');
       return;
@@ -135,34 +313,119 @@ const GroupGoalDetail = () => {
       alert('Please select a due date');
       return;
     }
-    
-    const newMilestone = {
-      id: Date.now().toString(),
-      title: milestoneTitle,
-      description: milestoneDescription,
-      due_date: milestoneDueDate,
-      reminder_date: milestoneReminderDate || null,
-      member_progress: goal.members.reduce((acc, member) => {
-        acc[member.user_id] = false;
-        return acc;
-      }, {})
-    };
-    
-    // Update goal with new milestone
-    setGoal(prevGoal => ({
-      ...prevGoal,
-      milestones: [...prevGoal.milestones, newMilestone]
-    }));
-    
-    // Reset form
-    setMilestoneTitle('');
-    setMilestoneDescription('');
-    setMilestoneDueDate('');
-    setMilestoneReminderDate('');
-    setShowMilestoneForm(false);
-    
-    // Recalculate progress
-    calculateGoalProgress();
+    try {
+      if (isEditingMilestone && currentMilestoneId) {
+        // Update existing milestone
+        const updatedMilestone = {
+          id: currentMilestoneId,
+          title: milestoneTitle,
+          description: milestoneDescription,
+          due_date: milestoneDueDate,
+          reminder_date: milestoneReminderDate || null,
+          status: goal.milestones.find(m => m.id === currentMilestoneId)?.status || 'in_progress',
+        };
+        
+        // Update milestone in state
+        setGoal(prevGoal => {
+          const updatedMilestones = prevGoal.milestones.map(milestone => 
+            milestone.milestone_id === currentMilestoneId ? updatedMilestone : milestone
+          );
+          
+          return {
+            ...prevGoal,
+            milestones: updatedMilestones
+          };
+        });
+        
+        // Make API call to update milestone
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${currentMilestoneId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            title: milestoneTitle,
+            description: milestoneDescription,
+            due_date: milestoneDueDate,
+            reminder_at: milestoneReminderDate
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update milestone');
+        }
+      } else {
+        // Add new milestone
+        const newMilestone = {
+          id: Date.now().toString(),
+          title: milestoneTitle,
+          description: milestoneDescription,
+          due_date: milestoneDueDate,
+          reminder_date: milestoneReminderDate || null,
+          status: 'in_progress',
+          member_progress: goal.members.reduce((acc, member) => {
+            acc[member.user_id] = false;
+            return acc;
+          }, {})
+        };
+        
+        // Update goal with new milestone and recalculate progress
+        setGoal(prevGoal => {
+          const updatedMilestones = [...prevGoal.milestones, newMilestone];
+          const totalMilestones = updatedMilestones.length;
+          let completedCount = 0;
+          
+          updatedMilestones.forEach(milestone => {
+            if (milestone.status === 'completed') {
+              completedCount++;
+            }
+          });
+          
+          const newProgress = Math.round((completedCount / totalMilestones) * 100);
+          
+          return {
+            ...prevGoal,
+            milestones: updatedMilestones,
+            progress: newProgress,
+            completedMilestones: completedCount,
+            totalMilestones: totalMilestones
+          };
+        });
+        
+        // Make API call to add milestone
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addMilestone/${goalId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            title: milestoneTitle,
+            description: milestoneDescription,
+            due_date: milestoneDueDate,
+            reminder_at: milestoneReminderDate
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to add milestone');
+        }
+      }
+      
+      // Reset form
+      setMilestoneTitle('');
+      setMilestoneDescription('');
+      setMilestoneDueDate('');
+      setMilestoneReminderDate('');
+      setCurrentMilestoneId(null);
+      setIsEditingMilestone(false);
+      setShowMilestoneForm(false);
+      
+    } catch (error) {
+      console.error('Error saving milestone:', error);
+      alert('Failed to save milestone. Please try again.');
+    }
   };
 
   // Handle changing member role
@@ -179,7 +442,7 @@ const GroupGoalDetail = () => {
   };
 
   // Handle removing a member (admin only)
-  const handleRemoveMember = (memberId) => {
+  const handleRemoveMember = async (memberId,goalId) => {
     if (!window.confirm('Are you sure you want to remove this member?')) {
       return;
     }
@@ -188,6 +451,22 @@ const GroupGoalDetail = () => {
       ...prevGoal,
       members: prevGoal.members.filter(member => member.user_id !== memberId)
     }));
+    // Make API call to remove member
+    // goal Id ...
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/removeMember/${goalId}/${memberId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    if(!res.ok) {
+      console.error('Error removing member:', res);
+      alert('Failed to remove member. Please try again.');
+    }
+    else{
+      alert('Member removed successfully');
+    }
   };
 
   // Handle edit goal (admin only)
@@ -197,6 +476,39 @@ const GroupGoalDetail = () => {
       return;
     }
     setShowFormModal(true);
+  };
+
+  // Handle delete goal (admin only)
+  const handleDeleteGoal = async () => {
+    if (currentUser.role !== 'admin') {
+      alert('Only admins can delete the goal');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteGroupGoal/${goalId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete goal');
+      }
+
+      // On successful deletion, navigate back to goals page
+      alert('Goal deleted successfully');
+      navigate('/goals');
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+      alert('Failed to delete goal. Please try again.');
+    }
   };
 
   // Handle update goal
@@ -217,31 +529,45 @@ const GroupGoalDetail = () => {
       navigate('/goals');
     }
   };
-
-  // Fetch goal data
   useEffect(() => {
-    setIsLoading(true);
-    
-    // Small timeout to simulate API call
-    setTimeout(() => {
+    const fetchGoalData = async () => {
+      setIsLoading(true);
+  
       try {
-        const foundGoal = getGoalById(goalId);
-        
-        if (foundGoal && foundGoal.goal_type === 'group') {
-          setGoal(foundGoal);
-          setIsLoading(false);
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+  
+  
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+  
+        if (!res.ok) {
+          throw new Error('Failed to fetch goal details');
+        }
+  
+        const data = await res.json();
+        if (data.goal && data.goal.goal_type === 'group') {
+          setGoal(data.goal);
         } else {
           console.error('Group goal not found:', goalId);
           alert('Group goal not found. Redirecting to goals page.');
           navigate('/goals');
         }
+  
       } catch (error) {
         console.error('Error fetching goal data:', error);
-        setIsLoading(false);
         alert('Error loading goal details. Redirecting to goals page.');
         navigate('/goals');
+      } finally {
+        setIsLoading(false);
       }
-    }, 500);
+    };
+  
+    fetchGoalData();
   }, [goalId, navigate]);
 
   // Format date
@@ -289,7 +615,7 @@ const GroupGoalDetail = () => {
     switch (status) {
       case 'completed':
         return 'bg-green-500';
-      case 'pending':
+      case 'in_progress':
         return 'bg-yellow-500';
       case 'overdue':
         return 'bg-red-500';
@@ -379,8 +705,25 @@ const GroupGoalDetail = () => {
               <div className="w-16 h-16 border-4 border-[#4A2BAF] border-t-transparent rounded-full animate-spin"></div>
               <p className="mt-4 text-[#1C1C1C] font-medium">Loading goal details...</p>
             </div>
-          ) : goal ? (
+          ) : (
             <>
+              {/* Back button */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <button
+                  onClick={() => navigate('/goals')}
+                  className="flex items-center text-gray-600 hover:text-[#4A2BAF] mb-6 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to Goals
+                </button>
+              </motion.div>
+              
               {/* Goal Header */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -408,9 +751,14 @@ const GroupGoalDetail = () => {
                     >
                       Edit Goal
                     </button>
-                    <button className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200">
-                      Share
-                    </button>
+                    {currentUser.role === 'admin' && (
+                      <button 
+                        onClick={handleDeleteGoal} 
+                        className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                      >
+                        Delete Goal
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -420,7 +768,9 @@ const GroupGoalDetail = () => {
                   <div className="w-full sm:w-auto flex-1">
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium text-gray-700">Progress</span>
-                      <span className="text-sm font-medium text-gray-700">{goal.progress}%</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {goal.completedMilestones || 0} of {goal.totalMilestones || goal.milestones?.length || 0} milestones ({goal.progress}%)
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
@@ -433,7 +783,7 @@ const GroupGoalDetail = () => {
                   <div className="flex items-center gap-1">
                     {goal.members.slice(0, 4).map((member, index) => (
                       <div 
-                        key={member.user_id} 
+                        key={member.id} 
                         className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF] -ml-1 first:ml-0 border-2 border-white"
                         title={member.name}
                       >
@@ -446,16 +796,6 @@ const GroupGoalDetail = () => {
                         +{goal.members.length - 4}
                       </div>
                     )}
-                    
-                    <button 
-                      onClick={() => setShowAddMemberForm(true)}
-                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors duration-200 ml-1"
-                      title="Add member"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -516,19 +856,37 @@ const GroupGoalDetail = () => {
                         <h2 className="text-lg font-semibold text-[#1C1C1C]">Milestones</h2>
                         {currentUser.role === 'admin' && (
                           <button 
-                            onClick={() => setShowMilestoneForm(true)}
-                            className="text-sm text-[#4A2BAF] font-medium hover:underline flex items-center"
+                            onClick={() => {
+                              setIsEditingMilestone(false);
+                              setCurrentMilestoneId(null);
+                              setMilestoneTitle('');
+                              setMilestoneDescription('');
+                              setMilestoneDueDate('');
+                              setMilestoneReminderDate('');
+                              setShowMilestoneForm(true);
+                            }}
+                            className="px-3 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            Add Milestone
+                            <span>Add Milestone</span>
                           </button>
                         )}
                       </div>
                       
                       {/* Milestone Tabs */}
                       <div className="flex border-b border-gray-200 mb-6">
+                        <button
+                          onClick={() => setActiveMilestoneTab('all')}
+                          className={`py-2 px-4 text-sm font-medium ${
+                            activeMilestoneTab === 'all'
+                              ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          All
+                        </button>
                         <button
                           onClick={() => setActiveMilestoneTab('pending')}
                           className={`py-2 px-4 text-sm font-medium ${
@@ -552,26 +910,58 @@ const GroupGoalDetail = () => {
                       </div>
                       
                       {/* Milestone List */}
+                      {console.log(goal)}
                       <div className="space-y-4">
                         {goal.milestones.filter(milestone => 
-                          activeMilestoneTab === 'completed' 
-                            ? milestone.status === 'completed' 
-                            : milestone.status !== 'completed'
+                          activeMilestoneTab === 'all' 
+                            ? true
+                            : activeMilestoneTab === 'completed' 
+                              ? milestone.status === 'completed' 
+                              : milestone.status !== 'completed'
                         ).map(milestone => (
                           <div 
-                            key={milestone.id}
+                            key={milestone.milestone_id}
                             className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200"
                           >
                             <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3">
+                              <div className="flex items-start gap-3 flex-1">
                                 <input
                                   type="checkbox"
                                   checked={milestone.status === 'completed'}
-                                  onChange={(e) => handlePersonalMilestoneCompletion(milestone.id, e.target.checked)}
+                                  onChange={(e) => handlePersonalMilestoneCompletion(milestone.milestone_id, e.target.checked)}
                                   className="mt-1.5 h-4 w-4 rounded border-gray-300 text-[#4A2BAF] focus:ring-[#4A2BAF]"
                                 />
-                                <div>
-                                  <h3 className="font-medium text-[#1C1C1C]">{milestone.title}</h3>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="font-medium text-[#1C1C1C]">{milestone.title}</h3>
+                                    <div className="flex items-center space-x-2">
+                                      {milestone.status === 'completed' && (
+                                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
+                                          Completed
+                                        </span>
+                                      )}
+                                      {currentUser.role === 'admin' && (
+                                        <>
+                                          <button
+                                            onClick={() => handleEditMilestone(milestone)}
+                                            className="text-[#4A2BAF] hover:text-opacity-70"
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteMilestone(milestone.milestone_id)}
+                                            className="text-red-500 hover:text-red-700"
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
                                   <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
                                   
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
@@ -590,30 +980,31 @@ const GroupGoalDetail = () => {
                                         Completed: {formatDate(milestone.completion_date)}
                                       </div>
                                     )}
-                                    
-                                    {milestone.assigned_to && (
-                                      <div className="flex items-center text-sm text-gray-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        Assigned to: {milestone.assigned_to.name}
-                                      </div>
-                                    )}
                                   </div>
+                                  
+                                  {milestone.status === 'completed' && (
+                                    <button 
+                                      onClick={() => handlePersonalMilestoneCompletion(milestone.milestone_id, false)}
+                                      className="mt-3 text-xs text-gray-500 hover:text-gray-700 flex items-center"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                      Mark as Incomplete
+                                    </button>
+                                  )}
                                 </div>
-                              </div>
-                              
-                              <div className="flex">
-                                <div className={`h-2 w-2 rounded-full mt-2 ${getMilestoneStatusColor(milestone.status)}`}></div>
                               </div>
                             </div>
                           </div>
                         ))}
                         
                         {goal.milestones.filter(milestone => 
-                          activeMilestoneTab === 'completed' 
-                            ? milestone.status === 'completed' 
-                            : milestone.status !== 'completed'
+                          activeMilestoneTab === 'all' 
+                            ? true
+                            : activeMilestoneTab === 'completed' 
+                              ? milestone.status === 'completed' 
+                              : milestone.status !== 'completed'
                         ).length === 0 && (
                           <div className="text-center py-8">
                             <p className="text-gray-500">
@@ -640,7 +1031,7 @@ const GroupGoalDetail = () => {
                       <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-semibold text-[#1C1C1C]">Team Members</h2>
                         <button
-                          onClick={() => setShowAddMemberForm(true)}
+                          onClick={() => setShowFriendSelector(true)}
                           className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200 flex items-center space-x-1"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -677,7 +1068,8 @@ const GroupGoalDetail = () => {
                                 : 0;
                               
                               return (
-                                <tr key={member.user_id} className="hover:bg-gray-50">
+                                <tr key={member.id} className="hover:bg-gray-50">
+                                  {console.log(member)}
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                       <div className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
@@ -715,7 +1107,7 @@ const GroupGoalDetail = () => {
                                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     {member.role !== 'admin' && (
                                       <button
-                                        onClick={() => handleRemoveMember(member.user_id)}
+                                        onClick={() => handleRemoveMember(member.id,goal.goal_id)}
                                         className="text-red-600 hover:text-red-900"
                                       >
                                         Remove
@@ -881,94 +1273,18 @@ const GroupGoalDetail = () => {
                 </div>
               </div>
             </>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
-              <div className="bg-[#4A2BAF]/5 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#4A2BAF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">Goal Not Found</h2>
-              <p className="text-gray-500 max-w-md mb-6">The goal you're looking for doesn't exist or you don't have permission to view it.</p>
-              <button 
-                onClick={() => navigate('/goals')}
-                className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-              >
-                Back to Goals
-              </button>
-            </div>
           )}
         </div>
       </div>
       
-      {/* Add Member Form Modal */}
-      {showAddMemberForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fadeIn">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-[#1C1C1C]">Add Team Member</h3>
-              <button 
-                onClick={() => setShowAddMemberForm(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="memberEmail" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              <input
-                type="email"
-                id="memberEmail"
-                value={memberEmail}
-                onChange={(e) => setMemberEmail(e.target.value)}
-                placeholder="Enter email address"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                This will send an invitation to join this group goal
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <label htmlFor="memberRole" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <select
-                id="memberRole"
-                value={memberRole}
-                onChange={(e) => setMemberRole(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
-              >
-                <option value="collaborator">Collaborator</option>
-                <option value="admin">Admin</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                {memberRole === 'admin' 
-                  ? 'Admin can manage goal, members, and all aspects of the project.' 
-                  : 'Collaborator can track progress and post updates.'
-                }
-              </p>
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setShowAddMemberForm(false)}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAddMember}
-                className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200"
-              >
-                Add Member
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Friend Selector Modal */}
+      {showFriendSelector && (
+        <FriendSelector
+          isOpen={showFriendSelector}
+          onClose={() => setShowFriendSelector(false)}
+          onSelectFriends={handleFriendsSelected}
+          initialSelectedFriends={[]}
+        />
       )}
       
       {/* Edit Goal Modal */}
@@ -986,9 +1302,19 @@ const GroupGoalDetail = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-semibold text-[#1C1C1C]">Add New Milestone</h3>
+              <h3 className="text-lg font-semibold text-[#1C1C1C]">
+                {isEditingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
+              </h3>
               <button 
-                onClick={() => setShowMilestoneForm(false)}
+                onClick={() => {
+                  setShowMilestoneForm(false);
+                  setIsEditingMilestone(false);
+                  setCurrentMilestoneId(null);
+                  setMilestoneTitle('');
+                  setMilestoneDescription('');
+                  setMilestoneDueDate('');
+                  setMilestoneReminderDate('');
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -1037,41 +1363,60 @@ const GroupGoalDetail = () => {
                   <input
                     type="date"
                     id="milestoneDueDate"
-                    value={milestoneDueDate}
+                    value={formatDateForInput(milestoneDueDate)}
                     onChange={(e) => setMilestoneDueDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                   />
                 </div>
                 
-                <div>
+                {/* <div>
                   <label htmlFor="milestoneReminderDate" className="block text-sm font-medium text-gray-700 mb-1">
                     Reminder Date (Optional)
                   </label>
                   <input
                     type="date"
                     id="milestoneReminderDate"
-                    value={milestoneReminderDate}
+                    value={formatDateForInput(milestoneReminderDate)}
                     onChange={(e) => setMilestoneReminderDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                   />
-                </div>
+                </div> */}
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Set Reminder (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={milestoneReminderDate}
+                      onChange={(e) => setMilestoneReminderDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                    />
+                  </div>
               </div>
             </div>
             
             <div className="flex justify-end mt-6 space-x-2">
               <button
                 type="button"
-                onClick={() => setShowMilestoneForm(false)}
+                onClick={() => {
+                  setShowMilestoneForm(false);
+                  setIsEditingMilestone(false);
+                  setCurrentMilestoneId(null);
+                  setMilestoneTitle('');
+                  setMilestoneDescription('');
+                  setMilestoneDueDate('');
+                  setMilestoneReminderDate('');
+                }}
                 className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleAddMilestone}
+                onClick={handleSaveMilestone}
                 className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200"
               >
-                Save Milestone
+                {isEditingMilestone ? 'Update Milestone' : 'Save Milestone'}
               </button>
             </div>
           </div>

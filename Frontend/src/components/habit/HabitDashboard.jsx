@@ -1,8 +1,9 @@
 // components/habit/HabitDashboard.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import DashboardStats from './DashboardStats';
 import HabitList from './HabitList';
 import AddHabitButton from './AddHabitButton';
+import { motion } from 'framer-motion';
 
 const HabitDashboard = ({ 
   habits,
@@ -16,27 +17,74 @@ const HabitDashboard = ({
   completionStatus,
   streaks
 }) => {
+  // Log when completion status changes
+  useEffect(() => {
+    console.log('HabitDashboard received updated completionStatus:', completionStatus);
+  }, [completionStatus]);
+
+  // Debug wrapper for toggle complete
+  const handleToggleComplete = (habitId, completed) => {
+    console.log(`HabitDashboard: forwarding toggle for habit ${habitId} to ${completed}`);
+    onToggleComplete(habitId, completed);
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-        <div className="text-left w-full sm:w-auto">
-          <h1 className="text-3xl font-bold text-gray-800 mb-1">Your Habits</h1>
-          <p className="text-gray-600">Track and maintain your daily routines</p>
+    <div className="p-6 flex-1">
+      {/* Header with Add Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white rounded-xl shadow-sm p-6 mb-6"
+      >
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1C1C1C]">Your Habits</h1>
+            <p className="text-gray-600 mt-1">Track and maintain your daily routines</p>
+          </div>
+          <div>
+            <button 
+              onClick={onAddHabit} 
+              className="px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add New Habit</span>
+            </button>
+          </div>
         </div>
-        <div>
-          <AddHabitButton onClick={onAddHabit} />
+        
+        {/* Progress Overview */}
+        <div className="w-full">
+          <div className="flex justify-between mb-1">
+            <span className="text-sm font-medium text-gray-700">Success Rate</span>
+            <span className="text-sm font-medium text-gray-700">
+              {successRate}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
+              style={{ width: `${successRate}%` }}
+            ></div>
+          </div>
         </div>
+      </motion.div>
+      
+      {/* Stats Cards */}
+      <div className="mb-6">
+        <DashboardStats 
+          totalHabits={totalHabits}
+          activeStreaks={activeStreaks}
+          successRate={successRate}
+        />
       </div>
       
-      <DashboardStats 
-        totalHabits={totalHabits}
-        activeStreaks={activeStreaks}
-        successRate={successRate}
-      />
-      
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">All Habits</h2>
+      {/* Habits List */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-[#1C1C1C]">All Habits</h2>
           {habits.length > 0 && (
             <div className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
               {habits.length} habit{habits.length !== 1 ? 's' : ''}
@@ -46,7 +94,7 @@ const HabitDashboard = ({
         
         <HabitList 
           habits={habits}
-          onToggleComplete={onToggleComplete}
+          onToggleComplete={handleToggleComplete}
           onViewDetails={onViewDetails}
           onEditHabit={onEditHabit}
           completionStatus={completionStatus}

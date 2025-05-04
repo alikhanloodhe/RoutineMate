@@ -15,7 +15,7 @@ const GroupGoalForm = ({
   const [endDate, setEndDate] = useState('');
   const [milestones, setMilestones] = useState([]);
   const [members, setMembers] = useState([]);
-  const [visibility, setVisibility] = useState('private');
+  // const [visibility, setVisibility] = useState('private');
   const [friends, setFriends] = useState([]);
   const token = localStorage.getItem('token') || '';
   // Friend search
@@ -58,21 +58,7 @@ const GroupGoalForm = ({
   //   { id: '5', name: 'Casey Johnson', avatar: '' },
   // ];
   
-  const fetchFriends = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/friends/getFriends`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await res.json();
-      if (res.ok) setFriends(data);
-    } catch (error) {
-      console.error('Error fetching friends:', error);
-    }
-  };
-  fetchFriends();
+  
   
   // If editing, populate form with goal data
   useEffect(() => {
@@ -80,7 +66,7 @@ const GroupGoalForm = ({
       setTitle(goal.title || '');
       setDescription(goal.description || '');
       setCategory(goal.category || '');
-      setVisibility(goal.visibility || 'private');
+      // setVisibility(goal.visibility || 'private');
       setStartDate(goal.start_date ? formatDateForInput(goal.start_date) : '');
       setEndDate(goal.end_date ? formatDateForInput(goal.end_date) : '');
       setMilestones(goal.milestones || []);
@@ -221,7 +207,7 @@ const GroupGoalForm = ({
       start_date: startDate,
       end_date: endDate,
       goal_type: 'group',
-      visibility,
+      // visibility,
       milestones,
       members: formattedMembers,
       // Add additional properties for existing goals
@@ -429,6 +415,7 @@ const GroupGoalForm = ({
               <div className="border border-gray-200 rounded-md mb-3 max-h-40 overflow-y-auto">
                 {filteredFriends.map(friend => (
                   <div 
+              
                     key={friend.id}
                     className="p-2 hover:bg-gray-100 cursor-pointer flex items-center"
                     onClick={() => handleAddFriend(friend)}

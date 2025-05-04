@@ -74,8 +74,8 @@ const HabitPage = () => {
         // Get API URL from environment or use default
         const apiUrl = getApiUrl();
         
-        // Fetch habits - Use the clear URL pattern with /getHabits
-        const habitsResponse = await fetch(`${apiUrl}/api/habits/getHabits`, {
+        // Fetch habits - Updated to match goal API style
+        const habitsResponse = await fetch(`${apiUrl}/api/habits`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -93,13 +93,16 @@ const HabitPage = () => {
         }
         
         const habitsData = await habitsResponse.json();
+        console.log('Habits fetched:', habitsData);
         setHabits(habitsData);
 
-        // Fetch today's date for tracking data
-        const today = new Date().toISOString().split('T')[0];
+        // Fetch today's date for tracking data in local timezone
+        const today = getLocalDateString(new Date());
+        console.log('Today\'s date for tracking:', today);
         
         // Fetch tracking data for today - all habits, not just completed ones
-        const trackingResponse = await fetch(`${apiUrl}/api/tracking/date/${today}`, {
+        // Updated to match goal API style
+        const trackingResponse = await fetch(`${apiUrl}/api/habit-tracking/date/${today}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -110,7 +113,26 @@ const HabitPage = () => {
         }
         
         const trackingData = await trackingResponse.json();
-        setHabitTracking(trackingData);
+        console.log('Tracking data fetched:', trackingData);
+        
+        // Normalize date formats in the tracking data
+        const normalizedTrackingData = trackingData.map(record => {
+          // Ensure date is in consistent format
+          if (record.date && record.date.includes('T')) {
+            const recordDateObj = new Date(record.date);
+            record.date = getLocalDateString(recordDateObj);
+          }
+          return record;
+        });
+        
+        console.log('Normalized tracking data:', normalizedTrackingData);
+        setHabitTracking(normalizedTrackingData);
+
+        // Log completion status after data is set
+        setTimeout(() => {
+          const completionStatus = getCompletionStatus();
+          console.log('Calculated completion status:', completionStatus);
+        }, 100);
         
         setLoading(false);
       } catch (err) {
@@ -131,7 +153,8 @@ const HabitPage = () => {
       
       const apiUrl = getApiUrl();
       
-      const response = await fetch(`${apiUrl}/api/tracking/habit/${habitId}`, {
+      // Updated to match goal API style
+      const response = await fetch(`${apiUrl}/api/habit-tracking/habit/${habitId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -142,7 +165,20 @@ const HabitPage = () => {
       }
       
       const trackingData = await response.json();
-      setSelectedHabitTracking(trackingData);
+      console.log('Habit tracking data fetched:', trackingData);
+      
+      // Normalize date formats in the tracking data
+      const normalizedTrackingData = trackingData.map(record => {
+        // Ensure date is in consistent format using local timezone
+        if (record.date && record.date.includes('T')) {
+          const recordDateObj = new Date(record.date);
+          record.date = getLocalDateString(recordDateObj);
+        }
+        return record;
+      });
+      
+      console.log('Normalized habit tracking data:', normalizedTrackingData);
+      setSelectedHabitTracking(normalizedTrackingData);
     } catch (err) {
       console.error("Error fetching habit tracking data:", err);
       setError("Failed to load habit details. Please try again.");
@@ -151,8 +187,14 @@ const HabitPage = () => {
   
   // Get completion status directly from the tracking data
   const getCompletionStatus = () => {
+    console.log('Computing completion status...');
+    console.log('Current habits:', habits);
+    console.log('Current habitTracking:', habitTracking);
+    
     const status = {};
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's date in YYYY-MM-DD format, avoiding timezone issues
+    const today = getLocalDateString(new Date());
+    console.log('Today\'s date format for comparison:', today);
     
     // Set default status to false for all habits
     habits.forEach(habit => {
@@ -161,24 +203,62 @@ const HabitPage = () => {
     
     // Update status for habits that have tracking records for today
     habitTracking.forEach(record => {
-      if (record.date === today) {
+      console.log('Checking tracking record:', record);
+      
+      // Extract date from record.date - handling both timestamp and plain date formats
+      let recordDate = record.date;
+      if (recordDate && recordDate.includes('T')) {
+        // If it's a timestamp format, we need to parse it correctly to match the client's timezone
+        const recordDateObj = new Date(recordDate);
+        recordDate = getLocalDateString(recordDateObj);
+      }
+      
+      console.log('Record date:', recordDate, 'Today:', today, 'Match?', recordDate === today);
+      
+      if (recordDate === today) {
+        console.log(`Setting habit ${record.habit_id} completion to ${record.completed}`);
         status[record.habit_id] = record.completed;
       }
     });
     
+    console.log('Final completion status:', status);
     return status;
+  };
+  
+  // Helper function to get a date string in YYYY-MM-DD format using local timezone
+  const getLocalDateString = (date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
   
   // Calculate streak data for each habit based on tracking data
   const getStreakData = () => {
     const streaks = {};
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString(new Date());
     
     habits.forEach(habit => {
       // Get tracking records for this habit, sorted by date
       const habitRecords = habitTracking
-        .filter(record => record.habit_id === habit.id && record.completed)
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
+        .filter(record => {
+          // First normalize the date if needed
+          let recordDate = record.date;
+          if (recordDate && recordDate.includes('T')) {
+            const recordDateObj = new Date(recordDate);
+            recordDate = getLocalDateString(recordDateObj);
+          }
+          return record.habit_id === habit.id && record.completed;
+        })
+        .sort((a, b) => {
+          // Normalize dates for comparison
+          const dateA = a.date.includes('T') 
+            ? getLocalDateString(new Date(a.date)) 
+            : a.date;
+            
+          const dateB = b.date.includes('T') 
+            ? getLocalDateString(new Date(b.date)) 
+            : b.date;
+            
+          return new Date(dateA) - new Date(dateB);
+        });
       
       // Calculate current streak
       let currentStreak = 0;
@@ -186,13 +266,18 @@ const HabitPage = () => {
       // For daily habits, we need to check consecutive days
       if (habit.frequency === 'daily') {
         // Start from the most recent day and go backwards
-        let checkDate = new Date(today);
+        let checkDate = new Date();
         
         while (true) {
-          const dateStr = checkDate.toISOString().split('T')[0];
-          const foundRecord = habitTracking.find(
-            record => record.habit_id === habit.id && record.date === dateStr && record.completed
-          );
+          const dateStr = getLocalDateString(checkDate);
+          const foundRecord = habitTracking.find(record => {
+            // Normalize the date for comparison
+            const recordDate = record.date.includes('T') 
+              ? getLocalDateString(new Date(record.date)) 
+              : record.date;
+              
+            return record.habit_id === habit.id && recordDate === dateStr && record.completed;
+          });
           
           // If completed, increment streak, otherwise break
           if (foundRecord) {
@@ -237,7 +322,11 @@ const HabitPage = () => {
     setShowAddModal(true);
   };
   
+  // View details for a specific habit
   const handleViewDetails = async (habitId) => {
+    // Skip view details processing if the habit is being marked complete
+    // Instead, we'll rely on the HabitCard component to properly handle the checkbox click
+    
     const habit = habits.find(h => h.id === habitId);
     setSelectedHabit(habit);
     
@@ -266,8 +355,8 @@ const HabitPage = () => {
       const token = getToken();
       if (!token) return;
       
-      // Delete habit from API - Use a clearer API path
-      const response = await fetch(`${apiUrl}/api/habits/deleteHabit/${selectedHabit.id}`, {
+      // Delete habit from API - Updated to match goal API style
+      const response = await fetch(`${apiUrl}/api/habits/${selectedHabit.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -316,13 +405,16 @@ const HabitPage = () => {
     }
   };
   
+  // Handle toggling habit completion
   const handleToggleComplete = async (habitId, completed) => {
     try {
+      console.log(`handleToggleComplete called for habit ${habitId}, completed=${completed}`);
       const apiUrl = getApiUrl();
       const token = getToken();
       if (!token) return;
       
-      const today = new Date().toISOString().split('T')[0];
+      // Get today's date in local timezone format
+      const today = getLocalDateString(new Date());
       
       // Find the habit to update
       const habit = habits.find(h => h.id === habitId);
@@ -330,11 +422,20 @@ const HabitPage = () => {
         console.error("Habit not found with ID:", habitId);
         return;
       }
+      console.log('Found habit to update:', habit);
 
       // Find if there's already a tracking record for today
-      const existingRecord = habitTracking.find(
-        record => record.habit_id === habitId && record.date === today
-      );
+      const existingRecord = habitTracking.find(record => {
+        // Extract date from record.date
+        let recordDate = record.date;
+        if (recordDate && recordDate.includes('T')) {
+          const recordDateObj = new Date(recordDate);
+          recordDate = getLocalDateString(recordDateObj);
+        }
+        return record.habit_id === habitId && recordDate === today;
+      });
+      
+      console.log('Existing tracking record:', existingRecord);
       
       // Create a temporary updated tracking record
       const tempUpdatedRecord = {
@@ -344,20 +445,37 @@ const HabitPage = () => {
         date: today,
         completed: completed
       };
+      console.log('Created temporary tracking record:', tempUpdatedRecord);
+      
+      console.log('Before update habitTracking:', habitTracking);
       
       // Update the local state with the temporary record for immediate UI feedback
       if (existingRecord) {
         // Update existing record in habitTracking
-        setHabitTracking(prevTracking => 
-          prevTracking.map(record => 
-            (record.habit_id === habitId && record.date === today) 
-              ? tempUpdatedRecord 
-              : record
-          )
-        );
+        setHabitTracking(prevTracking => {
+          const updatedTracking = prevTracking.map(record => {
+            // Extract date for comparison
+            let recordDate = record.date;
+            if (recordDate && recordDate.includes('T')) {
+              const recordDateObj = new Date(recordDate);
+              recordDate = getLocalDateString(recordDateObj);
+            }
+            
+            if (record.habit_id === habitId && recordDate === today) {
+              return tempUpdatedRecord;
+            }
+            return record;
+          });
+          console.log('Updated habitTracking (existing record):', updatedTracking);
+          return updatedTracking;
+        });
       } else {
         // Add new record to habitTracking
-        setHabitTracking(prevTracking => [...prevTracking, tempUpdatedRecord]);
+        setHabitTracking(prevTracking => {
+          const updatedTracking = [...prevTracking, tempUpdatedRecord];
+          console.log('Updated habitTracking (new record):', updatedTracking);
+          return updatedTracking;
+        });
       }
       
       // Show pending toast
@@ -367,8 +485,14 @@ const HabitPage = () => {
         type: 'info'
       });
       
-      // Call the API to toggle completion - Use a clearer API path
-      const response = await fetch(`${apiUrl}/api/tracking/toggleCompletion`, {
+      // Call the API to toggle completion - Updated to match goal API style
+      console.log('Calling API to toggle completion:', {
+        habit_id: habitId,
+        date: today,
+        completed: completed
+      });
+      
+      const response = await fetch(`${apiUrl}/api/habit-tracking/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,37 +510,76 @@ const HabitPage = () => {
       }
       
       const updatedRecord = await response.json();
+      console.log('Received updated record from API:', updatedRecord);
       
       // Update habit tracking in state based on server response
       setHabitTracking(currentTracking => {
-        const recordExists = currentTracking.some(
-          record => record.habit_id === habitId && record.date === today
-        );
+        // Check if a record exists for today
+        const recordExists = currentTracking.some(record => {
+          // Extract date for comparison
+          let recordDate = record.date;
+          if (recordDate && recordDate.includes('T')) {
+            const recordDateObj = new Date(recordDate);
+            recordDate = getLocalDateString(recordDateObj);
+          }
+          return record.habit_id === habitId && recordDate === today;
+        });
         
+        let newTracking;
         if (recordExists) {
           // Update existing record
-          return currentTracking.map(record => {
-            if (record.habit_id === habitId && record.date === today) {
+          newTracking = currentTracking.map(record => {
+            // Extract date for comparison
+            let recordDate = record.date;
+            if (recordDate && recordDate.includes('T')) {
+              const recordDateObj = new Date(recordDate);
+              recordDate = getLocalDateString(recordDateObj);
+            }
+            
+            if (record.habit_id === habitId && recordDate === today) {
               return updatedRecord;
             }
             return record;
           });
         } else {
           // Add new record
-          return [...currentTracking, updatedRecord];
+          newTracking = [...currentTracking, updatedRecord];
         }
+        
+        console.log('Final habitTracking after API call:', newTracking);
+        
+        // Re-calculate completion status for debugging
+        setTimeout(() => {
+          const completionStatus = getCompletionStatus();
+          console.log('Re-calculated completion status after toggle:', completionStatus);
+        }, 0);
+        
+        return newTracking;
       });
 
       // Also update selectedHabitTracking if we're viewing the habit details
       if (selectedHabit && selectedHabit.id === habitId) {
         setSelectedHabitTracking(currentTracking => {
-          const recordExists = currentTracking.some(
-            record => record.date === today
-          );
+          const recordExists = currentTracking.some(record => {
+            // Extract date for comparison
+            let recordDate = record.date;
+            if (recordDate && recordDate.includes('T')) {
+              const recordDateObj = new Date(recordDate);
+              recordDate = getLocalDateString(recordDateObj);
+            }
+            return recordDate === today;
+          });
           
           if (recordExists) {
             return currentTracking.map(record => {
-              if (record.date === today) {
+              // Extract date for comparison
+              let recordDate = record.date;
+              if (recordDate && recordDate.includes('T')) {
+                const recordDateObj = new Date(recordDate);
+                recordDate = getLocalDateString(recordDateObj);
+              }
+              
+              if (recordDate === today) {
                 return updatedRecord;
               }
               return record;
@@ -426,7 +589,7 @@ const HabitPage = () => {
           }
         });
       }
-
+      
       // Show success toast
       setToast({
         show: true,
@@ -464,10 +627,11 @@ const HabitPage = () => {
       // Determine if this is a create or update operation
       const isNewHabit = !formData.id;
       const method = isNewHabit ? 'POST' : 'PUT';
-      // Use clearer API paths
+      
+      // Updated to match goal API style
       const url = isNewHabit 
-        ? `${apiUrl}/api/habits/createHabit` 
-        : `${apiUrl}/api/habits/updateHabit/${formData.id}`;
+        ? `${apiUrl}/api/habits` 
+        : `${apiUrl}/api/habits/${formData.id}`;
       
       // Call the API to create or update the habit
       const response = await fetch(url, {
@@ -542,15 +706,33 @@ const HabitPage = () => {
     // Sort tracking data by date
     const sortedData = [...selectedHabitTracking]
       .filter(record => record.completed)
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      .sort((a, b) => {
+        // Normalize dates for sorting
+        const dateA = a.date.includes('T') 
+          ? getLocalDateString(new Date(a.date)) 
+          : a.date;
+        const dateB = b.date.includes('T') 
+          ? getLocalDateString(new Date(b.date)) 
+          : b.date;
+        return new Date(dateA) - new Date(dateB);
+      });
     
     // Calculate best streak
     for (let i = 0; i < sortedData.length; i++) {
       if (i === 0) {
         tempStreak = 1;
       } else {
-        const prevDate = new Date(sortedData[i-1].date);
-        const currDate = new Date(sortedData[i].date);
+        // Normalize dates for comparison
+        const prevDateStr = sortedData[i-1].date.includes('T') 
+          ? getLocalDateString(new Date(sortedData[i-1].date)) 
+          : sortedData[i-1].date;
+        
+        const currDateStr = sortedData[i].date.includes('T') 
+          ? getLocalDateString(new Date(sortedData[i].date)) 
+          : sortedData[i].date;
+        
+        const prevDate = new Date(prevDateStr);
+        const currDate = new Date(currDateStr);
         const diffDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24));
         
         if (diffDays === 1) {
@@ -568,10 +750,14 @@ const HabitPage = () => {
     let checkDate = new Date(today);
     
     while (true) {
-      const dateStr = checkDate.toISOString().split('T')[0];
-      const foundRecord = selectedHabitTracking.find(
-        record => record.date === dateStr && record.completed
-      );
+      const dateStr = getLocalDateString(checkDate);
+      const foundRecord = selectedHabitTracking.find(record => {
+        // Normalize dates for comparison
+        const recordDate = record.date.includes('T') 
+          ? getLocalDateString(new Date(record.date)) 
+          : record.date;
+        return recordDate === dateStr && record.completed;
+      });
       
       if (foundRecord) {
         currentStreak++;
@@ -603,6 +789,18 @@ const HabitPage = () => {
     return { completions, totalDays };
   };
 
+  // Make sure completionStatus is recalculated when habitTracking changes
+  const [completionStatus, setCompletionStatus] = useState({});
+
+  useEffect(() => {
+    // Only calculate if we have both habits and tracking data
+    if (habits.length > 0 || habitTracking.length > 0) {
+      const status = getCompletionStatus();
+      console.log('Setting completionStatus state from habit tracking change:', status);
+      setCompletionStatus(status);
+    }
+  }, [habitTracking, habits]);
+
   // Render the component
   // if (loading) {
   //   return <div className="loading-spinner">Loading...</div>;
@@ -625,7 +823,7 @@ const HabitPage = () => {
               totalHabits={getTotalHabits()}
               activeStreaks={getActiveStreaks()}
               successRate={getSuccessRate()}
-              completionStatus={getCompletionStatus()}
+              completionStatus={completionStatus}
               streaks={getStreakData()}
               onAddHabit={handleAddHabit}
               onViewDetails={handleViewDetails}

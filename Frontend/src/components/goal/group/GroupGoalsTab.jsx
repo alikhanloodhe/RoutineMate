@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+// import { navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import GoalCard from '../shared/GoalCard';
 import AddGoalButton from '../shared/AddGoalButton';
@@ -27,28 +28,91 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
   };
 
   // Handle delete goal
-  const handleDeleteGoal = (goal) => {
+  const handleDeleteGoal = async(goal) => {
     // Delete from central data
-    const deletedGoal = deleteGoal(goal.goal_id);
-    
-    if (deletedGoal) {
-      // You would typically need to update the parent component's state
-      // This is handled by the parent component's state management
+    // const deletedGoal = deleteGoal(goal.goal_id);
+    // if (currentUser.role !== 'admin') {
+    //   alert('Only admins can delete the goal');
+    //   return;
+    // }
+    console.log(goal);
+    if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
+      return;
     }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteGroupGoal/${goal.goal_id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete goal');
+      }
+
+      // On successful deletion, navigate back to goals page
+      alert('Goal deleted successfully');
+      navigate('/goals');
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+      alert('Failed to delete goal. Please try again.');
+    }
+    
+    // if (deletedGoal) {
+    //   // You would typically need to update the parent component's state
+    //   // This is handled by the parent component's state management
+    // }
+    
   };
 
   // Handle goal form submission
-  const handleSubmitGoal = (goalData) => {
+  const handleSubmitGoal =async (goalData) => {
     if (goalData.goal_id) {
       // Update existing goal
       updateGoal(goalData.goal_id, goalData);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateGroupGoal/${goalData.goal_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(goalData),
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      }
+      catch (error) {
+        console.error('Error adding goal:', error);
+      } 
     } else {
       // Add new goal with group type
       addGoal({
         ...goalData,
         goal_type: 'group'
       });
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addGroupGoal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(goalData),
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      }
+      catch (error) {
+        console.error('Error adding goal:', error);
+      } 
     }
+    
     
     setShowFormModal(false);
   };
