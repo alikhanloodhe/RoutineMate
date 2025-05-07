@@ -10,6 +10,9 @@ import GroupGoalDetail from './pages/GroupGoalDetail';
 import HabitPage from './pages/HabitPage';
 import Friends from './pages/Friends';
 import Help from './pages/Help';
+import Layout from './components/layout/Layout';
+import { TimerProvider } from './context/TimerContext';
+import PersistentTimer from './components/tasks/PersistentTimer';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -24,68 +27,37 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+    <TimerProvider>
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          
+          {/* Protected routes with shared layout */}
+          <Route element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/routines" element={<Routines />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/goals/:goalId" element={<GoalDetail />} />
+            <Route path="/group-goals/:goalId" element={<GroupGoalDetail />} />
+            <Route path="/habits" element={<HabitPage />} />
+            <Route path="/friends" element={<Friends />} />
+            <Route path="/help" element={<Help />} />
+          </Route>
+          
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
         
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/routines" element={
-          <ProtectedRoute>
-            <Routines />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/tasks" element={
-          <ProtectedRoute>
-            <Tasks />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/goals" element={
-          <ProtectedRoute>
-            <GoalsPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/goals/:goalId" element={
-          <ProtectedRoute>
-            <GoalDetail />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/group-goals/:goalId" element={
-          <ProtectedRoute>
-            <GroupGoalDetail />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/habits" element={
-          <ProtectedRoute>
-            <HabitPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/friends" element={
-          <ProtectedRoute>
-            <Friends />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/help" element={
-          <ProtectedRoute>
-            <Help />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+        {/* PersistentTimer is outside of routes so it persists across navigation */}
+        <PersistentTimer />
+      </Router>
+    </TimerProvider>
   );
 }
 

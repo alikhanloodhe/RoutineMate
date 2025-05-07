@@ -29,7 +29,7 @@ const HabitDashboard = ({
   };
 
   return (
-    <div className="p-6 flex-1">
+    <div>
       {/* Header with Add Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

@@ -1,38 +1,21 @@
 /*
-* IMPORTANT: Page Layout Structure
+* IMPORTANT: Page Content Structure
 * 
-* When integrating new pages or components, please follow this structure:
-* 1. Import Header and Sidebar components
-* 2. Add sidebarOpen state and toggleSidebar function
-* 3. Wrap the page content in the following layout:
-*    - Root div with "min-h-screen" and appropriate background
-*    - Header component with toggleSidebar and sidebarOpen props
-*    - Flex container with sidebar and main content
-*    - Sidebar component with sidebarOpen prop
-*    - Main content div with conditional margin when sidebar is closed
-*
-* This ensures consistent layout and sidebar toggle functionality across all pages.
+* Each page should now only contain its main content, as the Header and Sidebar
+* are rendered by the Layout component.
 */
 
 import React, { useState, useEffect } from 'react';
-import Header from '../components/header/Header';
-import Sidebar from '../components/sidebar/Sidebar';
 import { motion } from 'framer-motion';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import FriendCardList from '../components/friends/FriendCardList';
 import AddFriendModal from '../components/friends/AddFriendModal';
+import PageHeader from '../components/ui/PageHeader';
 import { FiSearch, FiUserPlus, FiUserCheck, FiUserX, FiUsers, FiUserMinus, FiX, FiFilter, FiChevronDown } from 'react-icons/fi';
 
 const Friends = () => {
-  // Sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
   // Friends functionality state
   const [activeTab, setActiveTab] = useState('friends');
   const [searchQuery, setSearchQuery] = useState('');
@@ -315,205 +298,185 @@ const Friends = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f9fa]">
-        <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        
-        <div className="flex h-[calc(100vh-60px)]">
-          <Sidebar sidebarOpen={sidebarOpen} />
-          
-          <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-            <div className="flex justify-center items-center h-full">
-              <div className="text-center">
-                <div className="w-16 h-16 border-t-4 border-b-4 border-[#5D4EFF] rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600 font-medium">Loading your connections...</p>
-              </div>
-            </div>
-          </div>
+      <div className="px-6 py-6 flex justify-center items-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-4 border-b-4 border-[#5D4EFF] rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading your connections...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
-      <div className="flex h-[calc(100vh-60px)]">
-        <Sidebar sidebarOpen={sidebarOpen} />
-        
-        <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-[#1C1C1C]">My Connections</h1>
-                <p className="text-gray-600">Manage your friends and connection requests</p>
-              </div>
-              <div className="flex mt-4 md:mt-0 space-x-2">
-                <div className="relative">
-                
-                </div>
-                <button 
-                  className="flex items-center px-4 py-2 bg-[#5D4EFF] text-white rounded-md text-sm shadow-sm hover:bg-[#4A2BAF] transition-colors"
-                  onClick={handleAddFriend}
-                >
+    <div className="bg-gray-50">
+      <div className="px-6 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Top Controls */}
+          <PageHeader
+            title="My Connections"
+            subtitle="Manage and grow your network"
+            rightContent={
+              <button
+                className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center"
+                onClick={handleAddFriend}
+              >
+                <FiUserPlus className="mr-2" />
+                Add Friend
+              </button>
+            }
+          />
+          
+          {/* Tab Navigation and Search Box */}
+          <div className="bg-white rounded-xl shadow-sm mb-6">
+            {/* Tabs */}
+            <div className="flex border-b">
+              <button
+                className={`flex-1 py-3 px-4 text-center ${
+                  activeTab === 'friends' 
+                    ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('friends')}
+              >
+                <span className="flex items-center justify-center">
+                  <FiUsers className="mr-2" />
+                  Friends ({friends.length})
+                </span>
+              </button>
+              <button
+                className={`flex-1 py-3 px-4 text-center ${
+                  activeTab === 'received' 
+                    ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('received')}
+              >
+                <span className="flex items-center justify-center">
+                  <FiUserCheck className="mr-2" />
+                  Received ({receivedRequests.length})
+                </span>
+              </button>
+              <button
+                className={`flex-1 py-3 px-4 text-center ${
+                  activeTab === 'sent' 
+                    ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('sent')}
+              >
+                <span className="flex items-center justify-center">
                   <FiUserPlus className="mr-2" />
-                  <span>Add Friend</span>
-                </button>
-              </div>
+                  Sent ({sentRequests.length})
+                </span>
+              </button>
             </div>
 
-            {/* Tabs Navigation */}
-            <div className="bg-white rounded-lg shadow-sm mb-6">
-              <div className="flex border-b">
-                <button
-                  className={`flex-1 py-3 px-4 text-center ${
-                    activeTab === 'friends' 
-                      ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('friends')}
-                >
-                  <span className="flex items-center justify-center">
-                    <FiUsers className="mr-2" />
-                    Friends ({friends.length})
-                  </span>
-                </button>
-                <button
-                  className={`flex-1 py-3 px-4 text-center ${
-                    activeTab === 'received' 
-                      ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('received')}
-                >
-                  <span className="flex items-center justify-center">
-                    <FiUserCheck className="mr-2" />
-                    Received ({receivedRequests.length})
-                  </span>
-                </button>
-                <button
-                  className={`flex-1 py-3 px-4 text-center ${
-                    activeTab === 'sent' 
-                      ? 'border-b-2 border-[#5D4EFF] text-[#5D4EFF] font-medium' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('sent')}
-                >
-                  <span className="flex items-center justify-center">
-                    <FiUserPlus className="mr-2" />
-                    Sent ({sentRequests.length})
-                  </span>
-                </button>
+            {/* Search Input */}
+            <div className="p-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                {searchQuery && (
+                  <button 
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <FiX />
+                  </button>
+                )}
               </div>
+            </div>
+          </div>
 
-              {/* Search Input */}
-              <div className="p-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                  />
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  {searchQuery && (
-                    <button 
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      onClick={() => setSearchQuery('')}
-                    >
-                      <FiX />
-                    </button>
-                  )}
+          {/* Content based on tab */}
+          {activeTab === 'friends' && (
+            <>
+              {filteredFriends.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredFriends.map(user => renderFriendCard(user))}
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
+                  <div className="bg-[#5D4EFF]/10 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                    <FiUsers className="h-10 w-10 text-[#5D4EFF]" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Friends Yet</h2>
+                  <p className="text-gray-500 max-w-md mb-6">Connect with friends to share goals and encourage each other</p>
+                  <button 
+                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
+                    onClick={handleAddFriend}
+                  >
+                    <FiUserPlus className="h-5 w-5 mr-2" />
+                    Add Friend
+                  </button>
+                </div>
+              )}
+            </>
+          )}
 
-            {/* Content based on tab */}
-            {activeTab === 'friends' && (
-              <>
-                {filteredFriends.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredFriends.map(user => renderFriendCard(user))}
+          {activeTab === 'received' && (
+            <>
+              {filteredReceivedRequests.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredReceivedRequests.map(user => renderRequestCard(user, true))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
+                  <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                    <FiUserCheck className="h-10 w-10 text-green-600" />
                   </div>
-                ) : (
-                  <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
-                    <div className="bg-[#5D4EFF]/10 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                      <FiUsers className="h-10 w-10 text-[#5D4EFF]" />
-                    </div>
-                    <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Friends Yet</h2>
-                    <p className="text-gray-500 max-w-md mb-6">Connect with friends to share goals and encourage each other</p>
-                    <button 
-                      className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
-                      onClick={handleAddFriend}
-                    >
-                      <FiUserPlus className="h-5 w-5 mr-2" />
-                      Add Friend
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+                  <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Friend Requests</h2>
+                  <p className="text-gray-500 max-w-md">You don't have any pending friend requests</p>
+                </div>
+              )}
+            </>
+          )}
 
-            {activeTab === 'received' && (
-              <>
-                {filteredReceivedRequests.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredReceivedRequests.map(user => renderRequestCard(user, true))}
+          {activeTab === 'sent' && (
+            <>
+              {filteredSentRequests.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredSentRequests.map(user => renderRequestCard(user, false))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
+                  <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                    <FiUserPlus className="h-10 w-10 text-yellow-600" />
                   </div>
-                ) : (
-                  <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
-                    <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                      <FiUserCheck className="h-10 w-10 text-green-600" />
-                    </div>
-                    <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Friend Requests</h2>
-                    <p className="text-gray-500 max-w-md">You don't have any pending friend requests</p>
-                  </div>
-                )}
-              </>
-            )}
+                  <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Pending Requests</h2>
+                  <p className="text-gray-500 max-w-md mb-6">You haven't sent any friend requests yet</p>
+                  <button 
+                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
+                    onClick={handleAddFriend}
+                  >
+                    <FiUserPlus className="h-5 w-5 mr-2" />
+                    Add Friend
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </motion.div>
 
-            {activeTab === 'sent' && (
-              <>
-                {filteredSentRequests.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredSentRequests.map(user => renderRequestCard(user, false))}
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
-                    <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                      <FiUserPlus className="h-10 w-10 text-yellow-600" />
-                    </div>
-                    <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Pending Requests</h2>
-                    <p className="text-gray-500 max-w-md mb-6">You haven't sent any friend requests yet</p>
-                    <button 
-                      className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
-                      onClick={handleAddFriend}
-                    >
-                      <FiUserPlus className="h-5 w-5 mr-2" />
-                      Add Friend
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </motion.div>
-        </div>
+        {/* Add Friend Modal */}
+        {showAddFriendModal && (
+          <AddFriendModal
+            isOpen={showAddFriendModal}
+            onClose={() => setShowAddFriendModal(false)}
+            onSendRequest={handleSendRequest}
+          />
+        )}
       </div>
-
-      {/* Add Friend Modal */}
-      {showAddFriendModal && (
-        <AddFriendModal
-          isOpen={showAddFriendModal}
-          onClose={() => setShowAddFriendModal(false)}
-          onSendRequest={handleSendRequest}
-        />
-      )}
     </div>
   );
 };

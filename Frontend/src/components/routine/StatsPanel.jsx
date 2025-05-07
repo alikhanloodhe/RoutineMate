@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Target, Calendar, Clock, Award } from 'lucide-react';
+import { Target, Calendar, Clock, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const StatsPanel = ({ routines }) => {
@@ -14,15 +14,6 @@ const StatsPanel = ({ routines }) => {
     const todayRoutines = routines.filter(r => 
       r.active && r.daysOfWeek.includes(dayOfWeek)
     ).length;
-    
-    // Find the active streak (routine with highest streak)
-    const activeStreaks = routines
-      .filter(r => r.completionData?.streak !== undefined)
-      .map(r => r.completionData.streak);
-    
-    const highestStreak = activeStreaks.length === 0
-      ? 0
-      : Math.max(...activeStreaks);
     
     // Calculate success rate
     const allCompletions = routines.flatMap(routine => 
@@ -43,7 +34,6 @@ const StatsPanel = ({ routines }) => {
     return {
       todayRoutines,
       completedToday,
-      activeStreaks: highestStreak,
       successRate
     };
   };
@@ -55,7 +45,7 @@ const StatsPanel = ({ routines }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
     >
       <motion.div 
         whileHover={{ y: -4 }}
@@ -85,24 +75,6 @@ const StatsPanel = ({ routines }) => {
         </div>
         <p className="text-2xl font-bold text-gray-800">{stats.completedToday}</p>
         <p className="text-sm text-gray-500 mt-1">routines today</p>
-      </motion.div>
-      
-      <motion.div 
-        whileHover={{ y: -4 }}
-        transition={{ type: "spring", stiffness: 300 }}
-        className="bg-white rounded-xl shadow-sm p-5 border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-700">Best Streak</span>
-          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-            <Zap className="h-4 w-4 text-orange-600" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <p className="text-2xl font-bold text-gray-800">{stats.activeStreaks}</p>
-          {stats.activeStreaks > 0 && <span className="text-lg">🔥</span>}
-        </div>
-        <p className="text-sm text-gray-500 mt-1">days in a row</p>
       </motion.div>
       
       <motion.div 

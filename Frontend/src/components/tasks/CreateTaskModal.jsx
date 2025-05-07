@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { FiX, FiPlus } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
-const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
+const CreateTaskModal = ({ onClose, onCreateTask }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [taskData, setTaskData] = useState({
-    title: '',
+    name: '',
     description: '',
     category_id: 1, // Default category ID
     priority_id: 1, // Default priority ID (High)
@@ -62,42 +63,50 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Format estimated time as a PostgreSQL interval string
-    let estimatedTime = null;
-    if (taskData.estimatedHours || taskData.estimatedMinutes) {
-      const hours = taskData.estimatedHours || 0;
-      const minutes = taskData.estimatedMinutes || 0;
-      estimatedTime = `${hours} hours ${minutes} minutes`;
+    // Validate form
+    if (!taskData.name.trim()) {
+      alert('Task name is required');
+      return;
     }
     
-    // Create task object from form data
-    const newTask = {
-      id: Date.now(), // In a real app, this would come from the backend
-      title: taskData.name, // For UI display
-      name: taskData.name, // For database
-      description: taskData.description,
-      category_id: parseInt(taskData.category_id),
-      priority_id: parseInt(taskData.priority_id),
-      status: taskData.status,
-      dueDate: taskData.dueDate, // For UI display
-      estimated_time: estimatedTime,
-      completed: false, // For UI display
-      subtasks: taskData.subtasks,
-      timeSpent: '0h 0m', // For UI display
-      // Add display values for UI
-      category: categoryMap[taskData.category_id],
-      priority: priorityMap[taskData.priority_id],
-      // Add timestamps
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    onCreateTask(newTask);
-    resetForm();
-    onClose();
+    try {
+      setIsSubmitting(true);
+      
+      // Format estimated time as a PostgreSQL interval string
+      let estimatedTime = null;
+      if (taskData.estimatedHours || taskData.estimatedMinutes) {
+        const hours = taskData.estimatedHours || 0;
+        const minutes = taskData.estimatedMinutes || 0;
+        estimatedTime = `${hours} hours ${minutes} minutes`;
+      }
+      
+      // Create task object from form data
+      const newTask = {
+        name: taskData.name, // For database
+        description: taskData.description,
+        category_id: parseInt(taskData.category_id),
+        priority_id: parseInt(taskData.priority_id),
+        status: taskData.status,
+        dueDate: taskData.dueDate || null, // For backend
+        estimated_time: estimatedTime,
+        subtasks: taskData.subtasks.map(st => ({
+          name: st.name,
+          status: st.status
+        }))
+      };
+      
+      await onCreateTask(newTask);
+      resetForm();
+      onClose();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      // Error is handled by the parent component
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -120,8 +129,6 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <motion.div 
@@ -136,6 +143,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
           <button 
             onClick={handleCancel}
             className="text-gray-400 hover:text-gray-600"
+            disabled={isSubmitting}
           >
             <FiX size={24} />
           </button>
@@ -154,6 +162,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                 placeholder="Enter task name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                 required
+                disabled={isSubmitting}
               />
             </div>
             
@@ -166,6 +175,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                 onChange={handleChange}
                 placeholder="What is this task about?"
                 rows="4"
+                disabled={isSubmitting}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
               />
             </div>
@@ -178,6 +188,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                   name="category_id"
                   value={taskData.category_id}
                   onChange={handleChange}
+                  disabled={isSubmitting}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                 >
                   <option value="1">Physical</option>
@@ -192,6 +203,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                   name="priority_id"
                   value={taskData.priority_id}
                   onChange={handleChange}
+                  disabled={isSubmitting}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                 >
                   <option value="1">High</option>
@@ -210,6 +222,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                   name="dueDate"
                   value={taskData.dueDate}
                   onChange={handleChange}
+                  disabled={isSubmitting}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                 />
               </div>
@@ -223,6 +236,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                     onChange={handleChange}
                     placeholder="Hours"
                     min="0"
+                    disabled={isSubmitting}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                   />
                   <span className="text-gray-500">:</span>
@@ -234,6 +248,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                     placeholder="Minutes"
                     min="0"
                     max="59"
+                    disabled={isSubmitting}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                   />
                 </div>
@@ -247,6 +262,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                 name="status"
                 value={taskData.status}
                 onChange={handleChange}
+                disabled={isSubmitting}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
               >
                 <option value="pending">Pending</option>
@@ -263,13 +279,15 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                   value={newSubtask}
                   onChange={(e) => setNewSubtask(e.target.value)}
                   placeholder="Add a subtask"
+                  disabled={isSubmitting}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
                 />
                 <button
                   type="button"
                   onClick={addSubtask}
-                  className="px-3 py-2 bg-[#5D4EFF] text-white rounded-md hover:bg-[#4A2BAF]"
+                  disabled={isSubmitting || !newSubtask.trim()}
+                  className="px-3 py-2 bg-[#5D4EFF] text-white rounded-md hover:bg-[#4A2BAF] disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <FiPlus />
                 </button>
@@ -283,7 +301,8 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
                       <button
                         type="button"
                         onClick={() => removeSubtask(subtask.id)}
-                        className="text-gray-400 hover:text-red-500"
+                        disabled={isSubmitting}
+                        className="text-gray-400 hover:text-red-500 disabled:text-gray-300"
                       >
                         <FiX size={16} />
                       </button>
@@ -298,15 +317,22 @@ const CreateTaskModal = ({ isOpen, onClose, onCreateTask }) => {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-[#5D4EFF] text-white rounded-md hover:bg-[#4A2BAF] transition-colors"
+              disabled={isSubmitting || !taskData.name.trim()}
+              className="px-4 py-2 bg-[#5D4EFF] text-white rounded-md hover:bg-[#4A2BAF] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
             >
-              Create Task
+              {isSubmitting ? (
+                <>
+                  <span className="mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Creating...
+                </>
+              ) : 'Create Task'}
             </button>
           </div>
         </form>

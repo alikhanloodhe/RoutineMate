@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { FiClock, FiCheck, FiSquare, FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 
-const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onAddSubtask, onEdit, onDelete }) => {
+const TaskCard = ({ task, onStartTimer, onComplete, onToggleSubtask, onAddSubtask, onEdit, onDelete, isTimerActive }) => {
   const [showAddSubtask, setShowAddSubtask] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const getPriorityClass = (priority) => {
     switch(priority?.toLowerCase()) {
@@ -22,27 +23,37 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
 
   const getCategoryClass = (category) => {
     switch(category?.toLowerCase()) {
-      case 'Physical':
+      case 'physical':
         return 'text-blue-600';
-      case 'Mental':
+      case 'mental':
         return 'text-green-600';
-      case 'Spiritual':
+      case 'spiritual':
         return 'text-purple-600';
+      case 'social':
+        return 'text-orange-600';  
       default:
         return 'text-gray-600';
     }
   };
 
-  const handleAddSubtask = () => {
+  const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim()) return;
     
-    onAddSubtask(task.id, newSubtaskTitle);
-    setNewSubtaskTitle('');
-    setShowAddSubtask(false);
+    setIsAddingSubtask(true);
+    try {
+      await onAddSubtask(newSubtaskTitle);
+      setNewSubtaskTitle('');
+      setShowAddSubtask(false);
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+    } finally {
+      setIsAddingSubtask(false);
+    }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleAddSubtask();
     }
   };
@@ -55,6 +66,37 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
   // Count completed subtasks
   const completedSubtasks = task.subtasks ? 
     task.subtasks.filter(st => isSubtaskCompleted(st)).length : 0;
+
+  // Format time spent and estimated time
+  const formatTimeDisplay = (timeObj) => {
+    if (!timeObj) return '0h 0m';
+    
+    if (typeof timeObj === 'string') {
+      return timeObj;
+    }
+    
+    if (timeObj.formatted) {
+      return timeObj.formatted;
+    }
+    
+    const hours = timeObj.hours || 0;
+    const minutes = timeObj.minutes || 0;
+    return `${hours}h ${minutes}m`;
+  };
+
+  // Format due date
+  const formatDueDate = (dateStr) => {
+    if (!dateStr) return 'No due date';
+    
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return format(date, 'MMM d, yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
 
   return (
     <motion.div 
@@ -69,8 +111,7 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
           <div className="mr-3 mt-1" >
             <div 
               className={`w-5 h-5 rounded-full ${task.completed || task.status === 'completed' ? 'bg-[#5D4EFF]' : 'border-2 border-gray-300'} flex items-center justify-center cursor-pointer`}
-              
-              onClick={() => onToggleCompletion(task.id)}
+              onClick={() => onComplete(task.id)}
             >
               {(task.completed || task.status === 'completed') && <FiCheck className="text-white" size={12} />}
             </div>
@@ -84,7 +125,9 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityClass(task.priority)}`}>
                   {task.priority} Priority
                 </span>
-                <span className="text-sm text-green-500">Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
+                {task.dueDate && (
+                  <span className="text-sm text-green-500">Due: {formatDueDate(task.dueDate)}</span>
+                )}
               </div>
             </div>
             <p className={`${task.completed || task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
@@ -115,18 +158,24 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
                     value={newSubtaskTitle}
                     onChange={(e) => setNewSubtaskTitle(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    disabled={isAddingSubtask}
                     autoFocus
                   />
                   <div className="flex">
                     <button 
-                      className="px-3 py-2 bg-[#5D4EFF] text-white text-sm hover:bg-[#4A2BAF]"
+                      className="px-3 py-2 bg-[#5D4EFF] text-white text-sm hover:bg-[#4A2BAF] disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
                       onClick={handleAddSubtask}
+                      disabled={isAddingSubtask || !newSubtaskTitle.trim()}
                     >
+                      {isAddingSubtask ? (
+                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
+                      ) : null}
                       Add
                     </button>
                     <button 
-                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
+                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm hover:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
                       onClick={() => setShowAddSubtask(false)}
+                      disabled={isAddingSubtask}
                     >
                       Cancel
                     </button>
@@ -140,7 +189,7 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
                     <div key={subtask.id} className="flex items-center">
                       <div 
                         className="cursor-pointer mr-2" 
-                        onClick={() => onToggleSubtask(task.id, subtask.id)}
+                        onClick={() => onToggleSubtask(subtask.id)}
                       >
                         {isSubtaskCompleted(subtask) ? (
                           <FiCheck className="text-[#5D4EFF]" />
@@ -160,14 +209,14 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
             <div className="flex flex-wrap items-center justify-between mt-3">
               <div className="flex items-center space-x-4">
                 <span className={`text-sm font-medium ${getCategoryClass(task.category)}`}>
-                  Category: {task.category}
+                  {task.category}
                 </span>
                 <span className="text-sm text-gray-500">
-                  Time spent: {task.timeSpent.formatted? task.timeSpent.formatted:'0h 0m'}
+                  Time spent: {formatTimeDisplay(task.timeSpent)}
                 </span>
-                { (
+                {task.estimated_time && (
                   <span className="text-sm text-gray-500">
-                    Estimated: {`${task.estimated_time.hours} hours ${task.estimated_time.minutes} minutes`}
+                    Est: {formatTimeDisplay(task.estimated_time)}
                   </span>
                 )}
               </div>
@@ -189,10 +238,15 @@ const TaskCard = ({ task, onStartTimer, onToggleCompletion, onToggleSubtask, onA
                 </button>
                 <button 
                   onClick={() => onStartTimer(task.id)}
-                  className="flex items-center px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm"
+                  disabled={isTimerActive}
+                  className={`flex items-center px-3 py-1 rounded-md text-sm ${
+                    isTimerActive 
+                      ? 'bg-[#4A2BAF]/10 text-[#4A2BAF]' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
                 >
-                  <FiClock className="mr-2" />
-                  Start Timer
+                  <FiClock className={`mr-2 ${isTimerActive ? 'animate-pulse' : ''}`} />
+                  {isTimerActive ? 'Active' : 'Start Timer'}
                 </button>
               </div>
             </div>

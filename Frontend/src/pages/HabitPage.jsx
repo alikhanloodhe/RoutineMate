@@ -1,37 +1,21 @@
 /*
-* IMPORTANT: Page Layout Structure
+* IMPORTANT: Page Content Structure
 * 
-* When integrating new pages or components, please follow this structure:
-* 1. Import Header and Sidebar components
-* 2. Add sidebarOpen state and toggleSidebar function
-* 3. Wrap the page content in the following layout:
-*    - Root div with "min-h-screen" and appropriate background
-*    - Header component with toggleSidebar and sidebarOpen props
-*    - Flex container with sidebar and main content
-*    - Sidebar component with sidebarOpen prop
-*    - Main content div with conditional margin when sidebar is closed
-*
-* This ensures consistent layout and sidebar toggle functionality across all pages.
+* Each page should now only contain its main content, as the Header and Sidebar
+* are rendered by the Layout component.
 */
 
 // pages/HabitPage.jsx
 import React, { useState, useEffect } from 'react';
-// Import Header and Sidebar components for consistent layout
-import Header from '../components/header/Header';
-import Sidebar from '../components/sidebar/Sidebar';
 import Modal from '../components/ui/Modal';
 import HabitDashboard from '../components/habit/HabitDashboard';
 import HabitForm from '../components/habit/HabitForm';
 import HabitDetail from '../components/habit/HabitDetail';
 import Toast from '../components/ui/Toast';
+import PageHeader from '../components/ui/PageHeader';
 import { useNavigate } from 'react-router-dom';
 
 const HabitPage = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    
-    const toggleSidebar = () => {
-      setSidebarOpen(!sidebarOpen);
-    };
   // State for habits and tracking data
   const [habits, setHabits] = useState([]);
   const [habitTracking, setHabitTracking] = useState([]);
@@ -807,73 +791,71 @@ const HabitPage = () => {
   // }
   
   return (
-    // Update to match other pages layout structure with sidebar
-    <div className="min-h-screen bg-[#fffcfc]">
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
-      <div className="flex h-[calc(100vh-60px)]">
-        <Sidebar sidebarOpen={sidebarOpen} />
+    <div className="bg-gray-50">
+      <div className="px-6 py-6">
+        <PageHeader 
+          title="Habit Tracker" 
+          subtitle="Build and maintain positive habits consistently" 
+        />
         
-        <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-          {error && <div className="error-message">{error}</div>}
-          
-          {viewMode === 'dashboard' ? (
-            <HabitDashboard
-              habits={habits}
-              totalHabits={getTotalHabits()}
-              activeStreaks={getActiveStreaks()}
-              successRate={getSuccessRate()}
-              completionStatus={completionStatus}
-              streaks={getStreakData()}
-              onAddHabit={handleAddHabit}
-              onViewDetails={handleViewDetails}
-              onEditHabit={handleEditHabit}
-              onToggleComplete={handleToggleComplete}
-            />
-          ) : (
-            <HabitDetail
-              habit={selectedHabit}
-              trackingData={selectedHabitTracking}
-              streakData={getCurrentAndBestStreak(selectedHabit.id)}
-              completionData={getTotalCompletionsAndDays(selectedHabit.id)}
-              onBack={handleBackToDashboard}
-              onEdit={() => handleEditHabit(selectedHabit.id)}
-              onDelete={handleDeleteHabit}
-            />
-          )}
-          
-          {/* Add Habit Modal */}
-          <Modal
-            isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
-            title="Add New Habit"
-            size="lg"
-          >
-            <HabitForm onSubmit={handleUpdateHabit} />
-          </Modal>
-          
-          {/* Edit Habit Modal */}
-          <Modal
-            isOpen={showEditModal}
-            onClose={() => setShowEditModal(false)}
-            title="Edit Habit"
-            size="lg"
-          >
-            <HabitForm 
-              habit={selectedHabit} 
-              onSubmit={handleUpdateHabit} 
-            />
-          </Modal>
+        {error && <div className="error-message">{error}</div>}
+        
+        {viewMode === 'dashboard' ? (
+          <HabitDashboard
+            habits={habits}
+            totalHabits={getTotalHabits()}
+            activeStreaks={getActiveStreaks()}
+            successRate={getSuccessRate()}
+            completionStatus={completionStatus}
+            streaks={getStreakData()}
+            onAddHabit={handleAddHabit}
+            onViewDetails={handleViewDetails}
+            onEditHabit={handleEditHabit}
+            onToggleComplete={handleToggleComplete}
+          />
+        ) : (
+          <HabitDetail
+            habit={selectedHabit}
+            trackingData={selectedHabitTracking}
+            streakData={getCurrentAndBestStreak(selectedHabit.id)}
+            completionData={getTotalCompletionsAndDays(selectedHabit.id)}
+            onBack={handleBackToDashboard}
+            onEdit={() => handleEditHabit(selectedHabit.id)}
+            onDelete={handleDeleteHabit}
+          />
+        )}
+        
+        {/* Add Habit Modal */}
+        <Modal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          title="Add New Habit"
+          size="lg"
+        >
+          <HabitForm onSubmit={handleUpdateHabit} />
+        </Modal>
+        
+        {/* Edit Habit Modal */}
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          title="Edit Habit"
+          size="lg"
+        >
+          <HabitForm 
+            habit={selectedHabit} 
+            onSubmit={handleUpdateHabit} 
+          />
+        </Modal>
 
-          {/* Toast Notification */}
-          {toast.show && (
-            <Toast 
-              message={toast.message} 
-              type={toast.type} 
-              onClose={() => setToast({ ...toast, show: false })}
-            />
-          )}
-        </div>
+        {/* Toast Notification */}
+        {toast.show && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => setToast({ ...toast, show: false })}
+          />
+        )}
       </div>
     </div>
   );

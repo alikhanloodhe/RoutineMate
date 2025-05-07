@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Header from '../components/header/Header';
-import Sidebar from '../components/sidebar/Sidebar';
 import { motion } from 'framer-motion';
 import { group, activity } from '../components/goal';
 import { getGoalById, updateGoal } from '../utils/goalData';
 import FriendSelector from '../components/goal/group/FriendSelector';
+import PageHeader from '../components/ui/PageHeader';
 
 const GroupGoalDetail = () => {
   const token = localStorage.getItem('token');
   const { goalId } = useParams();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [goal, setGoal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -66,11 +64,6 @@ const GroupGoalDetail = () => {
   
   // Track personal milestone completion
   const [personalMilestoneProgress, setPersonalMilestoneProgress] = useState({});
-
-  // Toggle sidebar
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
   
   // Initialize current user data from goal members
   useEffect(() => {
@@ -634,7 +627,7 @@ const GroupGoalDetail = () => {
 
   useEffect(() => {
     fetchGoalData();
-  }, [goalId, navigate]);
+  }, [goalId]);
 
   // Format date
   const formatDate = (dateString) => {
@@ -753,748 +746,750 @@ const GroupGoalDetail = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8F9FB]">
-      {/* Header */}
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
-      {/* Main Content Layout */}
-      <div className="flex h-[calc(100vh-60px)]">
-        {/* Sidebar */}
-        <Sidebar sidebarOpen={sidebarOpen} />
-        
-        {/* Main Content */}
-        <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-          {isLoading ? (
-            // Loading state
-            <div className="flex flex-col items-center justify-center h-[70vh]">
-              <div className="w-16 h-16 border-4 border-[#4A2BAF] border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-[#1C1C1C] font-medium">Loading goal details...</p>
-            </div>
-          ) : (
-            <>
-              {/* Back button */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <button
-                  onClick={() => navigate('/goals')}
-                  className="flex items-center text-gray-600 hover:text-[#4A2BAF] mb-6 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Back to Goals
-                </button>
-              </motion.div>
-              
-              {/* Goal Header */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-[#4A2BAF]/10 p-3 rounded-lg">
-                      {getCategoryIcon(goal.category)}
-                    </div>
-                    <div>
-                      <h1 className="text-2xl font-bold text-[#1C1C1C]">{goal.title}</h1>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(goal.status)}`}>
-                          {goal.status.charAt(0).toUpperCase() + goal.status.slice(1)}
-                        </span>
-                        <span className="text-gray-500 text-sm">
-                          {formatDate(goal.start_date)} - {formatDate(goal.end_date)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={handleEdit} 
-                      className="px-4 py-2 text-[#4A2BAF] border border-[#4A2BAF] rounded-lg hover:bg-[#4A2BAF]/5 transition-colors duration-200"
-                    >
-                      Edit Goal
-                    </button>
-                    {currentUser.role === 'admin' && (
-                      <button 
-                        onClick={handleDeleteGoal} 
-                        className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
-                      >
-                        Delete Goal
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                <p className="text-gray-600 mb-6">{goal.description}</p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                  <div className="w-full sm:w-auto flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">Progress</span>
-                      <span className="text-sm font-medium text-gray-700">
-                        {goal.completedMilestones || 0} of {goal.totalMilestones || goal.milestones?.length || 0} milestones ({goal.progress}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
-                        style={{ width: `${goal.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    {goal.members.slice(0, 4).map((member, index) => (
-                      <div 
-                        key={member.id} 
-                        className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF] -ml-1 first:ml-0 border-2 border-white"
-                        title={member.name}
-                      >
-                        {member.name.charAt(0)}
-                      </div>
-                    ))}
-                    
-                    {goal.members.length > 4 && (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 -ml-1 border-2 border-white">
-                        +{goal.members.length - 4}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Tabs */}
-              <div className="bg-white rounded-xl shadow-sm mb-6">
-                <div className="border-b border-gray-200">
-                  <nav className="flex -mb-px">
-                    <button
-                      onClick={() => setActiveTab('overview')} 
-                      className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                        activeTab === 'overview' 
-                          ? 'border-[#4A2BAF] text-[#4A2BAF]' 
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Overview
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('activity')} 
-                      className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                        activeTab === 'activity' 
-                          ? 'border-[#4A2BAF] text-[#4A2BAF]' 
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Activity
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('members')} 
-                      className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                        activeTab === 'members' 
-                          ? 'border-[#4A2BAF] text-[#4A2BAF]' 
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Members
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('leaderboard')} 
-                      className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                        activeTab === 'leaderboard' 
-                          ? 'border-[#4A2BAF] text-[#4A2BAF]' 
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Leaderboard
-                    </button>
-                  </nav>
-                </div>
-                
-                {/* Tab Content */}
-                <div className="p-6">
-                  {activeTab === 'overview' && (
-                    // 🔹 Milestone Tracker Section – Shared and Interactive
-                    <div>
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-semibold text-[#1C1C1C]">Milestones</h2>
-                        {currentUser.role === 'admin' && (
-                          <button 
-                            onClick={() => {
-                              setIsEditingMilestone(false);
-                              setCurrentMilestoneId(null);
-                              setMilestoneTitle('');
-                              setMilestoneDescription('');
-                              setMilestoneDueDate('');
-                              setMilestoneReminderDate('');
-                              setShowMilestoneForm(true);
-                            }}
-                            className="px-3 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>Add Milestone</span>
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* Milestone Tabs */}
-                      <div className="flex border-b border-gray-200 mb-6">
-                        <button
-                          onClick={() => setActiveMilestoneTab('all')}
-                          className={`py-2 px-4 text-sm font-medium ${
-                            activeMilestoneTab === 'all'
-                              ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
-                              : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                        >
-                          All
-                        </button>
-                        <button
-                          onClick={() => setActiveMilestoneTab('pending')}
-                          className={`py-2 px-4 text-sm font-medium ${
-                            activeMilestoneTab === 'pending'
-                              ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
-                              : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                        >
-                          Pending
-                        </button>
-                        <button
-                          onClick={() => setActiveMilestoneTab('completed')}
-                          className={`py-2 px-4 text-sm font-medium ${
-                            activeMilestoneTab === 'completed'
-                              ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
-                              : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                        >
-                          Completed
-                        </button>
-                      </div>
-                      
-                      {/* Milestone List */}
-                      {console.log(goal)}
-                      <div className="space-y-4">
-                        {goal.milestones.filter(milestone => 
-                          activeMilestoneTab === 'all' 
-                            ? true
-                            : activeMilestoneTab === 'completed' 
-                              ? milestone.member_progress?.[currentUser.id] 
-                              : !milestone.member_progress?.[currentUser.id]
-                        ).map(milestone => (
-                          <div 
-                            key={milestone.milestone_id}
-                            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3 flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={milestone.member_progress?.[currentUser.id] || false}
-                                  onChange={(e) => handlePersonalMilestoneCompletion(milestone.milestone_id, e.target.checked)}
-                                  className="mt-1.5 h-4 w-4 rounded border-gray-300 text-[#4A2BAF] focus:ring-[#4A2BAF]"
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <h3 className="font-medium text-[#1C1C1C]">{milestone.title}</h3>
-                                    <div className="flex items-center space-x-2">
-                                      {milestone.member_progress?.[currentUser.id] && (
-                                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
-                                          Completed by You
-                                        </span>
-                                      )}
-                                      {milestone.status === 'completed' && (
-                                        <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
-                                          Completed by Team
-                                        </span>
-                                      )}
-                                      {currentUser.role === 'admin' && (
-                                        <>
-                                          <button
-                                            onClick={() => handleEditMilestone(milestone)}
-                                            className="text-[#4A2BAF] hover:text-opacity-70"
-                                          >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                          </button>
-                                          <button
-                                            onClick={() => handleDeleteMilestone(milestone.milestone_id)}
-                                            className="text-red-500 hover:text-red-700"
-                                          >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
-                                  
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                      </svg>
-                                      Due: {formatDate(milestone.due_date)}
-                                    </div>
-                                    
-                                    {milestone.status === 'completed' && milestone.completion_date && (
-                                      <div className="flex items-center text-sm text-green-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Completed: {formatDate(milestone.completion_date)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {milestone.member_progress?.[currentUser.id] && (
-                                    <button 
-                                      onClick={() => handlePersonalMilestoneCompletion(milestone.milestone_id, false)}
-                                      className="mt-3 text-xs text-gray-500 hover:text-gray-700 flex items-center"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                      Mark as Incomplete
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {goal.milestones.filter(milestone => 
-                          activeMilestoneTab === 'all' 
-                            ? true
-                            : activeMilestoneTab === 'completed' 
-                              ? milestone.member_progress?.[currentUser.id] 
-                              : !milestone.member_progress?.[currentUser.id]
-                        ).length === 0 && (
-                          <div className="text-center py-8">
-                            <p className="text-gray-500">
-                              {activeMilestoneTab === 'completed' 
-                                ? 'No completed milestones yet.' 
-                                : 'No pending milestones.'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {activeTab === 'activity' && (
-                    <activity.ActivityTab 
-                      goal={goal}
-                      currentUser={currentUser}
-                      formatTimestamp={formatTimestamp}
-                      onUpdate={(updatedGoal) => setGoal(updatedGoal)}
-                    />
-                  )}
-                  {activeTab === 'members' && currentUser.role === 'admin' && (
-                    // 🔹 Member Tracker Section – Role Management & Invitations
-                    <div>
-                      <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-semibold text-[#1C1C1C]">Team Members</h2>
-                        <button
-                          onClick={() => setShowFriendSelector(true)}
-                          className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200 flex items-center space-x-1"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                          </svg>
-                          <span>Add Member</span>
-                        </button>
-                      </div>
-                      
-                      {/* Members List */}
-                      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {goal.members.map(member => {
-                              // Calculate member progress
-                              let completedCount = 0;
-                              goal.milestones.forEach(milestone => {
-                                if (milestone.member_progress?.[member.user_id]) {
-                                  completedCount++;
-                                }
-                              });
-                              
-                              const progress = goal.milestones.length > 0
-                                ? Math.round((completedCount / goal.milestones.length) * 100)
-                                : 0;
-                              
-                              return (
-                                <tr key={member.id} className="hover:bg-gray-50">
-                                  {console.log(member)}
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
-                                        {member.name.charAt(0)}
-                                      </div>
-                                      <div className="ml-4">
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {member.name}
-                                          {console.log(currentUser)}
-                                          {member.id === currentUser.id && (
-                                            <span className="ml-1 text-xs text-gray-500">(You)</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(member.role)}`}>
-                                      {member.role === 'admin' ? 'Admin' : 'Collaborator'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {formatDate(member.join_date || goal.created_at)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div className="w-full bg-gray-200 rounded-full h-2 mr-2 max-w-[100px]">
-                                        <div 
-                                          className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
-                                          style={{ width: `${progress}%` }}
-                                        ></div>
-                                      </div>
-                                      <span className="text-xs text-gray-500">{progress}%</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    {member.role !== 'admin' && (
-                                      <button
-                                        onClick={() => handleRemoveMember(member.id,goal.goal_id)}
-                                        className="text-red-600 hover:text-red-900"
-                                      >
-                                      {member.id === currentUser.id ?'Leave':'Remove'}
-                               
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      {/* Role Explanation */}
-                      <div className="mt-8">
-                        <h3 className="text-md font-semibold text-gray-700 mb-3">Member Roles Explained</h3>
-                        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-xs font-medium text-purple-800">
-                              A
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">Admin</h4>
-                              <p className="text-sm text-gray-600 mt-1">Can edit the goal, manage members, add/edit milestones, and track their own progress. Has full control over the goal.</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-800">
-                              C
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">Collaborator</h4>
-                              <p className="text-sm text-gray-600 mt-1">Can track their own milestone progress, post updates, and participate in discussions. Cannot edit goal details or manage members.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {activeTab === 'leaderboard' && (
-                    // 🔹 Leaderboard Section – Fun Competitive Collaboration
-                    <div>
-                      <h2 className="text-lg font-semibold text-[#1C1C1C] mb-6">Team Leaderboard</h2>
-                      
-                      {goal.milestones && goal.milestones.length > 0 ? (
-                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milestones</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {/* Sort members by number of completed milestones */}
-                              {goal.members
-                                .map(member => {
-                                  // Calculate completed milestones for each member
-                                  let completedCount = 0;
-                                  goal.milestones.forEach(milestone => {
-                                    if (milestone.member_progress?.[member.user_id]) {
-                                      completedCount++;
-                                    }
-                                  });
-                                  
-                                  const progressPercentage = goal.milestones.length > 0
-                                    ? Math.round((completedCount / goal.milestones.length) * 100)
-                                    : 0;
-                                    
-                                  return {
-                                    ...member,
-                                    completedMilestones: completedCount,
-                                    totalMilestones: goal.milestones.length,
-                                    progress: progressPercentage
-                                  };
-                                })
-                                .sort((a, b) => {
-                                  // Sort by completed milestones (descending)
-                                  if (b.completedMilestones !== a.completedMilestones) {
-                                    return b.completedMilestones - a.completedMilestones;
-                                  }
-                                  // If tied, sort alphabetically by name
-                                  return a.name.localeCompare(b.name);
-                                })
-                                .map((member, index) => (
-                                  <tr key={member.user_id} className={index < 3 ? getMemberRankClass(index) : ''}>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      {index === 0 && (
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
-                                          🥇
-                                        </div>
-                                      )}
-                                      {index === 1 && (
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-800 border border-gray-300">
-                                          🥈
-                                        </div>
-                                      )}
-                                      {index === 2 && (
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                                          🥉
-                                        </div>
-                                      )}
-                                      {index > 2 && (
-                                        <div className="text-center text-gray-500">{index + 1}</div>
-                                      )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="flex items-center">
-                                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
-                                          {member.name.charAt(0)}
-                                        </div>
-                                        <div className="ml-4">
-                                          <div className="text-sm font-medium text-gray-900">
-                                            {member.name}
-                                            {member.user_id === currentUser.id && (
-                                              <span className="ml-1 text-xs text-gray-500">(You)</span>
-                                            )}
-                                          </div>
-                                          <div className="text-xs text-gray-500">
-                                            {member.role === 'admin' ? 'Admin' : 'Collaborator'}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="text-sm text-gray-900">
-                                        {member.completedMilestones} / {member.totalMilestones}
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-xs">
-                                        <div 
-                                          className={`h-2.5 rounded-full ${index < 3 
-                                            ? 'bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF]' 
-                                            : 'bg-blue-500'}`}
-                                          style={{ width: `${member.progress}%` }}
-                                        ></div>
-                                      </div>
-                                      <div className="text-xs text-gray-500 mt-1">{member.progress}% complete</div>
-                                    </td>
-                                  </tr>
-                                ))
-                              }
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="text-center py-10 bg-white border border-gray-200 rounded-xl">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <h3 className="text-lg font-medium text-gray-900 mb-1">No Leaderboard Available</h3>
-                          <p className="text-gray-500 max-w-md mx-auto">
-                            Add milestones to the goal to track team progress and enable the leaderboard
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+  if (isLoading) {
+    return (
+      <div className="bg-gray-50">
+        <div className="px-6 py-6 flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#4A2BAF]"></div>
         </div>
       </div>
-      
-      {/* Friend Selector Modal */}
-      {showFriendSelector && (
-        <FriendSelector
-          isOpen={showFriendSelector}
-          onClose={() => setShowFriendSelector(false)}
-          onSelectFriends={handleFriendsSelected}
-          initialSelectedFriends={[]}
-        />
-      )}
-      
-      {/* Edit Goal Modal */}
-      {showFormModal && (
-        <group.GroupGoalFormModal
-          isOpen={showFormModal}
-          onClose={() => setShowFormModal(false)}
-          onSubmit={handleUpdateGoal}
-          goal={goal}
-        />
-      )}
-      
-      {/* Add Milestone Modal */}
-      {showMilestoneForm && goal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-semibold text-[#1C1C1C]">
-                {isEditingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
-              </h3>
-              <button 
-                onClick={() => {
-                  setShowMilestoneForm(false);
-                  setIsEditingMilestone(false);
-                  setCurrentMilestoneId(null);
-                  setMilestoneTitle('');
-                  setMilestoneDescription('');
-                  setMilestoneDueDate('');
-                  setMilestoneReminderDate('');
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
+    );
+  }
+
+  if (!goal) {
+    return (
+      <div className="bg-gray-50">
+        <div className="px-6 py-6 flex flex-col items-center justify-center">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">Group Goal not found</h2>
+          <button
+            onClick={() => navigate('/goals')}
+            className="bg-[#4A2BAF] text-white px-4 py-2 rounded-lg hover:bg-[#3D2291] transition-colors"
+          >
+            Back to Goals
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50">
+      <div className="px-6 py-6">
+        {/* Back button */}
+        <button
+          onClick={() => navigate('/goals')}
+          className="flex items-center text-gray-600 hover:text-[#4A2BAF] mb-6 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Goals
+        </button>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Group Goal Header Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-[#4A2BAF]/10 p-3 rounded-lg">
+                  {getCategoryIcon(goal.category)}
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#1C1C1C]">{goal.title}</h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(goal.status)}`}>
+                      {goal.status.charAt(0).toUpperCase() + goal.status.slice(1)}
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {formatDate(goal.start_date)} - {formatDate(goal.end_date)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleEdit} 
+                  className="px-4 py-2 text-[#4A2BAF] border border-[#4A2BAF] rounded-lg hover:bg-[#4A2BAF]/5 transition-colors duration-200"
+                >
+                  Edit Goal
+                </button>
+                {currentUser.role === 'admin' && (
+                  <button 
+                    onClick={handleDeleteGoal} 
+                    className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                  >
+                    Delete Goal
+                  </button>
+                )}
+              </div>
             </div>
             
-            <div className="space-y-4">
-              {/* Milestone Title */}
-              <div>
-                <label htmlFor="milestoneTitle" className="block text-sm font-medium text-gray-700 mb-1">
-                  Milestone Title
-                </label>
-                <input
-                  type="text"
-                  id="milestoneTitle"
-                  value={milestoneTitle}
-                  onChange={(e) => setMilestoneTitle(e.target.value)}
-                  placeholder="Enter milestone title"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
-                />
+            <p className="text-gray-600 mb-6">{goal.description}</p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="w-full sm:w-auto flex-1">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">Progress</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {goal.completedMilestones || 0} of {goal.totalMilestones || goal.milestones?.length || 0} milestones ({goal.progress}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
+                    style={{ width: `${goal.progress}%` }}
+                  ></div>
+                </div>
               </div>
               
-              {/* Milestone Description */}
+              <div className="flex items-center gap-1">
+                {goal.members.slice(0, 4).map((member, index) => (
+                  <div 
+                    key={member.id} 
+                    className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF] -ml-1 first:ml-0 border-2 border-white"
+                    title={member.name}
+                  >
+                    {member.name.charAt(0)}
+                  </div>
+                ))}
+                
+                {goal.members.length > 4 && (
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 -ml-1 border-2 border-white">
+                    +{goal.members.length - 4}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs Section */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => setActiveTab('overview')} 
+                className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                  activeTab === 'overview' 
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('activity')} 
+                className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                  activeTab === 'activity' 
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Activity
+              </button>
+              <button
+                onClick={() => setActiveTab('members')} 
+                className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                  activeTab === 'members' 
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Members
+              </button>
+              <button
+                onClick={() => setActiveTab('leaderboard')} 
+                className={`py-4 px-6 font-medium text-sm border-b-2 ${
+                  activeTab === 'leaderboard' 
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Leaderboard
+              </button>
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === 'overview' && (
+              // 🔹 Milestone Tracker Section – Shared and Interactive
               <div>
-                <label htmlFor="milestoneDescription" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  id="milestoneDescription"
-                  value={milestoneDescription}
-                  onChange={(e) => setMilestoneDescription(e.target.value)}
-                  placeholder="Describe your milestone"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
-                />
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-[#1C1C1C]">Milestones</h2>
+                  {currentUser.role === 'admin' && (
+                    <button 
+                      onClick={() => {
+                        setIsEditingMilestone(false);
+                        setCurrentMilestoneId(null);
+                        setMilestoneTitle('');
+                        setMilestoneDescription('');
+                        setMilestoneDueDate('');
+                        setMilestoneReminderDate('');
+                        setShowMilestoneForm(true);
+                      }}
+                      className="px-3 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Add Milestone</span>
+                    </button>
+                  )}
+                </div>
+                
+                {/* Milestone Tabs */}
+                <div className="flex border-b border-gray-200 mb-6">
+                  <button
+                    onClick={() => setActiveMilestoneTab('all')}
+                    className={`py-2 px-4 text-sm font-medium ${
+                      activeMilestoneTab === 'all'
+                        ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setActiveMilestoneTab('pending')}
+                    className={`py-2 px-4 text-sm font-medium ${
+                      activeMilestoneTab === 'pending'
+                        ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Pending
+                  </button>
+                  <button
+                    onClick={() => setActiveMilestoneTab('completed')}
+                    className={`py-2 px-4 text-sm font-medium ${
+                      activeMilestoneTab === 'completed'
+                        ? 'text-[#4A2BAF] border-b-2 border-[#4A2BAF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Completed
+                  </button>
+                </div>
+                
+                {/* Milestone List */}
+                {console.log(goal)}
+                <div className="space-y-4">
+                  {goal.milestones.filter(milestone => 
+                    activeMilestoneTab === 'all' 
+                      ? true
+                      : activeMilestoneTab === 'completed' 
+                        ? milestone.member_progress?.[currentUser.id] 
+                        : !milestone.member_progress?.[currentUser.id]
+                  ).map(milestone => (
+                    <div 
+                      key={milestone.milestone_id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={milestone.member_progress?.[currentUser.id] || false}
+                            onChange={(e) => handlePersonalMilestoneCompletion(milestone.milestone_id, e.target.checked)}
+                            className="mt-1.5 h-4 w-4 rounded border-gray-300 text-[#4A2BAF] focus:ring-[#4A2BAF]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-medium text-[#1C1C1C]">{milestone.title}</h3>
+                              <div className="flex items-center space-x-2">
+                                {milestone.member_progress?.[currentUser.id] && (
+                                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
+                                    Completed by You
+                                  </span>
+                                )}
+                                {milestone.status === 'completed' && (
+                                  <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
+                                    Completed by Team
+                                  </span>
+                                )}
+                                {currentUser.role === 'admin' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleEditMilestone(milestone)}
+                                      className="text-[#4A2BAF] hover:text-opacity-70"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteMilestone(milestone.milestone_id)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
+                            
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
+                              <div className="flex items-center text-sm text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Due: {formatDate(milestone.due_date)}
+                              </div>
+                              
+                              {milestone.status === 'completed' && milestone.completion_date && (
+                                <div className="flex items-center text-sm text-green-600">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Completed: {formatDate(milestone.completion_date)}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {milestone.member_progress?.[currentUser.id] && (
+                              <button 
+                                onClick={() => handlePersonalMilestoneCompletion(milestone.milestone_id, false)}
+                                className="mt-3 text-xs text-gray-500 hover:text-gray-700 flex items-center"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Mark as Incomplete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {goal.milestones.filter(milestone => 
+                    activeMilestoneTab === 'all' 
+                      ? true
+                      : activeMilestoneTab === 'completed' 
+                        ? milestone.member_progress?.[currentUser.id] 
+                        : !milestone.member_progress?.[currentUser.id]
+                  ).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">
+                        {activeMilestoneTab === 'completed' 
+                          ? 'No completed milestones yet.' 
+                          : 'No pending milestones.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {activeTab === 'activity' && (
+              <activity.ActivityTab 
+                goal={goal}
+                currentUser={currentUser}
+                formatTimestamp={formatTimestamp}
+                onUpdate={(updatedGoal) => setGoal(updatedGoal)}
+              />
+            )}
+            {activeTab === 'members' && currentUser.role === 'admin' && (
+              // 🔹 Member Tracker Section – Role Management & Invitations
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-semibold text-[#1C1C1C]">Team Members</h2>
+                  <button
+                    onClick={() => setShowFriendSelector(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200 flex items-center space-x-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Add Member</span>
+                  </button>
+                </div>
+                
+                {/* Members List */}
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {goal.members.map(member => {
+                        // Calculate member progress
+                        let completedCount = 0;
+                        goal.milestones.forEach(milestone => {
+                          if (milestone.member_progress?.[member.user_id]) {
+                            completedCount++;
+                          }
+                        });
+                        
+                        const progress = goal.milestones.length > 0
+                          ? Math.round((completedCount / goal.milestones.length) * 100)
+                          : 0;
+                        
+                        return (
+                          <tr key={member.id} className="hover:bg-gray-50">
+                            {console.log(member)}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
+                                  {member.name.charAt(0)}
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {member.name}
+                                    {console.log(currentUser)}
+                                    {member.id === currentUser.id && (
+                                      <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(member.role)}`}>
+                                {member.role === 'admin' ? 'Admin' : 'Collaborator'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(member.join_date || goal.created_at)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mr-2 max-w-[100px]">
+                                  <div 
+                                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-500">{progress}%</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              {member.role !== 'admin' && (
+                                <button
+                                  onClick={() => handleRemoveMember(member.id,goal.goal_id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                {member.id === currentUser.id ?'Leave':'Remove'}
+                         
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Role Explanation */}
+                <div className="mt-8">
+                  <h3 className="text-md font-semibold text-gray-700 mb-3">Member Roles Explained</h3>
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-xs font-medium text-purple-800">
+                        A
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Admin</h4>
+                        <p className="text-sm text-gray-600 mt-1">Can edit the goal, manage members, add/edit milestones, and track their own progress. Has full control over the goal.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-800">
+                        C
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Collaborator</h4>
+                        <p className="text-sm text-gray-600 mt-1">Can track their own milestone progress, post updates, and participate in discussions. Cannot edit goal details or manage members.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'leaderboard' && (
+              // 🔹 Leaderboard Section – Fun Competitive Collaboration
+              <div>
+                <h2 className="text-lg font-semibold text-[#1C1C1C] mb-6">Team Leaderboard</h2>
+                
+                {goal.milestones && goal.milestones.length > 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milestones</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {/* Sort members by number of completed milestones */}
+                        {goal.members
+                          .map(member => {
+                            // Calculate completed milestones for each member
+                            let completedCount = 0;
+                            goal.milestones.forEach(milestone => {
+                              if (milestone.member_progress?.[member.user_id]) {
+                                completedCount++;
+                              }
+                            });
+                            
+                            const progressPercentage = goal.milestones.length > 0
+                              ? Math.round((completedCount / goal.milestones.length) * 100)
+                              : 0;
+                              
+                            return {
+                              ...member,
+                              completedMilestones: completedCount,
+                              totalMilestones: goal.milestones.length,
+                              progress: progressPercentage
+                            };
+                          })
+                          .sort((a, b) => {
+                            // Sort by completed milestones (descending)
+                            if (b.completedMilestones !== a.completedMilestones) {
+                              return b.completedMilestones - a.completedMilestones;
+                            }
+                            // If tied, sort alphabetically by name
+                            return a.name.localeCompare(b.name);
+                          })
+                          .map((member, index) => (
+                            <tr key={member.user_id} className={index < 3 ? getMemberRankClass(index) : ''}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {index === 0 && (
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
+                                    🥇
+                                  </div>
+                                )}
+                                {index === 1 && (
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-800 border border-gray-300">
+                                    🥈
+                                  </div>
+                                )}
+                                {index === 2 && (
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                                    🥉
+                                  </div>
+                                )}
+                                {index > 2 && (
+                                  <div className="text-center text-gray-500">{index + 1}</div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
+                                    {member.name.charAt(0)}
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {member.name}
+                                      {member.user_id === currentUser.id && (
+                                        <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {member.role === 'admin' ? 'Admin' : 'Collaborator'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {member.completedMilestones} / {member.totalMilestones}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-xs">
+                                  <div 
+                                    className={`h-2.5 rounded-full ${index < 3 
+                                      ? 'bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF]' 
+                                      : 'bg-blue-500'}`}
+                                    style={{ width: `${member.progress}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">{member.progress}% complete</div>
+                              </td>
+                            </tr>
+                          ))
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 bg-white border border-gray-200 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Leaderboard Available</h3>
+                    <p className="text-gray-500 max-w-md mx-auto">
+                      Add milestones to the goal to track team progress and enable the leaderboard
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Friend Selector Modal */}
+        {showFriendSelector && (
+          <FriendSelector
+            onClose={() => setShowFriendSelector(false)}
+            onSelect={handleFriendsSelected}
+          />
+        )}
+
+        {/* Edit Goal Modal */}
+        {showFormModal && (
+          <group.GroupGoalFormModal
+            isOpen={showFormModal}
+            onClose={() => setShowFormModal(false)}
+            onSubmit={handleUpdateGoal}
+            goal={goal}
+          />
+        )}
+        
+        {/* Add Milestone Modal */}
+        {showMilestoneForm && goal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-lg font-semibold text-[#1C1C1C]">
+                  {isEditingMilestone ? 'Edit Milestone' : 'Add New Milestone'}
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowMilestoneForm(false);
+                    setIsEditingMilestone(false);
+                    setCurrentMilestoneId(null);
+                    setMilestoneTitle('');
+                    setMilestoneDescription('');
+                    setMilestoneDueDate('');
+                    setMilestoneReminderDate('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
               
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
+                {/* Milestone Title */}
                 <div>
-                  <label htmlFor="milestoneDueDate" className="block text-sm font-medium text-gray-700 mb-1">
-                    Due Date
+                  <label htmlFor="milestoneTitle" className="block text-sm font-medium text-gray-700 mb-1">
+                    Milestone Title
                   </label>
                   <input
-                    type="date"
-                    id="milestoneDueDate"
-                    value={formatDateForInput(milestoneDueDate)}
-                    onChange={(e) => setMilestoneDueDate(e.target.value)}
+                    type="text"
+                    id="milestoneTitle"
+                    value={milestoneTitle}
+                    onChange={(e) => setMilestoneTitle(e.target.value)}
+                    placeholder="Enter milestone title"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                   />
                 </div>
                 
-                {/* <div>
-                  <label htmlFor="milestoneReminderDate" className="block text-sm font-medium text-gray-700 mb-1">
-                    Reminder Date (Optional)
+                {/* Milestone Description */}
+                <div>
+                  <label htmlFor="milestoneDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
                   </label>
-                  <input
-                    type="date"
-                    id="milestoneReminderDate"
-                    value={formatDateForInput(milestoneReminderDate)}
-                    onChange={(e) => setMilestoneReminderDate(e.target.value)}
+                  <textarea
+                    id="milestoneDescription"
+                    value={milestoneDescription}
+                    onChange={(e) => setMilestoneDescription(e.target.value)}
+                    placeholder="Describe your milestone"
+                    rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                   />
-                </div> */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Set Reminder (Optional)
+                </div>
+                
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="milestoneDueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                      Due Date
                     </label>
                     <input
-                      type="datetime-local"
-                      value={milestoneReminderDate}
-                      onChange={(e) => setMilestoneReminderDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                      type="date"
+                      id="milestoneDueDate"
+                      value={formatDateForInput(milestoneDueDate)}
+                      onChange={(e) => setMilestoneDueDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                     />
                   </div>
+                  
+                  {/* <div>
+                    <label htmlFor="milestoneReminderDate" className="block text-sm font-medium text-gray-700 mb-1">
+                      Reminder Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      id="milestoneReminderDate"
+                      value={formatDateForInput(milestoneReminderDate)}
+                      onChange={(e) => setMilestoneReminderDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
+                    />
+                  </div> */}
+                  <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Set Reminder (Optional)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={milestoneReminderDate}
+                        onChange={(e) => setMilestoneReminderDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                      />
+                    </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-6 space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMilestoneForm(false);
+                    setIsEditingMilestone(false);
+                    setCurrentMilestoneId(null);
+                    setMilestoneTitle('');
+                    setMilestoneDescription('');
+                    setMilestoneDueDate('');
+                    setMilestoneReminderDate('');
+                  }}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMilestone}
+                  className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200"
+                >
+                  {isEditingMilestone ? 'Update Milestone' : 'Save Milestone'}
+                </button>
               </div>
             </div>
-            
-            <div className="flex justify-end mt-6 space-x-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMilestoneForm(false);
-                  setIsEditingMilestone(false);
-                  setCurrentMilestoneId(null);
-                  setMilestoneTitle('');
-                  setMilestoneDescription('');
-                  setMilestoneDueDate('');
-                  setMilestoneReminderDate('');
-                }}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveMilestone}
-                className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200"
-              >
-                {isEditingMilestone ? 'Update Milestone' : 'Save Milestone'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -45,10 +45,9 @@ const Sidebar = ({ sidebarOpen }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-xl font-bold text-white"
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] flex items-center justify-center text-white font-semibold"
             >
-              <span className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">Routine</span>
-              <span>Mate</span>
+              RM
             </motion.div>
           ) : (
             <motion.div 

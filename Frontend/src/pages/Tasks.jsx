@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/header/Header';
-import Sidebar from '../components/sidebar/Sidebar';
 import TaskCard from '../components/tasks/TaskCard';
-import TaskTimer from '../components/tasks/TaskTimer';
 import CreateTaskModal from '../components/tasks/CreateTaskModal';
 import EditTaskModal from '../components/tasks/EditTaskModal';
 import TaskHistory from './TaskHistory';
 import { motion } from 'framer-motion';
+import PageHeader from '../components/ui/PageHeader';
 import { FiFilter, FiPlus, FiChevronDown, FiX, FiClock, FiList, FiCheck } from 'react-icons/fi';
+import { useTimer } from '../context/TimerContext';
 
 const Tasks = () => {
   const token = localStorage.getItem('token');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTimer, setActiveTimer] = useState(null);
+  const { activeTimer, tasks: contextTasks, startTimer, closeTimer, updateTasks } = useTimer();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sortOption, setSortOption] = useState('newest');
@@ -27,11 +25,27 @@ const Tasks = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showTaskHistory, setShowTaskHistory] = useState(false);
   
-  // Sample task data
+  // Add loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Use tasks from context
   const [tasks, setTasks] = useState([]);
+  
+  // Update local tasks when context tasks change
+  useEffect(() => {
+    if (contextTasks && contextTasks.length > 0) {
+      setTasks(contextTasks);
+      setIsLoading(false);
+    }
+  }, [contextTasks]);
+  
   useEffect(() => {
     const fetchTasks = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/fetchTasks`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -39,296 +53,183 @@ const Tasks = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch tasks');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Failed to fetch tasks: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log(data);
-        // console.log(data[1].estimated_time.hours);
+        console.log('Tasks fetched:', data);
         setTasks(data);
         
-        // Check for any active sessions after fetching tasks
-        checkForActiveSessions(data);
+        // Update tasks in context WITHOUT triggering another fetch
+        updateTasks(data, false);
+        
       } catch (error) {
         console.error('Error fetching tasks:', error);
+        setError(error.message || 'Failed to load tasks');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchTasks();
+    // Only run this effect once on mount
   }, []);
-  
-  // Check for any active sessions that weren't properly closed
-  const checkForActiveSessions = (taskList) => {
-    // Loop through local storage to find any active sessions
-    let activateTimerForTask = null;
-    
-    for (const task of taskList) {
-      const savedSession = localStorage.getItem(`task_session_${task.id}`);
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        if (session.isRunning) {
-          // We found an active session, set this as the active timer
-          activateTimerForTask = task.id;
-          break;
-        }
-      }
-    }
-    
-    // If we found an active session, set it as the active timer
-    if (activateTimerForTask) {
-      console.log('Found active session for task:', activateTimerForTask);
-      setActiveTimer(activateTimerForTask);
-    }
-  };
 
   const [filteredTasks, setFilteredTasks] = useState(tasks);
-  
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
 
-  const startTimer = async (taskId) => {
-    // Check if there's already a timer running
-    if (activeTimer && activeTimer !== taskId) {
-      await closeTimer(); // Close the current timer before starting a new one
-    }
-    
+  // Add a fetch tasks function to allow refreshing from anywhere
+  const fetchTasks = async () => {
     try {
-      // Start a new session in the backend
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/startSession`, {
-        method: 'POST',
+      setError(null);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/fetchTasks`, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ taskId })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to start timer session');
-      }
-      
-      const data = await response.json();
-      
-      // Store session info in localStorage
-      console.log('Session started:', data);
-      const sessionInfo = {
-        sessionId: data.sessionData.session_id,
-        startTime: new Date(data.sessionData.start_time).getTime(),
-        taskId,
-        isRunning: true
-      };
-      
-      localStorage.setItem(`task_session_${taskId}`, JSON.stringify(sessionInfo));
-      setActiveTimer(taskId);
-      
-    } catch (error) {
-      console.error('Error starting timer:', error);
-      // Fallback to local timer if backend fails
-      const sessionInfo = {
-        sessionId: null, // No backend session ID
-        startTime: new Date().getTime(),
-        taskId,
-        isRunning: true
-      };
-      
-      localStorage.setItem(`task_session_${taskId}`, JSON.stringify(sessionInfo));
-      setActiveTimer(taskId);
-    }
-  };
-
-  const closeTimer = async () => {
-    if (activeTimer) {
-      // End the session and update the task's time spent
-      const savedSession = localStorage.getItem(`task_session_${activeTimer}`);
-      console.log('Closing timer, saved session:', savedSession);
-      
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        const endTime = new Date().getTime();
-        const totalSeconds = Math.floor((endTime - session.startTime) / 1000);
-        
-        try {
-          // Try to save the session to the backend
-          let response;
-          
-          if (session.sessionId) {
-            // If we have a session ID, end the session in the backend
-            console.log('Ending session with ID:', session.sessionId);
-            response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/endSession`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ sessionId: session.sessionId })
-            });
-          } else {
-            // If we don't have a session ID (e.g., if the backend was down when we started),
-            // create a new completed session with the calculated duration
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const duration = `${hours}h ${minutes}m`;
-            
-            console.log('Creating new completed session with duration:', duration);
-            response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/endSession`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ 
-                taskId: activeTimer, 
-                duration 
-              })
-            });
-          }
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Failed to end timer session: ${errorData.error || response.statusText}`);
-          }
-          
-          const data = await response.json();
-          console.log('Session ended successfully:', data);
-          
-        } catch (error) {
-          console.error('Error ending timer session:', error);
-          // Continue with local time tracking even if backend fails
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
-        
-        // Update the task's timeSpent in the local state
-        setTasks(prevTasks => prevTasks.map(task => {
-          if (task.id === activeTimer) {
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const currentTimeSpent = task.timeSpent || '0h 0m';
-            
-            // Parse current timeSpent
-            const currentHoursMatch = currentTimeSpent.match(/(\d+)h/);
-            const currentMinutesMatch = currentTimeSpent.match(/(\d+)m/);
-            const currentHours = currentHoursMatch ? parseInt(currentHoursMatch[1]) : 0;
-            const currentMinutes = currentMinutesMatch ? parseInt(currentMinutesMatch[1]) : 0;
-            
-            // Add the new time to the current time
-            const totalHours = currentHours + hours;
-            const totalMinutes = currentMinutes + minutes;
-            const adjustedHours = totalHours + Math.floor(totalMinutes / 60);
-            const adjustedMinutes = totalMinutes % 60;
-            
-            const newTimeSpent = `${adjustedHours}h ${adjustedMinutes}m`;
-            
-            return {
-              ...task,
-              timeSpent: newTimeSpent,
-              updated_at: new Date().toISOString()
-            };
-          }
-          return task;
-        }));
-        
-        localStorage.removeItem(`task_session_${activeTimer}`);
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch tasks: ${response.status}`);
       }
+
+      const data = await response.json();
+      setTasks(data);
+      
+      // Update tasks in context WITHOUT triggering another fetch
+      updateTasks(data, false);
+      
+      return data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      setError(error.message || 'Failed to load tasks');
+      throw error;
     }
-    
-    setActiveTimer(null);
-    return Promise.resolve(); // Return a promise for chaining
   };
 
-  const toggleTaskCompletion = (taskId) => {
+  const toggleTaskCompletion = async (taskId) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (!taskToUpdate) return;
   
     const newStatus = taskToUpdate.status === 'completed' || taskToUpdate.completed ? 'pending' : 'completed';
   
-    const updatedTask = {
-      ...taskToUpdate,
-      status: newStatus,
-      completed: newStatus === 'completed',
-      updated_at: new Date().toISOString(),
-    };
-  
-    handleSaveEdit(updatedTask); // 🔁 reuse existing edit logic to update backend
+    try {
+      const updatedTask = {
+        ...taskToUpdate,
+        status: newStatus,
+        completed: newStatus === 'completed',
+        updated_at: new Date().toISOString(),
+      };
+    
+      await handleSaveEdit(updatedTask);
+    } catch (error) {
+      console.error('Error toggling task completion:', error);
+      alert('Failed to update task status. Please try again.');
+    }
   };
   
-  const toggleSubtaskCompletion = (taskId, subtaskId) => {
-    setTasks(prevTasks => {
-      const updatedTasks = prevTasks.map(task => {
-        if (task.id === taskId) {
-          const updatedSubtasks = task.subtasks.map(subtask => {
-            if (subtask.id === subtaskId) {
-              const newStatus = subtask.status === 'completed' || subtask.completed ? 'pending' : 'completed';
-              return {
-                ...subtask,
-                status: newStatus,
-                completed: newStatus === 'completed'
-              };
-            }
-            return subtask;
-          });
-  
-          const updatedTask = {
-            ...task,
-            subtasks: updatedSubtasks,
-            updated_at: new Date().toISOString()
-          };
-  
-          // Call backend update
-          handleSaveEdit(updatedTask);
-  
-          return updatedTask;
-        }
-        return task;
+  const toggleSubtaskCompletion = async (taskId, subtaskId) => {
+    try {
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(task => {
+          if (task.id === taskId) {
+            const updatedSubtasks = task.subtasks.map(subtask => {
+              if (subtask.id === subtaskId) {
+                const newStatus = subtask.status === 'completed' || subtask.completed ? 'pending' : 'completed';
+                return {
+                  ...subtask,
+                  status: newStatus,
+                  completed: newStatus === 'completed'
+                };
+              }
+              return subtask;
+            });
+    
+            return {
+              ...task,
+              subtasks: updatedSubtasks,
+              updated_at: new Date().toISOString()
+            };
+          }
+          return task;
+        });
+    
+        // Update tasks in context
+        updateTasks(updatedTasks, false);
+        
+        return updatedTasks;
       });
-  
-      return updatedTasks;
-    });
+      
+      // Get the updated task from state
+      const taskToUpdate = tasks.find(task => task.id === taskId);
+      if (taskToUpdate) {
+        // Call backend update
+        await handleSaveEdit(taskToUpdate);
+      }
+    } catch (error) {
+      console.error('Error toggling subtask completion:', error);
+      alert('Failed to update subtask status. Please try again.');
+      // Reload tasks to reset state
+      fetchTasks();
+    }
   };
   
 
-  const addSubtask = (taskId, subtaskTitle) => {
+  const addSubtask = async (taskId, subtaskTitle) => {
     if (!subtaskTitle.trim()) return;
   
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        if (task.id === taskId) {
-          const newSubtaskId = task.subtasks.length
-            ? Math.max(...task.subtasks.map(st => st.id)) + 1
-            : 1;
-  
-          const newSubtask = {
-            id: newSubtaskId,
-            name: subtaskTitle,
-            title: subtaskTitle, // For UI compatibility
-            status: 'pending',
-            completed: false,
-            estimated_time: null
-          };
-  
-          const updatedTask = {
-            ...task,
-            subtasks: [...task.subtasks, newSubtask],
-            updated_at: new Date().toISOString()
-          };
-  
-          // Update backend
-          handleSaveEdit(updatedTask);
-  
-          return updatedTask;
-        }
-        return task;
+    try {
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(task => {
+          if (task.id === taskId) {
+            const newSubtaskId = task.subtasks.length
+              ? Math.max(...task.subtasks.map(st => st.id)) + 1
+              : 1;
+    
+            const newSubtask = {
+              id: newSubtaskId,
+              name: subtaskTitle,
+              title: subtaskTitle, // For UI compatibility
+              status: 'pending',
+              completed: false,
+              estimated_time: null
+            };
+    
+            return {
+              ...task,
+              subtasks: [...task.subtasks, newSubtask],
+              updated_at: new Date().toISOString()
+            };
+          }
+          return task;
+        });
+        
+        // Update tasks in context
+        updateTasks(updatedTasks, false);
+    
+        return updatedTasks;
       });
-    });
+      
+      // Get the updated task with the new subtask
+      const taskToUpdate = tasks.find(task => task.id === taskId);
+      if (taskToUpdate) {
+        // Call backend update
+        await handleSaveEdit(taskToUpdate);
+      }
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+      alert('Failed to add subtask. Please try again.');
+      // Reload tasks to reset state
+      fetchTasks();
+    }
   };
   
-  
-
   const createTask = async (newTask) => {
-     // Here new Task created
-
-    console.log(newTask);
-    
     try {
+      setIsLoading(true);
+      console.log('Creating task:', newTask);
+      
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/AddTask`, {
         method: 'POST',
         headers: {
@@ -339,20 +240,20 @@ const Tasks = () => {
       });
   
       const data = await res.json();
-      const task_id = data.taskId;
       
-      if (res.ok) {
-        alert('Task Added Successfully');
-        // Add the new task to local state
-
-        setTasks(prevTasks => [...prevTasks, { ...newTask, id: task_id}]);
-      } else {
-        alert(data.msg || 'Error from backend');
+      if (!res.ok) {
+        throw new Error(data.message || 'Error creating task');
       }
-  
-      console.log('Task data sent to backend:', newTask);
+      
+      alert('Task Added Successfully');
+      // Fetch all tasks to ensure consistency with backend
+      await fetchTasks();
+      
     } catch (error) {
       console.error('Error creating task:', error);
+      alert(error.message || 'Error creating task. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -395,9 +296,9 @@ const Tasks = () => {
     if (filters.status) {
       result = result.filter(task => {
         if (filters.status === 'Completed') {
-          return task.completed;
+          return task.completed || task.status === 'completed';
         } else if (filters.status === 'Pending') {
-          return !task.completed;
+          return !task.completed && task.status !== 'completed';
         }
         return true;
       });
@@ -409,9 +310,9 @@ const Tasks = () => {
 
     // Apply sorting
     if (sortOption === 'newest') {
-      result.sort((a, b) => b.createdAt - a.createdAt);
+      result.sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
     } else if (sortOption === 'oldest') {
-      result.sort((a, b) => a.createdAt - b.createdAt);
+      result.sort((a, b) => new Date(a.created_at || a.createdAt) - new Date(b.created_at || b.createdAt));
     } else if (sortOption === 'priority-high') {
       result.sort((a, b) => {
         const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
@@ -423,7 +324,7 @@ const Tasks = () => {
         return priorityOrder[b.priority] - priorityOrder[a.priority];
       });
     } else if (sortOption === 'alphabetical') {
-      result.sort((a, b) => a.title.localeCompare(b.title));
+      result.sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name));
     }
     
     setFilteredTasks(result);
@@ -553,14 +454,13 @@ const Tasks = () => {
   };
 
   const handleSaveEdit = async (editedTask) => {
-    const taskId = editedTask?.id || selectedTask?.id;
-  
-    if (!taskId) {
-      console.error('No valid task ID provided');
-      return;
-    }
-  
     try {
+      const taskId = editedTask?.id || selectedTask?.id;
+    
+      if (!taskId) {
+        throw new Error('No valid task ID provided');
+      }
+    
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/updateTask/${taskId}`, {
         method: 'PUT',
         headers: {
@@ -569,22 +469,30 @@ const Tasks = () => {
         },
         body: JSON.stringify(editedTask || selectedTask),
       });
-  
+    
       if (!response.ok) {
-        throw new Error('Failed to update task');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to update task: ${response.status}`);
       }
-  
-      setTasks(prevTasks =>
-        prevTasks.map(task => (task.id === taskId ? { ...task, ...(editedTask || selectedTask) } : task))
+    
+      // Update local state and context
+      const updatedTasks = tasks.map(task => 
+        task.id === taskId ? { ...task, ...(editedTask || selectedTask) } : task
       );
-  
+      setTasks(updatedTasks);
+      updateTasks(updatedTasks, false);
+    
       // Close modal only if editing from modal
       if (selectedTask) {
         setShowEditTaskModal(false);
         setSelectedTask(null);
       }
+      
+      return response.json();
     } catch (error) {
       console.error('Error updating task:', error);
+      alert(error.message || 'Failed to update task. Please try again.');
+      throw error;
     }
   };
   
@@ -592,6 +500,7 @@ const Tasks = () => {
   const handleDeleteTask = async (taskId) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
+        setIsLoading(true);
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/deleteTask/${taskId}`, {
           method: 'DELETE',
           headers: {
@@ -600,181 +509,211 @@ const Tasks = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to delete task');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Failed to delete task: ${response.status}`);
         }
 
-        // Remove the task from the local state
-        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+        // Remove the task from local state and context
+        const updatedTasks = tasks.filter(task => task.id !== taskId);
+        setTasks(updatedTasks);
+        updateTasks(updatedTasks, false);
+        
+        // If the deleted task has an active timer, close it
+        if (activeTimer === taskId) {
+          await closeTimer();
+        }
+        
+        alert('Task deleted successfully');
       } catch (error) {
         console.error('Error deleting task:', error);
+        alert(error.message || 'Failed to delete task. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  // If showing task history, render the TaskHistory component
- 
-  // Close active sessions when unmounting
-  useEffect(() => {
-    return () => {
-      // Close any active timer when component unmounts
-      if (activeTimer) {
-        closeTimer();
-      }
-    };
-  }, [activeTimer]);
-  
   if (showTaskHistory) {
     return <TaskHistory goBack={() => setShowTaskHistory(false)} />;
   }
 
-
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
-      <div className="flex h-[calc(100vh-60px)]">
-        <Sidebar sidebarOpen={sidebarOpen} />
-        
-        <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-[#1C1C1C]">My Tasks</h1>
-                <p className="text-gray-600">Manage your personal tasks and track progress</p>
-              </div>
-              <div className="flex mt-4 md:mt-0 space-x-2">
-                <div className="relative">
-                  <button 
-                    className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white shadow-sm hover:bg-gray-50"
-                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  >
-                    <FiFilter className="mr-2" />
-                    <span>Filter</span>
-                    <FiChevronDown className="ml-2" size={14} />
-                  </button>
-                  {showFilterDropdown && renderFilterDropdown()}
-                </div>
-                <div className="relative">
-                  <button 
-                    className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white shadow-sm hover:bg-gray-50"
-                    onClick={() => setShowSortDropdown(!showSortDropdown)}
-                  >
-                    <span>Sort</span>
-                    <FiChevronDown className="ml-2" size={14} />
-                  </button>
-                  {showSortDropdown && renderSortDropdown()}
-                </div>
-                <button 
-                  className="flex items-center px-4 py-2 bg-[#5D4EFF] text-white rounded-md text-sm shadow-sm hover:bg-[#4A2BAF] transition-colors"
-                  onClick={() => setShowCreateTaskModal(true)}
+    <div className="bg-gray-50">
+      <div className="px-6 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Task Management Header with Create Task button */}
+          <PageHeader
+            title="Task Management"
+            subtitle="Organize and track your tasks efficiently"
+            rightContent={
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowTaskHistory(!showTaskHistory)}
+                  className="flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors text-sm"
                 >
-                  <FiPlus className="mr-2" />
-                  <span>Create Task</span>
+                  <FiClock className="mr-1.5 h-4 w-4" />
+                  {showTaskHistory ? 'Current Tasks' : 'Task History'}
                 </button>
-              </div>
-            </div>
-
-            {/* Additional button row */}
-            <div className="flex mb-6 space-x-2">
-              <button 
-                className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white shadow-sm hover:bg-gray-50"
-                onClick={() => setShowTaskHistory(true)}
-              >
-                <FiList className="mr-2" />
-                <span>Show History</span>
-              </button>
-
-            </div>
-
-            {/* Active filters */}
-            {activeFilters.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                {activeFilters.map((filter, index) => (
-                  <div key={index} className="flex items-center px-3 py-1 bg-white border border-gray-200 rounded-full text-sm">
-                    <span className="mr-2">{filter.type.charAt(0).toUpperCase() + filter.type.slice(1)}: {filter.value}</span>
-                    <FiX 
-                      className="cursor-pointer" 
-                      onClick={() => removeFilter(filter.type)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Task cards section */}
-            {filteredTasks.length > 0 ? (
-              <div className="space-y-4">
-                {filteredTasks.map((task) => (
-                  <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    onStartTimer={startTimer} 
-                    onToggleCompletion={toggleTaskCompletion}
-                    onToggleSubtask={toggleSubtaskCompletion}
-                    onAddSubtask={addSubtask}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
-                <div className="bg-[#5D4EFF]/5 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#5D4EFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-[#1C1C1C] mb-2">No Tasks Found</h2>
-                <p className="text-gray-500 max-w-md mb-6">
-                  {activeFilters.length > 0 
-                    ? "No tasks match your current filters. Try changing or removing some filters."
-                    : "Create your first task to start building productive habits"}
-                </p>
-                <button 
-                  className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
+                
+                <button
                   onClick={() => setShowCreateTaskModal(true)}
+                  className="flex items-center px-4 py-2 bg-[#4A2BAF] text-white rounded-md hover:bg-[#3A1C9F] transition-colors text-sm"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
+                  <FiPlus className="mr-1.5 h-4 w-4" />
                   Create Task
                 </button>
               </div>
-            )}
-
-            {/* Timer component */}
-            {activeTimer && (
-              <TaskTimer 
-                task={tasks.find(t => t.id === activeTimer)} 
-                onClose={closeTimer} 
-              />
-            )}
-
-            {/* Create Task Modal */}
-            <CreateTaskModal 
-              isOpen={showCreateTaskModal}
-              onClose={() => setShowCreateTaskModal(false)}
-              onCreateTask={createTask}
-            />
-
-            {showEditTaskModal && (
-              <EditTaskModal
-                isOpen={showEditTaskModal}
-                onClose={() => {
-                  setShowEditTaskModal(false);
-                  setSelectedTask(null);
-                }}
-                task={selectedTask}
-                onSave={handleSaveEdit}
-              />
-            )}
-          </motion.div>
-        </div>
+            }
+          />
+          
+          {/* Error message display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              <p>{error}</p>
+              <button 
+                onClick={() => fetchTasks().catch(err => console.error('Error refetching tasks:', err))} 
+                className="text-sm underline mt-1"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+          
+          {/* Loading indicator */}
+          {isLoading && tasks.length === 0 && (
+            <div className="flex justify-center items-center py-10">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#4A2BAF]"></div>
+            </div>
+          )}
+          
+          {/* Main content */}
+          {!isLoading && (
+            <>
+              {/* Filter and Sort controls */}
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* Filter Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                      className="flex items-center px-3 py-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      <FiFilter className="mr-1.5 h-4 w-4 text-gray-500" />
+                      Filter
+                      <FiChevronDown className="ml-1.5 h-4 w-4 text-gray-500" />
+                    </button>
+                    
+                    {/* Filter dropdown */}
+                    {showFilterDropdown && renderFilterDropdown()}
+                  </div>
+                  
+                  {/* Sort Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSortDropdown(!showSortDropdown)}
+                      className="flex items-center px-3 py-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      <FiList className="mr-1.5 h-4 w-4 text-gray-500" />
+                      Sort: {sortOption === 'newest' ? 'Newest' : sortOption === 'oldest' ? 'Oldest' : 'Priority'}
+                      <FiChevronDown className="ml-1.5 h-4 w-4 text-gray-500" />
+                    </button>
+                    
+                    {/* Sort dropdown */}
+                    {showSortDropdown && renderSortDropdown()}
+                  </div>
+                  
+                  {/* Active filters display */}
+                  {activeFilters.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pl-2 items-center">
+                      <span className="text-xs text-gray-500">Active filters:</span>
+                      {activeFilters.map((filter, index) => (
+                        <div key={index} className="flex items-center bg-[#4A2BAF]/10 text-[#4A2BAF] px-2 py-1 rounded-full text-xs">
+                          <span>{filter.value}</span>
+                          <button 
+                            className="ml-1 p-0.5 rounded-full hover:bg-[#4A2BAF]/20"
+                            onClick={() => removeFilter(filter.type)}
+                          >
+                            <FiX className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {activeTimer && (
+                  <div className="flex items-center gap-2 bg-[#4A2BAF]/5 px-3 py-1.5 rounded-md text-sm">
+                    <div className="flex items-center text-[#4A2BAF]">
+                      <FiClock className="h-4 w-4 mr-1.5 animate-pulse" />
+                      <span className="font-medium">Active timer!</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Tasks Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTasks.length > 0 ? (
+                  filteredTasks.map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onComplete={() => toggleTaskCompletion(task.id)}
+                      onDelete={() => handleDeleteTask(task.id)}
+                      onEdit={() => handleEditTask(task)}
+                      onToggleSubtask={(subtaskId) => toggleSubtaskCompletion(task.id, subtaskId)}
+                      onAddSubtask={(subtaskTitle) => addSubtask(task.id, subtaskTitle)}
+                      onStartTimer={() => startTimer(task.id)}
+                      isTimerActive={activeTimer === task.id}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                    <div className="bg-gray-100 rounded-full p-3 mb-4">
+                      <FiCheck className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-700 mb-1">No tasks found</h3>
+                    <p className="text-gray-500 mb-4 max-w-md">
+                      {tasks.length === 0
+                        ? "You haven't created any tasks yet. Get started by creating your first task!"
+                        : "No tasks match your current filters. Try adjusting your filter criteria."}
+                    </p>
+                    {tasks.length === 0 && (
+                      <button
+                        onClick={() => setShowCreateTaskModal(true)}
+                        className="flex items-center px-4 py-2 bg-[#4A2BAF] text-white rounded-md hover:bg-[#3A1C9F] transition-colors text-sm"
+                      >
+                        <FiPlus className="mr-1.5 h-4 w-4" />
+                        Create Task
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </motion.div>
+        
+        {/* Create Task Modal */}
+        {showCreateTaskModal && (
+          <CreateTaskModal
+            onClose={() => setShowCreateTaskModal(false)}
+            onCreateTask={createTask}
+          />
+        )}
+        
+        {/* Edit Task Modal */}
+        {showEditTaskModal && selectedTask && (
+          <EditTaskModal
+            task={selectedTask}
+            onClose={() => setShowEditTaskModal(false)}
+            onSave={handleSaveEdit}
+          />
+        )}
       </div>
     </div>
   );

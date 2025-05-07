@@ -1,213 +1,157 @@
 /*
-* IMPORTANT: Page Layout Structure
+* IMPORTANT: Page Content Structure
 * 
-* When integrating new pages or components, please follow this structure:
-* 1. Import Header and Sidebar components
-* 2. Add sidebarOpen state and toggleSidebar function
-* 3. Wrap the page content in the following layout:
-*    - Root div with "min-h-screen" and appropriate background
-*    - Header component with toggleSidebar and sidebarOpen props
-*    - Flex container with sidebar and main content
-*    - Sidebar component with sidebarOpen prop
-*    - Main content div with conditional margin when sidebar is closed
-*
-* This ensures consistent layout and sidebar toggle functionality across all pages.
+* Each page should now only contain its main content, as the Header and Sidebar
+* are rendered by the Layout component.
 */
 
 // src/pages/Dashboard.jsx
-import React, { useState } from 'react';
-import Header from '../components/header/Header';
-import Sidebar from '../components/sidebar/Sidebar';
-import { FiChevronRight, FiCalendar, FiCheckSquare, FiTarget } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import PageHeader from '../components/ui/PageHeader';
+
+// Import dashboard components
+import DailyQuote from '../components/dashboard/DailyQuote';
+import TodaySchedule from '../components/dashboard/TodaySchedule';
+import RecentActivity from '../components/dashboard/RecentActivity';
+import WeeklyActivityChart from '../components/dashboard/WeeklyActivityChart';
+import TaskCategoryChart from '../components/dashboard/TaskCategoryChart';
+import ProductivityTrend from '../components/dashboard/ProductivityTrend';
+import StreakProgress from '../components/dashboard/StreakProgress';
 
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentQuote, setCurrentQuote] = useState({ text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" });
+  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Mock user data
   const user = JSON.parse(localStorage.getItem('user')) || { name: 'User' };
   
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+  // Mock data for today's schedule
+  const todaySchedule = [
+    { id: 1, title: "Morning Workout", time: "07:30 AM", type: "routine", completed: true },
+    { id: 2, title: "Team Meeting", time: "10:00 AM", type: "task", completed: false },
+    { id: 3, title: "Lunch Break", time: "01:00 PM", type: "routine", completed: false },
+    { id: 4, title: "Project Review", time: "03:30 PM", type: "task", completed: false },
+    { id: 5, title: "Evening Meditation", time: "07:00 PM", type: "habit", completed: false }
+  ];
+  
+  // Mock data for recent activities
+  const recentActivities = [
+    { type: 'task', description: 'Completed "Morning Workout" task', time: 'Today, 8:30 AM' },
+    { type: 'goal', description: 'Updated goal "Read 10 books"', time: 'Yesterday, 7:45 PM' },
+    { type: 'routine', description: 'Created new routine "Evening Meditation"', time: '2 days ago, 9:15 PM' }
+  ];
+  
+  // List of quotes for daily inspiration
+  const quotes = [
+    { text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" },
+    { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Aristotle" },
+    { text: "It's not what we do once in a while that shapes our lives, but what we do consistently.", author: "Tony Robbins" },
+    { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+    { text: "The journey of a thousand miles begins with a single step.", author: "Lao Tzu" },
+    { text: "Good habits formed at youth make all the difference.", author: "Aristotle" },
+    { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" }
+  ];
+  
+  // Set a new quote for each day
+  useEffect(() => {
+    // Get today's date and use it to seed a random quote
+    const today = new Date().setHours(0, 0, 0, 0);
+    const savedDate = localStorage.getItem('quoteDate');
+    
+    if (savedDate !== today.toString()) {
+      // It's a new day, set a new quote
+      const randomIndex = Math.floor(Math.random() * quotes.length);
+      setCurrentQuote(quotes[randomIndex]);
+      localStorage.setItem('quoteDate', today.toString());
+      localStorage.setItem('currentQuote', JSON.stringify(quotes[randomIndex]));
+    } else {
+      // Same day, use saved quote if available
+      const savedQuote = localStorage.getItem('currentQuote');
+      if (savedQuote) {
+        setCurrentQuote(JSON.parse(savedQuote));
+      }
+    }
+    
+    // Update current date for the greeting
+    setCurrentDate(new Date());
+    
+    // Set up interval to check time every minute
+    const intervalId = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Format greeting based on time of day
+  const getGreeting = () => {
+    const hour = currentDate.getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+  
+  // Format today's date
+  const formattedDate = currentDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  // Sample data for ProductivityTrend
+  const weeklyData = [65, 72, 68, 76]; // Example completion rates for last 4 weeks
+
+  // Sample data for StreakProgress
+  const streakData = {
+    routineStreak: { current: 5, longest: 12 },
+    taskStreak: { current: 3, longest: 8 },
+    habitStreak: { current: 7, longest: 15 }
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f6f6]">
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      
-      {/* Main Content with Sidebar */}
-      <div className="flex h-[calc(100vh-60px)]">
-        <Sidebar sidebarOpen={sidebarOpen} />
+    <div className="bg-gray-50">
+      <div className="px-6 py-6">
+        <PageHeader 
+          title="Dashboard" 
+          subtitle={`${getGreeting()}, ${user.name}!`} 
+          rightContent={<p className="text-sm text-gray-500">{formattedDate}</p>} 
+        />
         
-        {/* Main content */}
-        <div className={`flex-1 p-6 ${!sidebarOpen ? 'lg:ml-16' : ''} overflow-y-auto`}>
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-[#1C1C1C]">Dashboard</h1>
-            <p className="text-gray-600">Welcome back, {user.name}!</p>
+        {/* Daily Quote Component */}
+        <DailyQuote quote={currentQuote} />
+        
+        {/* First Row - Schedule and Weekly Activity Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Left column - Schedule */}
+          <div className="lg:col-span-1">
+            <TodaySchedule schedule={todaySchedule} />
           </div>
           
-          {/* Dashboard Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {/* Active routines card */}
-            <motion.div 
-              className="bg-white p-6 rounded-xl shadow-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)",
-                transition: { duration: 0.2 }
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-medium text-[#1C1C1C]">Active Routines</h2>
-                  <p className="text-3xl font-bold mt-2 text-[#4A2BAF]">3</p>
-                </div>
-                <div className="p-3 bg-[#4A2BAF]/10 rounded-xl">
-                  <FiCalendar className="h-6 w-6 text-[#4A2BAF]" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Link to="/routines" className="text-sm font-medium text-[#4A2BAF] hover:text-[#5D4EFF] flex items-center">
-                  View all routines <FiChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-              </div>
-            </motion.div>
-            
-            {/* Today's tasks card */}
-            <motion.div 
-              className="bg-white p-6 rounded-xl shadow-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)",
-                transition: { duration: 0.2 }
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-medium text-[#1C1C1C]">Today's Tasks</h2>
-                  <p className="text-3xl font-bold mt-2 text-[#5D4EFF]">5</p>
-                </div>
-                <div className="p-3 bg-[#5D4EFF]/10 rounded-xl">
-                  <FiCheckSquare className="h-6 w-6 text-[#5D4EFF]" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">3 completed</span>
-                  <span className="text-gray-900 font-medium">60%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                  <div className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" style={{ width: '60%' }}></div>
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Goals progress card */}
-            <motion.div 
-              className="bg-white p-6 rounded-xl shadow-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)",
-                transition: { duration: 0.2 }
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-medium text-[#1C1C1C]">Active Goals</h2>
-                  <p className="text-3xl font-bold mt-2 text-[#111827]">2</p>
-                </div>
-                <div className="p-3 bg-[#111827]/10 rounded-xl">
-                  <FiTarget className="h-6 w-6 text-[#111827]" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Link to="/goals" className="text-sm font-medium text-[#111827] hover:text-black flex items-center">
-                  View all goals <FiChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-              </div>
-            </motion.div>
+          {/* Right column - Weekly Activity Chart */}
+          <div className="lg:col-span-2">
+            <WeeklyActivityChart />
           </div>
-          
-          {/* Recent Activity Section */}
-          <motion.div 
-            className="bg-white rounded-xl shadow-sm p-6 mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
-          >
-            <h2 className="text-lg font-medium text-[#1C1C1C] mb-4">Recent Activity</h2>
-            <div className="space-y-4">
-              {/* Activity items */}
-              <motion.div 
-                className="flex items-start"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.5 }}
-                whileHover={{ x: 5, transition: { duration: 0.2 } }}
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-[#4A2BAF] mr-3">
-                  <FiCheckSquare />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#1C1C1C]">Completed "Morning Workout" task</p>
-                  <p className="text-xs text-gray-500 mt-1">Today, 8:30 AM</p>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="flex items-start"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.6 }}
-                whileHover={{ x: 5, transition: { duration: 0.2 } }}
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#5D4EFF]/10 flex items-center justify-center text-[#5D4EFF] mr-3">
-                  <FiTarget />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#1C1C1C]">Updated goal "Read 10 books"</p>
-                  <p className="text-xs text-gray-500 mt-1">Yesterday, 7:45 PM</p>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="flex items-start"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.7 }}
-                whileHover={{ x: 5, transition: { duration: 0.2 } }}
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#111827]/10 flex items-center justify-center text-[#111827] mr-3">
-                  <FiCalendar />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#1C1C1C]">Created new routine "Evening Meditation"</p>
-                  <p className="text-xs text-gray-500 mt-1">2 days ago, 9:15 PM</p>
-                </div>
-              </motion.div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t">
-              <motion.a 
-                href="#" 
-                className="text-sm font-medium text-[#4A2BAF] hover:text-[#5D4EFF] flex items-center"
-                whileHover={{ x: 5, transition: { duration: 0.2 } }}
-              >
-                View all activity <FiChevronRight className="ml-1 h-4 w-4" />
-              </motion.a>
-            </div>
-          </motion.div>
         </div>
+        
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <TaskCategoryChart />
+          <ProductivityTrend weeklyData={weeklyData} />
+        </div>
+
+        {/* Streak Progress */}
+        <div className="mb-6">
+          <StreakProgress 
+            routineStreak={streakData.routineStreak}
+            taskStreak={streakData.taskStreak}
+            habitStreak={streakData.habitStreak}
+          />
+        </div>
+        
+        {/* Recent Activity Section */}
+        <RecentActivity activities={recentActivities} />
       </div>
     </div>
   );

@@ -9,36 +9,30 @@ const RoutineForm = ({
 }) => {
   // Form states mapped to backend schema
   const [title, setTitle] = useState('');
- 
   const [categoryId, setCategoryId] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('09:00');
   const [selectedDays, setSelectedDays] = useState([]);
-  const [priorityId, setPriorityId] = useState('medium');
-  const [status, setStatus] = useState('active');
+  const [priorityId, setPriorityId] = useState('');
+  const [status, setStatus] = useState('pending');
   
   // Validation states
   const [errors, setErrors] = useState({});
+  // Additional state for time conflict validation
+  const [timeConflict, setTimeConflict] = useState(false);
 
   // Categories, priorities and days - based on backend schema
   const categories = [
-    { id: "physical", name: "Physical" },
-    { id: "mental", name: "Mental" }, 
-    { id: "spiritual", name: "Spiritual" }, 
-    { id: "social", name: "Social" },
-    { id: "work", name: "Work" },
-    { id: "education", name: "Education" }
+    { id: "Physical", name: "Physical" },
+    { id: "Mental", name: "Mental" }, 
+    { id: "Spiritual", name: "Spiritual" }, 
+    { id: "Social", name: "Social" }
   ];
   
   const priorities = [
-    { id: "high", name: "High" },
-    { id: "medium", name: "Medium" },
-    { id: "low", name: "Low" }
-  ];
-  
-  const statusOptions = [
-    { id: "active", name: "Active" },
-    { id: "inactive", name: "Inactive" }
+    { id: "HIGH", name: "High" },
+    { id: "MEDIUM", name: "Medium" },
+    { id: "LOW", name: "Low" }
   ];
   
   const daysOfWeek = [
@@ -55,13 +49,12 @@ const RoutineForm = ({
   useEffect(() => {
     if (initialValues) {
       setTitle(initialValues.title || '');
-  
-      setCategoryId(initialValues.category?.toLowerCase() || '');
-      setStartTime(initialValues.startTime || '08:00');
-      setEndTime(initialValues.endTime || '09:00');
-      setSelectedDays(initialValues.daysOfWeek || []);
-      setPriorityId(initialValues.priority?.toLowerCase() || 'medium');
-      setStatus(initialValues.active ? 'active' : 'inactive');
+      setCategoryId(initialValues.category_id || initialValues.category || '');
+      setStartTime(initialValues.start_time || initialValues.startTime || '08:00');
+      setEndTime(initialValues.end_time || initialValues.endTime || '09:00');
+      setSelectedDays(initialValues.days || initialValues.daysOfWeek || []);
+      setPriorityId(initialValues.priority_id || initialValues.priority || '');
+      setStatus(initialValues.status || 'pending');
     }
   }, [initialValues]);
 
@@ -74,6 +67,7 @@ const RoutineForm = ({
     if (!startTime) newErrors.startTime = 'Start time is required';
     if (!endTime) newErrors.endTime = 'End time is required';
     if (selectedDays.length === 0) newErrors.selectedDays = 'At least one day must be selected';
+    if (!priorityId) newErrors.priorityId = 'Priority is required';
     
     if (startTime && endTime) {
       const start = new Date(`2000-01-01T${startTime}`);
@@ -81,6 +75,10 @@ const RoutineForm = ({
       if (start >= end) {
         newErrors.endTime = 'End time must be after start time';
       }
+    }
+    
+    if (timeConflict) {
+      newErrors.timeConflict = 'This time slot conflicts with another routine';
     }
     
     setErrors(newErrors);
@@ -119,15 +117,22 @@ const RoutineForm = ({
       // Compile all data to match backend schema
       const routineData = {
         title,
-
-        category: categories.find(c => c.id === categoryId)?.name || categoryId,
-        startTime,
-        endTime,
+        category_id: categoryId,
+        start_time: startTime,
+        end_time: endTime,
+        days: selectedDays,
+        priority_id: priorityId,
+        status,
+        // For compatibility with the frontend while in transition
+        category: categoryId,
+        startTime: startTime,
+        endTime: endTime,
         daysOfWeek: selectedDays,
-        priority: priorities.find(p => p.id === priorityId)?.name || priorityId,
-        active: status === 'active',
+        priority: priorityId,
+        active: true, // Always active for UI display purposes
         // Add additional properties for existing routines
         ...(initialValues && { id: initialValues.id }),
+        ...(initialValues && { routine_id: initialValues.routine_id }),
         ...(initialValues && { completionData: initialValues.completionData })
       };
       
@@ -158,8 +163,6 @@ const RoutineForm = ({
             </div>
           )}
         </div>
-        
-     
         
         {/* Category and Priority */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -192,7 +195,7 @@ const RoutineForm = ({
           
           <div>
             <label className="block text-gray-700 font-medium mb-2">
-              Priority
+              Priority <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {priorities.map((p) => (
@@ -210,29 +213,12 @@ const RoutineForm = ({
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-        
-        {/* Status */}
-        <div>
-          <label className="block text-gray-700 font-medium mb-2">
-            Status
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {statusOptions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setStatus(s.id)}
-                className={`py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  status === s.id
-                    ? 'bg-[#4A2BAF] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {s.name}
-              </button>
-            ))}
+            {errors.priorityId && (
+              <div className="flex items-center text-red-500 text-sm mt-1">
+                <AlertCircle size={16} className="mr-1" />
+                <span>{errors.priorityId}</span>
+              </div>
+            )}
           </div>
         </div>
         
@@ -247,6 +233,7 @@ const RoutineForm = ({
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
+                step="60"
                 className={`w-full border ${errors.startTime ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 pl-10 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
               />
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
@@ -270,6 +257,7 @@ const RoutineForm = ({
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
+                step="60"
                 className={`w-full border ${errors.endTime ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 pl-10 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
               />
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
@@ -284,6 +272,47 @@ const RoutineForm = ({
             )}
           </div>
         </div>
+        
+        {/* Time Conflict Warning */}
+        {errors.timeConflict && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <div className="flex items-center text-red-600 text-sm">
+              <AlertCircle size={18} className="mr-2" />
+              <span>{errors.timeConflict}</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Status - Only visible when editing */}
+        {isEdit && (
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">Status</label>
+            <div className="flex gap-3">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-[#4A2BAF]"
+                  name="status"
+                  value="pending"
+                  checked={status === 'pending'}
+                  onChange={() => setStatus('pending')}
+                />
+                <span className="ml-2">Pending</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-[#4A2BAF]"
+                  name="status"
+                  value="completed"
+                  checked={status === 'completed'}
+                  onChange={() => setStatus('completed')}
+                />
+                <span className="ml-2">Completed</span>
+              </label>
+            </div>
+          </div>
+        )}
         
         {/* Days of Week */}
         <div>
