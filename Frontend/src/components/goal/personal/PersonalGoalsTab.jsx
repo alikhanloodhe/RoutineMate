@@ -4,13 +4,16 @@ import GoalCard from '../shared/GoalCard';
 import AddGoalButton from '../shared/AddGoalButton';
 import GoalFormModal from './PersonalGoalFormModal';
 import { addGoal, updateGoal, deleteGoal } from '../../../utils/goalData';
+import { useToastContext } from '../../../context/ToastContext';
 
 const PersonalGoalsTab = ({ goals, onViewGoal }) => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   const [showFormModal, setShowFormModal] = useState(false);
   const [currentGoal, setCurrentGoal] = useState(null);
   const [filteredGoals, setFilteredGoals] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
 
   // Filter personal goals
   const personalGoals = goals.filter(goal => goal.goal_type === 'personal');
@@ -29,87 +32,104 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
 
   // Handle delete goal
   const handleDeleteGoal = async (goal) => {
-    // Delete from central data
-    const deletedGoal = deleteGoal(goal.goal_id);
+    // Simple confirmation
+    if (showConfirmDelete === goal.goal_id) {
+      // Delete from central data
+      const deletedGoal = deleteGoal(goal.goal_id);
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteGoal/${goal.goal_id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/deleteGoal/${goal.goal_id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        successToast('Goal deleted successfully');
+        // Reset confirmation state
+        setShowConfirmDelete(null);
       }
-    }
-    catch (error) {
-      console.error('Error deleting goal:', error);
-    }
-    
-    if (deletedGoal) {
-      // You would typically need to update the parent component's state
-      // This is handled by the parent component's state management
-      // But we could emit an event to the parent if needed
+      catch (error) {
+        console.error('Error deleting goal:', error);
+        errorToast('Failed to delete goal. Please try again.');
+      }
+      
+      if (deletedGoal) {
+        // You would typically need to update the parent component's state
+        // This is handled by the parent component's state management
+        // But we could emit an event to the parent if needed
+      }
+    } else {
+      setShowConfirmDelete(goal.goal_id);
     }
   };
 
   // Handle goal form submission
   // here fetch api to create personal goal
   const handleSubmitGoal = async (goalData) => {
-
-    if (goalData.goal_id) {
-      // Update existing goal
-      updateGoal(goalData.goal_id, goalData);
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalData.goal_id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify(goalData),
-        });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
+    try {
+      if (goalData.goal_id) {
+        // Update existing goal
+        updateGoal(goalData.goal_id, goalData);
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalData.goal_id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify(goalData),
+          });
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          successToast('Goal updated successfully');
         }
-      }
-      catch (error) {
-        console.error('Error adding goal:', error);
-      } 
-
-    } else {
-      // Add new goal with personal type
-      addGoal({
-        ...goalData,
-        goal_type: 'personal'
-      });
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/addGoal`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify(goalData),
+        catch (error) {
+          console.error('Error updating goal:', error);
+          errorToast('Failed to update goal. Please try again.');
+          throw error;
+        } 
+      } else {
+        // Add new goal with personal type
+        addGoal({
+          ...goalData,
+          goal_type: 'personal'
         });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/addGoal`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify(goalData),
+          });
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          successToast('New goal created successfully');
         }
+        catch (error) {
+          console.error('Error adding goal:', error);
+          errorToast('Failed to create goal. Please try again.');
+          throw error;
+        } 
       }
-      catch (error) {
-        console.error('Error adding goal:', error);
-      } 
+      
+      setShowFormModal(false);
+    } catch (error) {
+      console.error('Error with goal operation:', error);
     }
-    
-    
-    setShowFormModal(false);
   };
 
   // Filter goals based on status
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
+    infoToast(`Showing ${filter} goals`);
   };
 
   // Search goals
@@ -295,6 +315,38 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
         onSubmit={handleSubmitGoal}
         goal={currentGoal}
       />
+      
+      {/* Confirm Delete Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-2">Delete Goal</h3>
+            <p className="mb-4 text-gray-600">
+              Are you sure you want to delete this goal? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmDelete(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const goalToDelete = personalGoals.find(g => g.goal_id === showConfirmDelete);
+                  if (goalToDelete) {
+                    handleDeleteGoal(goalToDelete);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

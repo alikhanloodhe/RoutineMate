@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
-  FiBell, FiUser, FiSettings, FiLogOut, FiMenu, FiX
+  FiBell, FiUser, FiSettings, FiLogOut, FiMenu
 } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = ({ toggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const { logout, user } = useAuth();
   
-  // Mock user data
-  const user = JSON.parse(localStorage.getItem('user')) || { name: 'User' };
+  // Get user data safely
+  const userName = user?.name || user?.username || 'User';
+  const userEmail = user?.email || 'user@example.com';
+  const userImage = user?.image;
   
   // Mock notifications
   const notifications = [
@@ -20,6 +25,16 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
     { id: 2, text: 'Goal "Read 10 books" is 70% complete', time: '5 hours ago', read: false },
     { id: 3, text: 'Daily step goal achieved', time: 'Yesterday', read: true },
   ];
+
+  // Handle screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Handle scroll event to add shadow on scroll
   useEffect(() => {
@@ -45,40 +60,38 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
     setNotificationsOpen(false);
   };
   
+  const handleProfileSettingsClick = () => {
+    navigate('/profile-settings');
+    setProfileOpen(false);
+  };
+  
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
   return (
     <motion.div 
-      className={`bg-[#ffffff]  px-4 py-3 flex justify-between items-center z-30 sticky top-0 transition-all duration-300 ${
+      className={`bg-white px-4 py-3 flex justify-between items-center z-30 sticky top-0 transition-all duration-300 ${
         scrolled ? 'shadow-md' : ''
       }`}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex items-center">
+      {/* Mobile hamburger menu */}
+      {isMobile && (
         <motion.button 
           onClick={toggleSidebar} 
-          className="p-2 mr-3 rounded-full hover:bg-[#f0f0f0] text-[#1C1C1C] focus:outline-none"
+          className="p-2 rounded-full hover:bg-[#f0f0f0] text-[#1C1C1C] focus:outline-none"
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          {sidebarOpen ? <FiX size={20} /> : <FiMenu size={20} />}
+          <FiMenu size={20} />
         </motion.button>
-        <motion.h1 
-          className="text-xl font-bold bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent hidden md:block"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          RoutineMate
-        </motion.h1>
-      </div>
+      )}
       
-      <div className="flex items-center space-x-3">
+      <div className={`flex items-center space-x-3 ${isMobile ? '' : 'ml-auto'}`}>
         {/* Notifications */}
         <div className="relative">
           <motion.button 
@@ -158,14 +171,14 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
             whileTap={{ scale: 0.98 }}
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] flex items-center justify-center text-white overflow-hidden">
-              {user.image ? (
-                <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+              {userImage ? (
+                <img src={userImage} alt={userName} className="w-full h-full object-cover" />
               ) : (
                 <FiUser size={16} />
               )}
             </div>
             <span className="hidden md:block text-sm font-medium truncate max-w-[100px]">
-              {user.name}
+              {userName}
             </span>
           </motion.button>
           
@@ -180,25 +193,25 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
                 className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-40 border border-gray-100"
               >
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-[#1C1C1C]">{user.name}</p>
-                  <p className="text-xs text-gray-500 truncate mt-1">{user.email}</p>
+                  <p className="text-sm font-medium text-[#1C1C1C]">{userName}</p>
+                  <p className="text-xs text-gray-500 truncate mt-1">{userEmail}</p>
                 </div>
-                <motion.a
-                  href="#"
-                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f8f8f8] flex items-center"
+                <motion.button
+                  onClick={handleProfileSettingsClick}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f8f8f8] flex items-center"
                   whileHover={{ backgroundColor: '#f0f0f0', x: 2 }}
                 >
                   <FiUser className="mr-3 h-4 w-4 text-gray-500" />
                   Your Profile
-                </motion.a>
-                <motion.a
-                  href="#"
-                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f8f8f8] flex items-center"
+                </motion.button>
+                <motion.button
+                  onClick={handleProfileSettingsClick}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f8f8f8] flex items-center"
                   whileHover={{ backgroundColor: '#f0f0f0', x: 2 }}
                 >
                   <FiSettings className="mr-3 h-4 w-4 text-gray-500" />
                   Settings
-                </motion.a>
+                </motion.button>
                 <div className="border-t border-gray-100 my-1"></div>
                 <motion.button
                   onClick={handleLogout}

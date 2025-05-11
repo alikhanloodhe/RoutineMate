@@ -68,7 +68,7 @@ export const addGroupGoals = async (req, res) => {
             for (const milestone of milestones) {
                 const milestone_id = await client.query(
                     'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING milestone_id',
-                    [goal_id, milestone.title, milestone.description, milestone.due_date, milestoneStatus]
+                    [goal_id, milestone.title, milestone.description, milestone.due_date || null, milestoneStatus]
                 );
      
                 for(const member of members){
@@ -165,8 +165,8 @@ export const updateGroupGoals = async (req, res) => {
                 title, 
                 description, 
                 categoryId, 
-                start_date, 
-                end_date, 
+                start_date || null, 
+                end_date || null, 
                 status, 
                 progress, 
                 goalId
@@ -229,7 +229,7 @@ export const updateGroupGoals = async (req, res) => {
                 // Insert new milestone and get its ID
                 const newMilestoneResult = await client.query(
                     'INSERT INTO goal_milestones (goal_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING milestone_id',
-                    [goalId, milestone.title, milestone.description, milestone.due_date, milestoneStatus]
+                    [goalId, milestone.title, milestone.description, milestone.due_date || null, milestoneStatus]
                 );
                 
                 const milestone_id = newMilestoneResult.rows[0].milestone_id;

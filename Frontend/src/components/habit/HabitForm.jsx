@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import FrequencySelector from './FrequencySelector';
 import DatePicker from './DatePicker';
 import ReminderTimePicker from './ReminderTimePicker';
+import axios from 'axios';
 
 const HabitForm = ({ habit, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -14,22 +15,44 @@ const HabitForm = ({ habit, onSubmit }) => {
     start_date: new Date().toISOString().split('T')[0],
     goal_type: 'lifelong',
     total_target_days: '',
-    // Fields to track UI state only (not sent to backend)
-    customDays: []
+    category_id: ''
   });
+
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setCategories(response.data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Initialize form with habit data if editing
   useEffect(() => {
     if (habit) {
       setFormData({
         ...habit,
-        // Add UI-only fields that aren't in the backend data
-        customDays: habit.customDays || [],
         // Ensure these fields exist even if they're null in the habit data
         description: habit.description || '',
         reminder_time: habit.reminder_time || '',
         why_reason: habit.why_reason || '',
-        total_target_days: habit.total_target_days || ''
+        total_target_days: habit.total_target_days || '',
+        category_id: habit.category_id || ''
       });
     }
   }, [habit]);
@@ -38,11 +61,10 @@ const HabitForm = ({ habit, onSubmit }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFrequencyChange = (frequency, customDays = []) => {
+  const handleFrequencyChange = (frequency) => {
     setFormData(prev => ({ 
       ...prev, 
-      frequency,
-      customDays: frequency === 'custom' ? customDays : []
+      frequency
     }));
   };
 
@@ -61,6 +83,7 @@ const HabitForm = ({ habit, onSubmit }) => {
       why_reason: formData.why_reason,
       start_date: formData.start_date,
       goal_type: formData.goal_type,
+      category_id: formData.category_id,
       
       // Only include total_target_days if goal_type is 'fixed'
       total_target_days: formData.goal_type === 'fixed' 
@@ -123,6 +146,35 @@ const HabitForm = ({ habit, onSubmit }) => {
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors"
             />
             <p className="text-sm text-gray-500 mt-1">Understanding your motivation makes habits more likely to stick</p>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 p-5 rounded-lg">
+          <h4 className="font-semibold text-gray-800 mb-4">Habit Category</h4>
+          <div className="mb-4">
+            <label htmlFor="category" className="block font-semibold text-gray-800 mb-2">
+              Category
+            </label>
+            <div className="relative">
+              <select
+                id="category"
+                value={formData.category_id}
+                onChange={(e) => handleChange('category_id', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-[#4A2BAF] transition-colors appearance-none"
+              >
+                <option value="">Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 

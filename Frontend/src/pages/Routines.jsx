@@ -8,6 +8,7 @@ import RoutineList from '../components/routine/RoutineList';
 import RoutineForm from '../components/routine/RoutineForm';
 import FilterBar from '../components/routine/FilterBar';
 import StatsPanel from '../components/routine/StatsPanel';
+import { useToastContext } from '../context/ToastContext';
 
 // Mock data for initial routines
 const initialRoutines = [
@@ -156,6 +157,12 @@ const Routines = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { successToast, errorToast, infoToast } = useToastContext();
+
+  // Get token for API calls
+  const token = localStorage.getItem('token');
 
   // Initialize today's date
   const today = new Date();
@@ -170,6 +177,77 @@ const Routines = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch routines from API when component mounts
+  useEffect(() => {
+    const fetchRoutines = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Normalize data to ensure consistent field names
+          const normalizedData = data.map(routine => ({
+            id: routine.routine_id,
+            routine_id: routine.routine_id,
+            title: routine.title,
+            startTime: routine.start_time,
+            endTime: routine.end_time,
+            start_time: routine.start_time,
+            end_time: routine.end_time,
+            status: routine.status,
+            category: routine.category,
+            priority: routine.priority,
+            category_id: routine.category_id,
+            priority_id: routine.priority_id,
+            daysOfWeek: routine.days,
+            days: routine.days,
+            completionData: routine.completionData || {
+              streak: 0,
+              lastCompleted: null,
+              completionRate: 0,
+              history: []
+            },
+            active: routine.status === 'active' || routine.status === 'pending'
+          }));
+          setRoutines(normalizedData);
+          setFilteredRoutines(normalizedData);
+        } else {
+          console.error('Failed to fetch routines');
+          setError('Failed to fetch routines. Please try again later.');
+          
+          // Only use mock data in development mode
+          if (import.meta.env.DEV) {
+            console.log('Using mock data in development mode');
+            setRoutines(initialRoutines);
+            setFilteredRoutines(initialRoutines);
+            setError(null); // Clear error when using mock data
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching routines:', error);
+        setError('Network error while fetching routines.');
+        
+        // Only use mock data in development mode
+        if (import.meta.env.DEV) {
+          console.log('Using mock data in development mode');
+          setRoutines(initialRoutines);
+          setFilteredRoutines(initialRoutines);
+          setError(null); // Clear error when using mock data
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchRoutines();
+  }, [token]);
 
   // Effect to apply search
   useEffect(() => {
@@ -190,9 +268,13 @@ const Routines = () => {
 
   // Get routines for today
   const getTodayRoutines = () => {
-    return routines.filter(routine =>
-      routine.daysOfWeek.includes(dayOfWeek) // All routines for today, regardless of status
-    );
+    return routines.filter(routine => {
+      // Handle both daysOfWeek and days formats
+      const routineDays = routine.daysOfWeek || routine.days;
+      
+      // Ensure routineDays exists and is an array before calling includes
+      return Array.isArray(routineDays) && routineDays.includes(dayOfWeek);
+    });
   };
 
   // Get current active routine based on time
@@ -201,7 +283,9 @@ const Routines = () => {
     const timeStr = now.toTimeString().substring(0, 5); // Format: HH:MM
 
     return getTodayRoutines().filter(routine => {
-      return routine.startTime <= timeStr && routine.endTime > timeStr && routine.status !== 'completed';
+      const startTime = routine.startTime || routine.start_time;
+      const endTime = routine.endTime || routine.end_time;
+      return startTime <= timeStr && endTime > timeStr && routine.status !== 'completed';
     });
   };
 
@@ -211,8 +295,15 @@ const Routines = () => {
     const timeStr = now.toTimeString().substring(0, 5); // Format: HH:MM
 
     return getTodayRoutines()
-      .filter(routine => routine.startTime > timeStr && routine.status !== 'completed')
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      .filter(routine => {
+        const startTime = routine.startTime || routine.start_time;
+        return startTime > timeStr && routine.status !== 'completed';
+      })
+      .sort((a, b) => {
+        const aStartTime = a.startTime || a.start_time;
+        const bStartTime = b.startTime || b.start_time;
+        return aStartTime.localeCompare(bStartTime);
+      });
   };
 
   // Get completed routines for today
@@ -247,10 +338,13 @@ const Routines = () => {
     const nextSlotTimeInMinutes = slotTimeInMinutes + 15;
     
     // Convert routine start and end times to minutes
-    const [startHours, startMinutes] = routine.startTime.split(':').map(Number);
+    const startTime = routine.startTime || routine.start_time;
+    const endTime = routine.endTime || routine.end_time;
+    
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
     const startTimeInMinutes = startHours * 60 + startMinutes;
     
-    const [endHours, endMinutes] = routine.endTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
     const endTimeInMinutes = endHours * 60 + endMinutes;
     
     // A routine is in this slot if:
@@ -278,8 +372,11 @@ const Routines = () => {
     const [slotHours, slotMinutes] = timeSlot.split(':').map(Number);
     const slotTimeInMinutes = slotHours * 60 + slotMinutes;
     
-    const startMins = getTimeInMinutes(routine.startTime);
-    const endMins = getTimeInMinutes(routine.endTime);
+    const startTime = routine.startTime || routine.start_time;
+    const endTime = routine.endTime || routine.end_time;
+    
+    const startMins = getTimeInMinutes(startTime);
+    const endMins = getTimeInMinutes(endTime);
     const durationMins = endMins - startMins;
     
     // Calculate offset from the top of the time slot (for routines that don't start exactly on the slot)
@@ -316,10 +413,17 @@ const Routines = () => {
       date.setDate(firstDay.getDate() + index);
       const dateStr = date.toISOString().split('T')[0];
 
-      // Get routines for this day
-      const dayRoutines = routines.filter(routine =>
-        routine.active && routine.daysOfWeek.includes(day)
-      );
+      // Get routines for this day - ensuring we use the actual routines from state
+      const dayRoutines = routines.filter(routine => {
+        // Handle both daysOfWeek and days formats
+        const routineDays = routine.daysOfWeek || routine.days;
+        
+        // Check if routine is active and has the current day in its schedule
+        const isActive = routine.status === 'active' || routine.status === 'pending';
+        
+        return isActive && Array.isArray(routineDays) && routineDays.includes(day);
+      });
+      
       return {
         day,
         date,
@@ -332,227 +436,453 @@ const Routines = () => {
     return weekSchedule;
   };
 
-  // Check for time conflicts with existing routines
-  const checkTimeConflicts = (newRoutine, existingRoutines = routines) => {
-    // Skip conflict check with the same routine (for editing)
-    const otherRoutines = existingRoutines.filter(r => 
-      r.id !== (newRoutine.id || newRoutine.routine_id)
-    );
-    
-    // Convert routine times to minutes for easier comparison
-    const getTimeInMinutes = (timeStr) => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
+  // Helper function to convert time string to minutes since midnight
+  const getMinutesSinceMidnight = (timeString) => {
+    try {
+      // Return 0 if timeString is undefined or null
+      if (!timeString) {
+        return 0;
+      }
+      
+      // Handle both formats: "HH:MM" and "HH:MM:SS"
+      const parts = timeString.split(':');
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      
+      // Validate parsed values
+      if (isNaN(hours) || isNaN(minutes)) {
+        console.error("Invalid time format:", timeString);
+        return 0;
+      }
+      
       return hours * 60 + minutes;
-    };
+    } catch (error) {
+      console.error("Error parsing time:", timeString, error);
+      return 0;
+    }
+  };
+
+  // Check for time conflicts with existing routines
+  const checkTimeConflicts = (newRoutine, routinesToCheck = routines) => {
+    // If no days are selected, there can't be a conflict
+    const routineDays = newRoutine.days || newRoutine.daysOfWeek || [];
+    if (!routineDays.length) return false;
     
-    const newStartMins = getTimeInMinutes(newRoutine.start_time || newRoutine.startTime);
-    const newEndMins = getTimeInMinutes(newRoutine.end_time || newRoutine.endTime);
+    // Get the new routine's start and end times
+    const newStartTime = getMinutesSinceMidnight(newRoutine.startTime || newRoutine.start_time);
+    const newEndTime = getMinutesSinceMidnight(newRoutine.endTime || newRoutine.end_time);
     
-    // Days to check for conflicts
-    const daysToCheck = newRoutine.days || newRoutine.daysOfWeek;
-    
-    // Check each routine for conflicts
-    for (const routine of otherRoutines) {
-      // Skip if no shared days
-      const routineDays = routine.daysOfWeek || routine.days;
-      const hasSharedDays = daysToCheck.some(day => routineDays.includes(day));
-      if (!hasSharedDays) continue;
+    // Check against each existing routine
+    for (const existingRoutine of routinesToCheck) {
+      // Skip the routine being edited (if any)
+      if (existingRoutine.id === newRoutine.id || existingRoutine.routine_id === newRoutine.routine_id) {
+        continue;
+      }
       
-      const routineStartMins = getTimeInMinutes(routine.startTime || routine.start_time);
-      const routineEndMins = getTimeInMinutes(routine.endTime || routine.end_time);
+      // Get the existing routine's days
+      const existingDays = existingRoutine.days || existingRoutine.daysOfWeek || [];
       
-      // Check for overlap
-      const hasOverlap = (
-        // New routine starts during existing routine
-        (newStartMins >= routineStartMins && newStartMins < routineEndMins) ||
-        // New routine ends during existing routine
-        (newEndMins > routineStartMins && newEndMins <= routineEndMins) ||
-        // New routine completely contains existing routine
-        (newStartMins <= routineStartMins && newEndMins >= routineEndMins)
+      // Check if there's any day overlap
+      const hasOverlappingDays = routineDays.some(day => existingDays.includes(day));
+      if (!hasOverlappingDays) continue;
+      
+      // Get the existing routine's start and end times
+      const existingStartTime = getMinutesSinceMidnight(existingRoutine.startTime || existingRoutine.start_time);
+      const existingEndTime = getMinutesSinceMidnight(existingRoutine.endTime || existingRoutine.end_time);
+      
+      // Check for time overlap
+      const hasTimeOverlap = (
+        (newStartTime >= existingStartTime && newStartTime < existingEndTime) || // New start time is within existing routine
+        (newEndTime > existingStartTime && newEndTime <= existingEndTime) || // New end time is within existing routine
+        (newStartTime <= existingStartTime && newEndTime >= existingEndTime) // New routine completely contains existing routine
       );
       
-      if (hasOverlap) {
-        return {
-          hasConflict: true,
-          conflictingRoutine: routine
-        };
+      if (hasTimeOverlap) {
+        return true;
       }
     }
     
-    return { hasConflict: false };
+    return false;
   };
 
   // Handler functions
-  const addRoutine = (newRoutine) => {
+  const addRoutine = async (newRoutine) => {
     // Check for time conflicts
-    const { hasConflict, conflictingRoutine } = checkTimeConflicts(newRoutine);
+    const hasConflict = checkTimeConflicts(newRoutine, routines.filter(r => 
+      r.id !== newRoutine.id && r.routine_id !== newRoutine.routine_id
+    ));
     
     if (hasConflict) {
       // Alert the user about the conflict
-      alert(`This routine conflicts with "${conflictingRoutine.title}" (${formatTime(conflictingRoutine.startTime)} - ${formatTime(conflictingRoutine.endTime)}) on the same day(s).`);
+      errorToast('This routine conflicts with another routine on the same day(s).');
       return; // Don't add the routine
     }
     
-    // Convert to backend schema format
-    const routineWithId = {
-      ...newRoutine,
-      routine_id: Date.now(), // Mock ID for frontend, would be replaced by backend
-      user_id: 1, // Mock user ID, would be replaced by actual user ID
-      created_at: new Date().toISOString().split('T')[0],
-      updated_at: new Date().toISOString(),
-      // For frontend compatibility
-      id: Date.now(),
-      daysOfWeek: newRoutine.days,
-      category: newRoutine.category_id,
-      priority: newRoutine.priority_id,
-      startTime: newRoutine.start_time,
-      endTime: newRoutine.end_time,
-      active: true, // For UI purposes (visible in calendar)
-      // Default status is pending
-      status: newRoutine.status || 'pending',
-      // Mock completion data
-      completionData: {
-        streak: 0,
-        lastCompleted: null,
-        completionRate: 0,
-        history: []
+    try {
+      // Ensure the data is formatted correctly for the backend
+      const routineToSend = {
+        title: newRoutine.title,
+        start_time: newRoutine.start_time || newRoutine.startTime,
+        end_time: newRoutine.end_time || newRoutine.endTime,
+        category_id: newRoutine.category_id,
+        priority_id: newRoutine.priority_id,
+        days: newRoutine.days || newRoutine.daysOfWeek,
+        status: newRoutine.status || 'pending'
+      };
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(routineToSend),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Add the new routine to the state
+        setRoutines([...routines, data]);
+        setShowAddForm(false);
+        successToast('Routine created successfully!');
+      } else {
+        errorToast(data.message || 'Failed to create routine');
       }
-    };
-
-    setRoutines([...routines, routineWithId]);
-    setShowAddForm(false);
+    } catch (error) {
+      console.error('Error creating routine:', error);
+      errorToast('Failed to create routine. Please try again.');
+    }
   };
 
   const editRoutine = (id) => {
-    const routineToEdit = routines.find(r => r.id === id);
+    const routineToEdit = routines.find(r => r.id === id || r.routine_id === id);
     if (routineToEdit) {
+      console.log("Editing routine:", routineToEdit);
       setEditingRoutineId(id);
       setIsEditMode(true);
       setShowAddForm(true);
+    } else {
+      console.error("Routine not found with ID:", id);
     }
   };
 
-  const updateRoutine = (updatedRoutine) => {
-    // Check for time conflicts
-    const { hasConflict, conflictingRoutine } = checkTimeConflicts(updatedRoutine);
-    
-    if (hasConflict) {
-      // Alert the user about the conflict
-      alert(`This routine conflicts with "${conflictingRoutine.title}" (${formatTime(conflictingRoutine.startTime)} - ${formatTime(conflictingRoutine.endTime)}) on the same day(s).`);
-      return; // Don't update the routine
+  const updateRoutine = async (routineId, updatedFields) => {
+    try {
+      console.log("Updating routine with ID:", routineId);
+      console.log("Updated fields:", updatedFields);
+      
+      // Find the routine to update
+      const routineToUpdate = routines.find(r => r.id === routineId || r.routine_id === routineId);
+      console.log("Found routine to update:", routineToUpdate);
+      if (!routineToUpdate) {
+        console.error("Routine not found for update:", routineId);
+        return;
+      }
+      
+      // Create a normalized updated routine object
+      const updatedRoutine = {
+        ...routineToUpdate,
+        ...updatedFields,
+        id: routineToUpdate.id || routineToUpdate.routine_id,
+        routine_id: routineToUpdate.routine_id || routineToUpdate.id,
+        // Ensure proper format for times and days
+        startTime: updatedFields.startTime || updatedFields.start_time,
+        endTime: updatedFields.endTime || updatedFields.end_time,
+        start_time: updatedFields.start_time || updatedFields.startTime,
+        end_time: updatedFields.end_time || updatedFields.endTime,
+        days: updatedFields.days || updatedFields.daysOfWeek,
+        daysOfWeek: updatedFields.daysOfWeek || updatedFields.days,
+      };
+      
+      // Check for time conflicts before proceeding
+      if (checkTimeConflicts(updatedRoutine, routines.filter(r => 
+        r.id !== routineId && r.routine_id !== routineId
+      ))) {
+        setError('This routine conflicts with another routine on the same day(s).');
+        errorToast('This routine conflicts with another routine on the same day(s).');
+        return;
+      }
+      
+      // Make API call to update routine
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/${updatedRoutine.routine_id || updatedRoutine.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedRoutine),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to update routine: ${response.status}`);
+      }
+      
+      // Parse the response
+      const result = await response.json();
+      console.log("Update result:", result);
+      
+      // Update state with the updated routine - create a consistent object format
+      const normalizedResult = {
+        ...result,
+        id: result.routine_id || result.id,
+        routine_id: result.routine_id || result.id,
+        startTime: result.start_time || result.startTime,
+        endTime: result.end_time || result.endTime,
+        start_time: result.start_time || result.startTime,
+        end_time: result.end_time || result.endTime,
+        days: result.days || result.daysOfWeek,
+        daysOfWeek: result.days || result.daysOfWeek,
+        category: result.category,
+        priority: result.priority
+      };
+      
+      setRoutines(prevRoutines => 
+        prevRoutines.map(routine => 
+          (routine.id === routineId || routine.routine_id === routineId) ? 
+          normalizedResult : routine
+        )
+      );
+      
+      // Reset form state
+      setIsEditMode(false);
+      setEditingRoutineId(null);
+      setShowAddForm(false);
+      
+      successToast('Routine updated successfully!');
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating routine:', error);
+      // Fall back to local state update in development mode
+      if (import.meta.env.DEV) {
+        setRoutines(prevRoutines => 
+          prevRoutines.map(routine => 
+            (routine.id === routineId || routine.routine_id === routineId) ? 
+            { 
+              ...routine, 
+              ...updatedFields,
+              // Ensure consistent format
+              startTime: updatedFields.startTime || updatedFields.start_time || routine.startTime || routine.start_time,
+              endTime: updatedFields.endTime || updatedFields.end_time || routine.endTime || routine.end_time,
+              start_time: updatedFields.start_time || updatedFields.startTime || routine.start_time || routine.startTime,
+              end_time: updatedFields.end_time || updatedFields.endTime || routine.end_time || routine.endTime,
+              days: updatedFields.days || updatedFields.daysOfWeek || routine.days || routine.daysOfWeek,
+              daysOfWeek: updatedFields.daysOfWeek || updatedFields.days || routine.daysOfWeek || routine.days
+            } : routine
+          )
+        );
+        
+        // Reset form state
+        setIsEditMode(false);
+        setEditingRoutineId(null);
+        setShowAddForm(false);
+        
+        infoToast('Routine updated successfully! (offline mode)');
+      } else {
+        setError(error.message || 'Failed to update routine. Please try again.');
+        errorToast(error.message || 'Failed to update routine. Please try again.');
+      }
+      
+      throw error;
     }
-    
-    // Ensure updated routine has both old and new schema fields
-    const fullUpdatedRoutine = {
-      ...updatedRoutine,
-      // Update timestamp
-      updated_at: new Date().toISOString(),
-      // For frontend compatibility
-      daysOfWeek: updatedRoutine.days || updatedRoutine.daysOfWeek,
-      category: updatedRoutine.category_id || updatedRoutine.category,
-      priority: updatedRoutine.priority_id || updatedRoutine.priority,
-      startTime: updatedRoutine.start_time || updatedRoutine.startTime,
-      endTime: updatedRoutine.end_time || updatedRoutine.endTime,
-      active: true // Always active for UI display purposes
-    };
-
-    setRoutines(routines.map(r =>
-      r.id === fullUpdatedRoutine.id ? fullUpdatedRoutine : r
-    ));
-    setIsEditMode(false);
-    setEditingRoutineId(null);
-    setShowAddForm(false);
   };
 
-  const deleteRoutine = (id) => {
+  const deleteRoutine = async (id) => {
     // Simple confirmation
     if (showConfirmDelete === id) {
-      setRoutines(routines.filter(r => r.id !== id));
-      setShowConfirmDelete(null);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Remove the deleted routine from state
+          const updatedRoutines = routines.filter(r => r.id !== id && r.routine_id !== id);
+          setRoutines(updatedRoutines);
+          setFilteredRoutines(updatedRoutines);
+          setShowConfirmDelete(null);
+          successToast('Routine deleted successfully');
+        } else {
+          errorToast(data.message || 'Failed to delete routine');
+        }
+      } catch (error) {
+        console.error('Error deleting routine:', error);
+        errorToast('Failed to delete routine. Please try again.');
+      }
     } else {
       setShowConfirmDelete(id);
     }
   };
 
-  const markRoutineComplete = (id, completed = true, dateStr = todayStr) => {
-    setRoutines(routines.map(routine => {
-      if (routine.id === id) {
-        // Remove existing entry for the date if any
-        const filteredHistory = routine.completionData.history.filter(
-          h => h.date !== dateStr
-        );
-
-        // Add new entry for the date
-        const newHistory = [
-          { date: dateStr, completed },
-          ...filteredHistory
-        ];
-
-        // Calculate new streak if it's today's completion
-        let streak = routine.completionData.streak;
-
-        if (dateStr === todayStr) {
-          if (completed) {
-            // If marking as complete, increment streak
-            streak += 1;
-          } else {
-            // If marking as incomplete, reset streak
-            streak = 0;
+  const markRoutineComplete = async (id, completed = true, dateStr = todayStr) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/completion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          routineId: id,
+          completionDate: dateStr,
+          completed: completed
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Update the routine completion status in state
+        setRoutines(routines.map(routine => {
+          if (routine.id === id || routine.routine_id === id) {
+            // Remove existing entry for the date if any
+            const filteredHistory = routine.completionData?.history?.filter(
+              h => h.date !== dateStr
+            ) || [];
+    
+            // Add new entry for the date
+            const newHistory = [
+              { date: dateStr, completed },
+              ...filteredHistory
+            ];
+    
+            // Calculate new streak if it's today's completion
+            let streak = data.streak || routine.completionData?.streak || 0;
+    
+            // Calculate new completion rate
+            const completionRate = data.completionRate || routine.completionData?.completionRate || 0;
+    
+            return {
+              ...routine,
+              // Update status field
+              status: completed ? 'completed' : 'pending',
+              completionData: {
+                ...routine.completionData,
+                streak,
+                lastCompleted: completed ? dateStr : routine.completionData?.lastCompleted,
+                completionRate,
+                history: newHistory
+              }
+            };
           }
-        }
-
-        // Calculate new completion rate based on history
-        const totalEntries = newHistory.length;
-        const completedEntries = newHistory.filter(h => h.completed).length;
-        const completionRate = totalEntries === 0
-          ? 0
-          : Math.round((completedEntries / totalEntries) * 100);
-
-        return {
-          ...routine,
-          // Update status field
-          status: completed ? 'completed' : 'pending',
-          completionData: {
-            ...routine.completionData,
-            streak,
-            lastCompleted: completed ? dateStr : routine.completionData.lastCompleted,
-            completionRate,
-            history: newHistory
-          }
-        };
+          return routine;
+        }));
+        
+        completed ? 
+          successToast('Routine marked as completed!') : 
+          infoToast('Routine marked as incomplete');
+      } else {
+        errorToast(data.message || 'Failed to update routine completion');
       }
-      return routine;
-    }));
+    } catch (error) {
+      console.error('Error updating routine completion:', error);
+      errorToast('Failed to update routine completion. Please try again.');
+    }
   };
 
-  const toggleRoutineActive = (id) => {
-    setRoutines(routines.map(routine => {
-      if (routine.id === id) {
-        return {
-          ...routine,
-          active: !routine.active
-        };
+  const toggleRoutineActive = async (id) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/${id}/toggle-active`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Update the routine active status in state
+        setRoutines(routines.map(routine => {
+          if (routine.id === id || routine.routine_id === id) {
+            return {
+              ...routine,
+              active: data.active,
+              status: data.status
+            };
+          }
+          return routine;
+        }));
+        
+        successToast(`Routine ${data.active ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        errorToast(data.message || 'Failed to toggle routine active status');
       }
-      return routine;
-    }));
+    } catch (error) {
+      console.error('Error toggling routine active status:', error);
+      errorToast('Failed to toggle routine active status. Please try again.');
+    }
   };
 
   // Format time from 24h to 12h format
   const formatTime = (time24h) => {
-    const [hours, minutes] = time24h.split(':');
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${minutes} ${period}`;
+    // Return a placeholder if time is not provided
+    if (!time24h) return 'N/A';
+    
+    try {
+      const [hours, minutes] = time24h.split(':').map(num => parseInt(num, 10));
+      if (isNaN(hours) || isNaN(minutes)) return 'Invalid time';
+      
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12;
+      return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (error) {
+      console.error('Error formatting time:', error, time24h);
+      return 'Invalid time';
+    }
   };
 
   // Get the routine being edited
-  const routineToEdit = isEditMode ? routines.find(r => r.id === editingRoutineId) : null;
+  const routineToEdit = isEditMode ? routines.find(r => r.id === editingRoutineId || r.routine_id === editingRoutineId) : null;
 
   // Current active routines
   const currentRoutines = getCurrentRoutines();
   const upcomingRoutines = getUpcomingRoutines();
   const weeklySchedule = getWeeklySchedule();
   const timeSlots = getTimeSlots();
+
+  // Display loading spinner when fetching routines
+  if (loading) {
+    return (
+      <div className="px-6 py-6 flex justify-center items-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-4 border-b-4 border-[#4A2BAF] rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading your routines...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Display error message if there was an error fetching routines
+  if (error) {
+    return (
+      <div className="px-6 py-6">
+        <PageHeader
+          title="Your Daily Routines"
+          subtitle="Organize and track your schedule effectively"
+        />
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-center">
+          <div className="text-red-600 font-medium mb-2">Error</div>
+          <p className="text-red-500">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-[#4A2BAF] text-white rounded-md hover:bg-[#3A1C9F]"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50">
@@ -592,7 +922,7 @@ const Routines = () => {
                   <p>No active routines at the moment</p>
                   <p className="text-sm text-gray-400 mt-1">
                     {upcomingRoutines.length > 0
-                      ? `Next routine starts at ${formatTime(upcomingRoutines[0].startTime)}`
+                      ? `Next routine starts at ${formatTime(upcomingRoutines[0].startTime || upcomingRoutines[0].start_time)}`
                       : "No more routines scheduled for today"}
                   </p>
                 </div>
@@ -603,7 +933,7 @@ const Routines = () => {
                       <div>
                         <h4 className="font-medium text-gray-800">{routine.title}</h4>
                         <p className="text-sm text-gray-500">
-                          {formatTime(routine.startTime)} - {formatTime(routine.endTime)}
+                          {formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}
                         </p>
                       </div>
 
@@ -638,11 +968,13 @@ const Routines = () => {
                         <div>
                           <h5 className="font-medium text-gray-700">{routine.title}</h5>
                           <p className="text-xs text-gray-500">
-                            {formatTime(routine.startTime)} - {formatTime(routine.endTime)}
+                            {formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}
                           </p>
                         </div>
                         <span className="text-xs text-gray-400">
-                          in {Math.round((new Date(`2000-01-01T${routine.startTime}`) - new Date(`2000-01-01T${currentTime.toTimeString().substring(0, 5)}`)) / 60000)} min
+                          {routine.startTime || routine.start_time ? 
+                            `in ${Math.max(0, Math.round((new Date(`2000-01-01T${routine.startTime || routine.start_time}`) - new Date(`2000-01-01T${currentTime.toTimeString().substring(0, 5)}`)) / 60000))} min` 
+                            : 'Time not set'}
                         </span>
                       </div>
                     ))}
@@ -821,11 +1153,6 @@ const Routines = () => {
                     {weeklySchedule.map((day, dayIndex) => 
                       day.routines.map(routine => {
                         // Get start and end times in minutes since midnight
-                        const getMinutesSinceMidnight = (timeString) => {
-                          const [hours, minutes] = timeString.split(':').map(Number);
-                          return hours * 60 + minutes;
-                        };
-                        
                         const startMinutes = getMinutesSinceMidnight(routine.startTime);
                         const endMinutes = getMinutesSinceMidnight(routine.endTime);
                         const durationMinutes = endMinutes - startMinutes;
@@ -843,9 +1170,11 @@ const Routines = () => {
                             h => h.date === day.dateStr && h.completed
                           );
                         
-                        const priorityColor = routine.priority === 'HIGH' ? 'border-red-500' : 
-                                             routine.priority === 'MEDIUM' ? 'border-yellow-500' : 
-                                             'border-blue-500';
+                        const priorityColor = 
+                          routine.priority === 'HIGH' || routine.priority === 'High' ? 'border-red-500' : 
+                          routine.priority === 'MEDIUM' || routine.priority === 'Medium' ? 'border-yellow-500' : 
+                          routine.priority === 'LOW' || routine.priority === 'Low' ? 'border-blue-500' : 
+                          'border-gray-500';
                         
                         return (
                           <div
@@ -867,14 +1196,14 @@ const Routines = () => {
                           >
                             <div className="font-medium text-xs truncate">{routine.title}</div>
                             <div className="text-gray-600 text-[10px] mt-auto truncate">
-                              {formatTime(routine.startTime)} - {formatTime(routine.endTime)}
+                              {formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}
                             </div>
                             
                             {/* Detailed tooltip on hover */}
                             <div className="absolute invisible group-hover:visible bg-white p-2 rounded-md shadow-lg border border-gray-200 left-full ml-2 top-0 w-48 z-30 text-xs">
                               <div className="font-bold text-gray-800">{routine.title}</div>
                               <div className="mt-1 text-gray-600">
-                                <div>{formatTime(routine.startTime)} - {formatTime(routine.endTime)}</div>
+                                <div>{formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}</div>
                                 <div className="mt-1">
                                   <span className="font-semibold">Category:</span> {routine.category}
                                 </div>
@@ -955,7 +1284,12 @@ const Routines = () => {
                     {isEditMode ? "Edit Routine" : "Add New Routine"}
                   </h2>
                   <button
-                    onClick={() => setShowAddForm(false)}
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setIsEditMode(false);
+                      setEditingRoutineId(null);
+                      setError(''); // Clear any errors
+                    }}
                     className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -965,11 +1299,24 @@ const Routines = () => {
                 </div>
 
                 <div className="p-6 overflow-y-auto">
+                  {/* Force a complete remount of the form component each time to avoid state issues */}
                   <RoutineForm
+                    key={`form-${isEditMode ? (editingRoutineId || 'edit') : 'new'}-${Date.now()}`}
                     isEdit={isEditMode}
-                    initialValues={isEditMode ? routineToEdit : null}
-                    onSubmit={isEditMode ? updateRoutine : addRoutine}
-                    onCancel={() => setShowAddForm(false)}
+                    initialValues={routineToEdit}
+                    onSubmit={(routineData) => {
+                      if (isEditMode) {
+                        updateRoutine(routineData.id || routineData.routine_id, routineData);
+                      } else {
+                        addRoutine(routineData);
+                      }
+                    }}
+                    onCancel={() => {
+                      setShowAddForm(false);
+                      setIsEditMode(false);
+                      setEditingRoutineId(null);
+                      setError(''); // Clear any errors
+                    }}
                   />
                 </div>
               </div>

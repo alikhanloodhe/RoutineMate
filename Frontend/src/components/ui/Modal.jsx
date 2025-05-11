@@ -34,7 +34,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
         onClick={onClose}
       />
       <div className={`bg-white rounded-xl shadow-xl p-6 w-full ${sizeClasses[size]} z-10 max-h-[90vh] overflow-y-auto m-4`}>
-        <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
+        <div className="flex justify-between items-center mb-7 sticky top--2 bg-white pb-4 border-b">
           <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
           <button 
             onClick={onClose}

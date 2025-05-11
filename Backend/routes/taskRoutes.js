@@ -5,7 +5,9 @@ import {
   deleteTask,
   editTask,
   startSession,
-  endSession
+  endSession,
+  fetchTaskHistory,
+  getTaskStreaks
 } from '../controllers/TaskController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -14,6 +16,8 @@ router.use(authenticate);
 
 router.post('/AddTask', addTask);
 router.get('/fetchTasks', fetchTasks);
+router.get('/taskHistory', fetchTaskHistory);
+router.get('/streaks', getTaskStreaks);
 router.delete('/deleteTask/:task_id', deleteTask);
 router.put('/updateTask/:task_id', editTask);
 router.post('/startSession', startSession);

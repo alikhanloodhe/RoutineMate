@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import PageHeader from '../components/ui/PageHeader';
 import { updateGoal } from '../utils/goalData';
 import { MilestoneFormModal, ActivityFormModal } from '../components/goal/activity';
+import { useToastContext } from '../context/ToastContext';
 
 const GoalDetail = () => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   // removed sidebar state
   const [goal, setGoal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +24,10 @@ const GoalDetail = () => {
   const [currentActivity, setCurrentActivity] = useState(null);
 
   const [activeDropdown, setActiveDropdown] = useState(null);
+  
+  // Confirmation dialog state
+  const [showConfirmDeleteMilestone, setShowConfirmDeleteMilestone] = useState(null);
+  const [showConfirmDeleteActivity, setShowConfirmDeleteActivity] = useState(null);
 
   const { goalId } = useParams(); /// wehere its activities are renedered
 
@@ -110,9 +116,11 @@ const GoalDetail = () => {
 
       // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
+
+      successToast('Milestone added successfully');
     } catch (error) {
       console.error('Error with milestone operation:', error);
-      alert('Error adding or updating milestone. Please try again.');
+      errorToast('Error adding or updating milestone. Please try again.');
     }
 
     // Close the modal
@@ -174,15 +182,18 @@ const GoalDetail = () => {
 
       // Keep local state in sync (will be removed once backend API is complete)
       updateGoal(goal.goal_id, updatedGoal);
+
+      successToast('Milestone status updated successfully');
     } catch (error) {
       console.error('Error updating milestone status:', error);
-      alert('Error updating milestone status. Please try again.');
+      errorToast('Error updating milestone status. Please try again.');
     }
   };
 
   // Delete milestone
   const handleDeleteMilestone = async (milestoneId) => {
-    if (window.confirm('Are you sure you want to delete this milestone?')) {
+    // Simple confirmation using state pattern
+    if (showConfirmDeleteMilestone === milestoneId) {
       try {
         // Update UI immediately for better UX
         const updatedMilestones = goal.milestones.filter(m => m.milestone_id !== milestoneId);
@@ -223,10 +234,20 @@ const GoalDetail = () => {
 
         // Keep local state in sync (will be removed once backend API is complete)
         updateGoal(goal.goal_id, updatedGoal);
+
+        successToast('Milestone deleted successfully');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteMilestone(null);
       } catch (error) {
         console.error('Error deleting milestone:', error);
-        alert('Error deleting milestone. Please try again.');
+        errorToast('Error deleting milestone. Please try again.');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteMilestone(null);
       }
+    } else {
+      setShowConfirmDeleteMilestone(milestoneId);
     }
   };
 
@@ -300,9 +321,11 @@ const GoalDetail = () => {
   
       setGoal(updatedGoal);
       updateGoal(goal.goal_id, updatedGoal);
+
+      successToast('Activity added successfully');
     } catch (err) {
       console.error('Error submitting activity:', err);
-      alert('Something went wrong while processing the activity');
+      errorToast('Something went wrong while processing the activity');
     }
   
     setShowActivityModal(false);
@@ -311,7 +334,8 @@ const GoalDetail = () => {
 
   // Delete activity
   const handleDeleteActivity = async (activityId) => {
-    if (window.confirm('Are you sure you want to delete this activity?')) {
+    // Simple confirmation using state pattern
+    if (showConfirmDeleteActivity === activityId) {
       try {
         // Call the actual API endpoint for deleting an activity
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/activities/${activityId}`, {
@@ -340,10 +364,20 @@ const GoalDetail = () => {
 
         // Keep local state in sync
         updateGoal(goal.goal_id, updatedGoal);
+
+        successToast('Activity deleted successfully');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteActivity(null);
       } catch (error) {
         console.error('Error deleting activity:', error);
-        alert('Error deleting activity. Please try again.');
+        errorToast('Error deleting activity. Please try again.');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteActivity(null);
       }
+    } else {
+      setShowConfirmDeleteActivity(activityId);
     }
   };
 
@@ -390,7 +424,7 @@ const GoalDetail = () => {
         }
       } catch (error) {
         console.error('Error fetching goal data:', error);
-        alert('Error loading goal details. Redirecting to goals page.');
+        errorToast('Error loading goal details. Redirecting to goals page.');
         navigate('/goals');
       } finally {
         setIsLoading(false);
@@ -902,6 +936,60 @@ ${activity.mood === 'happy' ? 'bg-green-50 text-green-600' :
             onSubmit={handleActivitySubmit}
             activity={currentActivity}
           />
+        )}
+
+        {/* Confirm Delete Milestone Modal */}
+        {showConfirmDeleteMilestone && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+              <h3 className="text-lg font-bold mb-2">Delete Milestone</h3>
+              <p className="mb-4 text-gray-600">
+                Are you sure you want to delete this milestone? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowConfirmDeleteMilestone(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteMilestone(showConfirmDeleteMilestone)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Confirm Delete Activity Modal */}
+        {showConfirmDeleteActivity && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+              <h3 className="text-lg font-bold mb-2">Delete Activity</h3>
+              <p className="mb-4 text-gray-600">
+                Are you sure you want to delete this activity? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowConfirmDeleteActivity(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteActivity(showConfirmDeleteActivity)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

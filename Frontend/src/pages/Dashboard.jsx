@@ -15,9 +15,12 @@ import DailyQuote from '../components/dashboard/DailyQuote';
 import TodaySchedule from '../components/dashboard/TodaySchedule';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import WeeklyActivityChart from '../components/dashboard/WeeklyActivityChart';
-import TaskCategoryChart from '../components/dashboard/TaskCategoryChart';
+import CategoryDistribution from '../components/dashboard/CategoryDistribution';
 import ProductivityTrend from '../components/dashboard/ProductivityTrend';
 import StreakProgress from '../components/dashboard/StreakProgress';
+
+// Import quote service
+import { getDailyQuote } from '../services/quoteService';
 
 const Dashboard = () => {
   const [currentQuote, setCurrentQuote] = useState({ text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" });
@@ -26,52 +29,19 @@ const Dashboard = () => {
   // Mock user data
   const user = JSON.parse(localStorage.getItem('user')) || { name: 'User' };
   
-  // Mock data for today's schedule
-  const todaySchedule = [
-    { id: 1, title: "Morning Workout", time: "07:30 AM", type: "routine", completed: true },
-    { id: 2, title: "Team Meeting", time: "10:00 AM", type: "task", completed: false },
-    { id: 3, title: "Lunch Break", time: "01:00 PM", type: "routine", completed: false },
-    { id: 4, title: "Project Review", time: "03:30 PM", type: "task", completed: false },
-    { id: 5, title: "Evening Meditation", time: "07:00 PM", type: "habit", completed: false }
-  ];
-  
-  // Mock data for recent activities
-  const recentActivities = [
-    { type: 'task', description: 'Completed "Morning Workout" task', time: 'Today, 8:30 AM' },
-    { type: 'goal', description: 'Updated goal "Read 10 books"', time: 'Yesterday, 7:45 PM' },
-    { type: 'routine', description: 'Created new routine "Evening Meditation"', time: '2 days ago, 9:15 PM' }
-  ];
-  
-  // List of quotes for daily inspiration
-  const quotes = [
-    { text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" },
-    { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Aristotle" },
-    { text: "It's not what we do once in a while that shapes our lives, but what we do consistently.", author: "Tony Robbins" },
-    { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-    { text: "The journey of a thousand miles begins with a single step.", author: "Lao Tzu" },
-    { text: "Good habits formed at youth make all the difference.", author: "Aristotle" },
-    { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" }
-  ];
-  
-  // Set a new quote for each day
+  // Fetch daily quote on component mount
   useEffect(() => {
-    // Get today's date and use it to seed a random quote
-    const today = new Date().setHours(0, 0, 0, 0);
-    const savedDate = localStorage.getItem('quoteDate');
-    
-    if (savedDate !== today.toString()) {
-      // It's a new day, set a new quote
-      const randomIndex = Math.floor(Math.random() * quotes.length);
-      setCurrentQuote(quotes[randomIndex]);
-      localStorage.setItem('quoteDate', today.toString());
-      localStorage.setItem('currentQuote', JSON.stringify(quotes[randomIndex]));
-    } else {
-      // Same day, use saved quote if available
-      const savedQuote = localStorage.getItem('currentQuote');
-      if (savedQuote) {
-        setCurrentQuote(JSON.parse(savedQuote));
+    const fetchQuote = async () => {
+      try {
+        const quote = await getDailyQuote();
+        setCurrentQuote(quote);
+      } catch (error) {
+        console.error('Error fetching daily quote:', error);
+        // The default quote in state will be used as fallback
       }
-    }
+    };
+    
+    fetchQuote();
     
     // Update current date for the greeting
     setCurrentDate(new Date());
@@ -100,15 +70,12 @@ const Dashboard = () => {
     day: 'numeric' 
   });
 
-  // Sample data for ProductivityTrend
-  const weeklyData = [65, 72, 68, 76]; // Example completion rates for last 4 weeks
-
-  // Sample data for StreakProgress
-  const streakData = {
-    routineStreak: { current: 5, longest: 12 },
-    taskStreak: { current: 3, longest: 8 },
-    habitStreak: { current: 7, longest: 15 }
-  };
+  // Mock data for recent activities
+  const recentActivities = [
+    { type: 'task', description: 'Completed "Morning Workout" task', time: 'Today, 8:30 AM' },
+    { type: 'goal', description: 'Updated goal "Read 10 books"', time: 'Yesterday, 7:45 PM' },
+    { type: 'routine', description: 'Created new routine "Evening Meditation"', time: '2 days ago, 9:15 PM' }
+  ];
 
   return (
     <div className="bg-gray-50">
@@ -122,32 +89,32 @@ const Dashboard = () => {
         {/* Daily Quote Component */}
         <DailyQuote quote={currentQuote} />
         
-        {/* First Row - Schedule and Weekly Activity Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Left column - Schedule */}
-          <div className="lg:col-span-1">
-            <TodaySchedule schedule={todaySchedule} />
+        {/* Streak Progress - Moved to top for motivation */}
+        <div className="mb-6">
+          <StreakProgress 
+            routineStreak={{ current: 5, longest: 14 }} 
+            taskStreak={{ current: 3, longest: 10 }} 
+            habitStreak={{ current: 7, longest: 21 }} 
+          />
+        </div>
+        
+        {/* First Row - Schedule and Weekly Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Left column - Today's Schedule */}
+          <div>
+            <TodaySchedule />
           </div>
           
           {/* Right column - Weekly Activity Chart */}
-          <div className="lg:col-span-2">
+          <div>
             <WeeklyActivityChart />
           </div>
         </div>
         
         {/* Charts Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <TaskCategoryChart />
-          <ProductivityTrend weeklyData={weeklyData} />
-        </div>
-
-        {/* Streak Progress */}
-        <div className="mb-6">
-          <StreakProgress 
-            routineStreak={streakData.routineStreak}
-            taskStreak={streakData.taskStreak}
-            habitStreak={streakData.habitStreak}
-          />
+          <CategoryDistribution />
+          <ProductivityTrend />
         </div>
         
         {/* Recent Activity Section */}

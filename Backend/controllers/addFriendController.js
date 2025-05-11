@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { getClientAdjustedTime } from '../utils/timeUtils.js';
 
 export const searchAddFriend = async (req, res) => {
   const { query } = req.query; // GET params
@@ -21,8 +22,11 @@ export const AddFriend = async (req, res) => {
   const { friend_id } = req.body;
   const status = 'pending';
   const client = await pool.connect();
+  
+  // Get timezone-adjusted timestamp
+  const { now } = getClientAdjustedTime(req.clientTimezone?.name);
+  
   try {
-
     const checkResult = await client.query('SELECT * FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) ', [user_id, friend_id]);
 
     if (checkResult.rows.length > 0) {
@@ -30,10 +34,10 @@ export const AddFriend = async (req, res) => {
     }
     
     await client.query(
-      'INSERT INTO friend_requests(sender_id, receiver_id, status) VALUES ($1, $2, $3)',
+      `INSERT INTO friend_requests(sender_id, receiver_id, status, created_at) 
+       VALUES ($1, $2, $3, ${now})`,
       [user_id, friend_id, status]
     );
-
 
     res.status(201).json({ msg: 'Friend request successfully sent' });
   } catch (error) {
@@ -50,8 +54,12 @@ export const getSentRequests = async (req, res) => {
   const status = 'pending';
 
   try {
+    // Use adjustColumn for proper timezone display
+    const { adjustColumn } = getClientAdjustedTime(req.clientTimezone?.name);
+    
     const result = await client.query(
-      `SELECT fr.id, u.name, u.email, fr.status
+      `SELECT fr.id, u.name, u.email, fr.status, 
+       ${adjustColumn('fr.created_at')} AS created_at
        FROM friend_requests fr
        JOIN users u ON u.id = fr.receiver_id
        WHERE fr.sender_id = $1 AND fr.status = $2`,
@@ -73,8 +81,12 @@ export const getReceivedRequests = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    // Use adjustColumn for proper timezone display
+    const { adjustColumn } = getClientAdjustedTime(req.clientTimezone?.name);
+    
     const result = await client.query(`
-      SELECT fr.id, u.name, u.email, fr.status
+      SELECT fr.id, u.name, u.email, fr.status,
+      ${adjustColumn('fr.created_at')} AS created_at
       FROM friend_requests fr
       JOIN users u ON fr.sender_id = u.id
       WHERE fr.receiver_id = $1 AND fr.status = $2
@@ -94,6 +106,9 @@ export const acceptFriend = async (req, res) => {
   const user_id = req.user.id;
   const { requestId } = req.body;
   const client = await pool.connect();
+  
+  // Get timezone-adjusted timestamp
+  const { now } = getClientAdjustedTime(req.clientTimezone?.name);
 
   try {
     const result = await client.query(
@@ -107,12 +122,26 @@ export const acceptFriend = async (req, res) => {
 
     const friend_id = result.rows[0].sender_id;
 
-    // Add friendship (bi-directional)
-    await client.query('INSERT INTO friends(user_id, friend_id) VALUES ($1, $2)', [user_id, friend_id]);
-    await client.query('INSERT INTO friends(user_id, friend_id) VALUES ($1, $2)', [friend_id, user_id]);
+    // Add friendship (bi-directional) with timestamp
+    await client.query(
+      `INSERT INTO friends(user_id, friend_id, created_at) 
+       VALUES ($1, $2, ${now})`, 
+      [user_id, friend_id]
+    );
+    
+    await client.query(
+      `INSERT INTO friends(user_id, friend_id, created_at) 
+       VALUES ($1, $2, ${now})`, 
+      [friend_id, user_id]
+    );
 
-    // Update the friend request status to accepted
-    await client.query('UPDATE friend_requests SET status = $1 WHERE id = $2', ['accepted', requestId]);
+    // Update the friend request status to accepted with timestamp
+    await client.query(
+      `UPDATE friend_requests 
+       SET status = $1, updated_at = ${now} 
+       WHERE id = $2`, 
+      ['accepted', requestId]
+    );
 
     res.status(201).json({ msg: 'Friend Added Successfully' });
   } catch (error) {
@@ -175,8 +204,11 @@ export const getAllFriends = async (req, res) => {
   const user_id = req.user.id;
   const client = await pool.connect();
   try {
+    // Use adjustColumn for proper timezone display
+    const { adjustColumn } = getClientAdjustedTime(req.clientTimezone?.name);
+    
     const result = await client.query(`
-      SELECT u.id, u.name, u.email
+      SELECT u.id, u.name, u.email, ${adjustColumn('f.created_at')} AS friend_since
       FROM friends f
       JOIN users u ON u.id = f.friend_id
       WHERE f.user_id = $1

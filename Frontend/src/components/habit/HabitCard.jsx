@@ -1,15 +1,14 @@
 // components/habit/HabitCard.jsx
 import React, { useState, useEffect } from 'react';
 
-const HabitCard = ({ habit, onToggleComplete, onViewDetails, onEditHabit, currentStreak, completedToday }) => {
+const HabitCard = ({ habit, onToggleComplete, onViewDetails, onEditHabit, completedToday }) => {
   // Local state to track completion status for immediate UI feedback
   const [isCompleted, setIsCompleted] = useState(completedToday);
   
   // Update local state when prop changes (coming from the backend)
   useEffect(() => {
-    console.log(`HabitCard ${habit.id} (${habit.title}) - completedToday changed to:`, completedToday);
     setIsCompleted(completedToday);
-  }, [completedToday, habit.id, habit.title]);
+  }, [completedToday]);
   
   // Handler for checkbox click with better state management
   const handleToggleClick = (e) => {
@@ -18,7 +17,6 @@ const HabitCard = ({ habit, onToggleComplete, onViewDetails, onEditHabit, curren
     
     // Toggle the completion status locally first for immediate feedback
     const newCompletedState = !isCompleted;
-    console.log(`HabitCard ${habit.id} (${habit.title}) - toggling to:`, newCompletedState);
     setIsCompleted(newCompletedState);
     
     // Call the parent handler to update the backend
@@ -39,9 +37,9 @@ const HabitCard = ({ habit, onToggleComplete, onViewDetails, onEditHabit, curren
   return (
     <div
       className={`${isCompleted 
-        ? 'bg-green-50 border-green-300 border-2' 
+        ? 'bg-green-50 border-green-300 border' 
         : 'bg-white border border-gray-200'
-      } rounded-lg p-4 hover:shadow-sm transition-all duration-200 relative overflow-hidden`}
+      } rounded-lg p-5 hover:shadow-md transition-all duration-200 relative overflow-hidden cursor-pointer`}
       onClick={(e) => onViewDetails()}
     >
       {/* Status indicator bar */}
@@ -97,21 +95,19 @@ const HabitCard = ({ habit, onToggleComplete, onViewDetails, onEditHabit, curren
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
               <div className="flex items-center text-sm text-gray-500">
                 <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                  habit.frequency === 'daily' ? 'bg-blue-500' : 
-                  habit.frequency === 'weekly' ? 'bg-purple-500' : 'bg-orange-500'
+                  habit.frequency === 'daily' ? 'bg-blue-500' : 'bg-purple-500'
                 }`}></span>
                 <span>
-                  {habit.frequency === 'daily' ? 'Daily' : 
-                  habit.frequency === 'weekly' ? 'Weekly' : 'Custom'}
+                  {habit.frequency === 'daily' ? 'Daily' : 'Weekly'}
                 </span>
               </div>
               
-              {currentStreak > 0 && (
-                <div className="flex items-center text-sm text-orange-600">
+              {habit.category_name && (
+                <div className="flex items-center text-sm text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                   </svg>
-                  Streak: {currentStreak} day{currentStreak !== 1 ? 's' : ''}
+                  {habit.category_name}
                 </div>
               )}
               

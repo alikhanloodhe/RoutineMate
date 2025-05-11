@@ -6,9 +6,11 @@ const getHabits = async (req, res) => {
     const userId = req.user.id;
     
     const query = `
-      SELECT * FROM habits
-      WHERE user_id = $1
-      ORDER BY created_at DESC
+      SELECT h.*, c.name as category_name 
+      FROM habits h
+      LEFT JOIN categories c ON h.category_id = c.id
+      WHERE h.user_id = $1
+      ORDER BY h.created_at DESC
     `;
     
     const result = await db.query(query, [userId]);
@@ -27,8 +29,10 @@ const getHabitById = async (req, res) => {
     const userId = req.user.id;
     
     const query = `
-      SELECT * FROM habits
-      WHERE id = $1 AND user_id = $2
+      SELECT h.*, c.name as category_name 
+      FROM habits h
+      LEFT JOIN categories c ON h.category_id = c.id
+      WHERE h.id = $1 AND h.user_id = $2
     `;
     
     const result = await db.query(query, [habitId, userId]);
@@ -56,7 +60,8 @@ const createHabit = async (req, res) => {
       why_reason,
       start_date,
       goal_type,
-      total_target_days
+      total_target_days,
+      category_id
     } = req.body;
     
     // Validate required fields
@@ -74,9 +79,10 @@ const createHabit = async (req, res) => {
         why_reason,
         start_date,
         goal_type,
-        total_target_days
+        total_target_days,
+        category_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
     
@@ -89,7 +95,8 @@ const createHabit = async (req, res) => {
       why_reason || null,
       start_date || new Date().toISOString().split('T')[0],
       goal_type || 'lifelong',
-      total_target_days || null
+      total_target_days || null,
+      category_id || null
     ];
     
     const result = await db.query(query, values);
@@ -114,7 +121,8 @@ const updateHabit = async (req, res) => {
       why_reason,
       start_date,
       goal_type,
-      total_target_days
+      total_target_days,
+      category_id
     } = req.body;
     
     // Validate ownership
@@ -141,8 +149,9 @@ const updateHabit = async (req, res) => {
         start_date = COALESCE($6, start_date),
         goal_type = COALESCE($7, goal_type),
         total_target_days = COALESCE($8, total_target_days),
+        category_id = COALESCE($9, category_id),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9 AND user_id = $10
+      WHERE id = $10 AND user_id = $11
       RETURNING *
     `;
     
@@ -155,6 +164,7 @@ const updateHabit = async (req, res) => {
       start_date,
       goal_type,
       total_target_days,
+      category_id,
       habitId,
       userId
     ];

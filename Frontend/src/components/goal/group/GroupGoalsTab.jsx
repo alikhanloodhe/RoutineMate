@@ -5,12 +5,15 @@ import GoalCard from '../shared/GoalCard';
 import AddGoalButton from '../shared/AddGoalButton';
 import GroupGoalFormModal from './GroupGoalFormModal';
 import { addGoal, updateGoal, deleteGoal } from '../../../utils/goalData';
+import { useToastContext } from '../../../context/ToastContext';
 
 const GroupGoalsTab = ({ goals, onViewGoal }) => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   const [showFormModal, setShowFormModal] = useState(false);
   const [currentGoal, setCurrentGoal] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
 
   // Filter group goals
   const groupGoals = goals.filter(goal => goal.goal_type === 'group');
@@ -36,44 +39,48 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
     //   return;
     // }
     console.log(goal);
-    if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
-      return;
-    }
+    
+    // Simple confirmation using state pattern
+    if (showConfirmDelete === goal.goal_id) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteGroupGoal/${goal.goal_id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteGroupGoal/${goal.goal_id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+        if (!response.ok) {
+          throw new Error('Failed to delete goal');
+        }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete goal');
+        // On successful deletion, navigate back to goals page
+        successToast('Goal deleted successfully');
+        navigate('/goals');
+        
+        // Reset confirmation state
+        setShowConfirmDelete(null);
+      } catch (error) {
+        console.error('Error deleting goal:', error);
+        errorToast('Failed to delete goal. Please try again.');
       }
-
-      // On successful deletion, navigate back to goals page
-      alert('Goal deleted successfully');
-      navigate('/goals');
-    } catch (error) {
-      console.error('Error deleting goal:', error);
-      alert('Failed to delete goal. Please try again.');
+    } else {
+      setShowConfirmDelete(goal.goal_id);
     }
     
     // if (deletedGoal) {
     //   // You would typically need to update the parent component's state
     //   // This is handled by the parent component's state management
     // }
-    
   };
 
   // Handle goal form submission
-  const handleSubmitGoal =async (goalData) => {
-    if (goalData.goal_id) {
-      // Update existing goal
-      updateGoal(goalData.goal_id, goalData);
-      try {
+  const handleSubmitGoal = async (goalData) => {
+    try {
+      if (goalData.goal_id) {
+        // Update existing goal
+        updateGoal(goalData.goal_id, goalData);
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateGroupGoal/${goalData.goal_id}`, {
           method: 'PUT',
           headers: {
@@ -85,17 +92,13 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
-      }
-      catch (error) {
-        console.error('Error adding goal:', error);
-      } 
-    } else {
-      // Add new goal with group type
-      addGoal({
-        ...goalData,
-        goal_type: 'group'
-      });
-      try {
+        successToast('Group goal updated successfully');
+      } else {
+        // Add new goal with group type
+        addGoal({
+          ...goalData,
+          goal_type: 'group'
+        });
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addGroupGoal`, {
           method: 'POST',
           headers: {
@@ -107,19 +110,20 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
+        successToast('New group goal created successfully');
       }
-      catch (error) {
-        console.error('Error adding goal:', error);
-      } 
+      
+      setShowFormModal(false);
+    } catch (error) {
+      console.error('Error with goal operation:', error);
+      errorToast('Failed to save group goal. Please try again.');
     }
-    
-    
-    setShowFormModal(false);
   };
 
   // Filter goals based on status
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
+    infoToast(`Showing ${filter} group goals`);
   };
 
   // Search goals
@@ -305,6 +309,38 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
         onSubmit={handleSubmitGoal}
         goal={currentGoal}
       />
+      
+      {/* Confirm Delete Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-2">Delete Group Goal</h3>
+            <p className="mb-4 text-gray-600">
+              Are you sure you want to delete this group goal? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmDelete(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const goalToDelete = groupGoals.find(g => g.goal_id === showConfirmDelete);
+                  if (goalToDelete) {
+                    handleDeleteGoal(goalToDelete);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

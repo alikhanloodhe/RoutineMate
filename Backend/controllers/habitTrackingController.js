@@ -283,11 +283,94 @@ const deleteTracking = async (req, res) => {
   }
 };
 
+// Get max habit streaks for a user (both current and longest)
+const getHabitStreaks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Using the streak calculation SQL query to find the current and longest streaks
+    const query = `
+      WITH completed_days AS (
+        SELECT
+            ht.habit_id,
+            ht.date
+        FROM habit_tracking ht
+        JOIN habits h ON ht.habit_id = h.id
+        WHERE ht.completed = TRUE AND ht.user_id = $1 AND h.user_id = $1
+      ),
+      streak_groups AS (
+        SELECT
+            habit_id,
+            date,
+            date - (ROW_NUMBER() OVER (PARTITION BY habit_id ORDER BY date))::integer AS streak_group
+        FROM completed_days
+      ),
+      streaks AS (
+        SELECT
+            habit_id,
+            MIN(date) AS streak_start,
+            MAX(date) AS streak_end,
+            COUNT(*) AS streak_length
+        FROM streak_groups
+        GROUP BY habit_id, streak_group
+      ),
+      longest_streaks AS (
+        SELECT
+            habit_id,
+            MAX(streak_length) AS longest_streak
+        FROM streaks
+        GROUP BY habit_id
+      ),
+      current_streaks AS (
+        SELECT
+            habit_id,
+            streak_length AS current_streak
+        FROM streaks
+        WHERE streak_end = CURRENT_DATE OR streak_end = (CURRENT_DATE - INTERVAL '1 day')::date
+      ),
+      all_habit_streaks AS (
+        SELECT 
+            h.id AS habit_id,
+            COALESCE(cs.current_streak, 0) AS current_streak,
+            COALESCE(ls.longest_streak, 0) AS longest_streak
+        FROM habits h
+        LEFT JOIN current_streaks cs ON h.id = cs.habit_id
+        LEFT JOIN longest_streaks ls ON h.id = ls.habit_id
+        WHERE h.user_id = $1
+      )
+      SELECT 
+        MAX(current_streak) AS max_current_streak,
+        MAX(longest_streak) AS max_longest_streak
+      FROM all_habit_streaks;
+    `;
+    
+    const result = await db.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(200).json({ 
+        current: 0, 
+        longest: 0 
+      });
+    }
+    
+    // Return the results formatted for the streak card
+    res.status(200).json({
+      current: result.rows[0].max_current_streak || 0,
+      longest: result.rows[0].max_longest_streak || 0
+    });
+    
+  } catch (error) {
+    console.error('Error calculating habit streaks:', error);
+    res.status(500).json({ message: 'Server error while calculating habit streaks' });
+  }
+};
+
 export default {
   getTrackingByHabit,
   getTrackingByDate,
   toggleCompletion,
   createTracking,
   updateTracking,
-  deleteTracking
+  deleteTracking,
+  getHabitStreaks
 }; 

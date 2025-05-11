@@ -3,9 +3,12 @@
 import React from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import { useToastContext } from '../../context/ToastContext';
 import { FiUserCheck, FiUserX } from 'react-icons/fi';
 
 const FriendCardList = ({ list, type, onAccept, onDecline, onCancel }) => {
+  const { infoToast } = useToastContext();
+  
   const getBgClass = () => {
     switch (type) {
       case 'friends': return 'bg-blue-100 text-blue-600';
@@ -13,6 +16,22 @@ const FriendCardList = ({ list, type, onAccept, onDecline, onCancel }) => {
       case 'received': return 'bg-green-100 text-green-600';
       default: return 'bg-gray-100 text-gray-600';
     }
+  };
+
+  // Enhanced handlers with additional UX feedback
+  const handleAccept = (userId) => {
+    infoToast('Accepting friend request...');
+    onAccept(userId);
+  };
+
+  const handleDecline = (userId) => {
+    infoToast('Declining friend request...');
+    onDecline(userId);
+  };
+
+  const handleCancel = (userId) => {
+    infoToast('Cancelling friend request...');
+    onCancel(userId);
   };
 
   return (
@@ -34,17 +53,17 @@ const FriendCardList = ({ list, type, onAccept, onDecline, onCancel }) => {
           )}
 
           {type === 'sent' && (
-            <Button variant="light" size="sm" icon={FiUserX} onClick={() => onCancel(user.id)}>
+            <Button variant="light" size="sm" icon={FiUserX} onClick={() => handleCancel(user.id)}>
               Cancel
             </Button>
           )}
 
           {type === 'received' && (
             <div className="flex gap-2">
-              <Button variant="primary" size="sm" icon={FiUserCheck} onClick={() => onAccept(user.id)}>
+              <Button variant="primary" size="sm" icon={FiUserCheck} onClick={() => handleAccept(user.id)}>
                 Accept
               </Button>
-              <Button variant="light" size="sm" icon={FiUserX} onClick={() => onDecline(user.id)}>
+              <Button variant="light" size="sm" icon={FiUserX} onClick={() => handleDecline(user.id)}>
                 Decline
               </Button>
             </div>

@@ -1,19 +1,49 @@
 import pool from '../config/db.js';
+import { getClientAdjustedTime, parseClientDate } from '../utils/timeUtils.js';
 
 export const addTask = async (req, res) => {
   console.log("Received:", req.body);
   const user_id = req.user.id; 
   console.log(req.body);
   // const { title, description, type, user_id, dueDate, priority_id, tags, subTasks } = req.body;
-  const { name, description, dueDate, category_id, priority_id, subtasks, status, estimated_time } = req.body;
+  const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
+
+  // Get timezone-adjusted timestamp functions
+  const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    
+    // If estimated_time was directly provided, use it
+    let task_estimated_time = estimated_time;
+    
+    // If estimated_time is an object with formatted property, extract it
+    if (task_estimated_time && typeof task_estimated_time === 'object' && task_estimated_time.formatted) {
+      // Extract formatted time string or convert to proper interval format
+      if (task_estimated_time.hours !== undefined && task_estimated_time.minutes !== undefined) {
+        const hours = Number(task_estimated_time.hours || 0);
+        const minutes = Number(task_estimated_time.minutes || 0);
+        task_estimated_time = `${hours} hours ${minutes} minutes`;
+      } else {
+        // Use the formatted string directly if present
+        task_estimated_time = task_estimated_time.formatted.replace('h', ' hours').replace('m', ' minutes');
+      }
+    }
+    
+    // If not provided but we have hours or minutes, create it
+    if ((!task_estimated_time || task_estimated_time === '') && (estimatedHours !== undefined || estimatedMinutes !== undefined)) {
+      const hours = Number(estimatedHours || 0);
+      const minutes = Number(estimatedMinutes || 0);
+      task_estimated_time = `${hours} hours ${minutes} minutes`;
+    }
+    
+    console.log('Using estimated_time:', task_estimated_time);
+    
     // 2. Insert task
     const insertTaskResult = await client.query(
       'INSERT INTO tasks(user_id,name, description,category_id, priority_id,status,estimated_time,due_date) VALUES($1, $2, $3,$4, $5, $6, $7,$8) RETURNING task_id',
-      [user_id, name, description, category_id, priority_id, status, estimated_time, dueDate]
+      [user_id, name, description, category_id, priority_id, status, task_estimated_time, dueDate]
     );
     const task_id = insertTaskResult.rows[0].task_id;
     console.log('Inserted task with ID:', task_id);
@@ -119,15 +149,34 @@ export const fetchTasks = async (req, res) => {
 };
 
 function formatInterval(interval) {
-  if (!interval || typeof interval !== 'object') {
-    return { hours: 0, minutes: 0, formatted: '0m' };
+  if (!interval) {
+    return { hours: 0, minutes: 0, formatted: '0h 0m' };
   }
 
-  const hours = interval.hours || 0;
-  const minutes = interval.minutes || 0;
-  const formatted = `${hours}h ${minutes}m`;
+  // Handle string format like "X hours Y minutes"
+  if (typeof interval === 'string') {
+    const hoursMatch = interval.match(/(\d+)\s*hours?/);
+    const minutesMatch = interval.match(/(\d+)\s*minutes?/);
+    
+    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+    const minutes = minutesMatch ? parseInt(minutesMatch[1]) : 0;
+    
+    return { hours, minutes, formatted: `${hours}h ${minutes}m` };
+  }
+  
+  // Handle PostgreSQL interval object
+  if (typeof interval === 'object') {
+    const hours = interval.hours || 0;
+    const minutes = interval.minutes || 0;
+    const days = interval.days || 0;
+    
+    const totalHours = hours + (days * 24);
+    const formatted = `${totalHours}h ${minutes}m`;
+    
+    return { hours: totalHours, minutes, formatted };
+  }
 
-  return { hours, minutes, formatted };
+  return { hours: 0, minutes: 0, formatted: '0h 0m' };
 }
 
 export const deleteTask = async (req, res) => {
@@ -173,8 +222,11 @@ export const deleteTask = async (req, res) => {
 export const editTask = async (req, res) => {
   const user_id = req.user.id;
   const { task_id } = req.params;
-  console.log('Rceived',req.body); 
-  const { title, name, description, dueDate, priority, category, subtasks, status, estimatedHours,estimatedMinutes } = req.body;
+  console.log('Received', req.body); 
+  const { title, name, description, dueDate, priority, category, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
+
+  // Get timezone-adjusted timestamp functions
+  const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
 
   const priorityText = priority.toUpperCase();
     const priorityResult = await pool.query('SELECT id FROM priorities where name = $1',[priorityText]);
@@ -182,10 +234,10 @@ export const editTask = async (req, res) => {
       throw new Error('Priority not found');
     }
     const priority_id = priorityResult.rows[0].id;
-  const categoryText =category;
+  const categoryText = category;
     const categoryResult = await pool.query('SELECT id FROM categories where name = $1',[categoryText]);
     if (categoryResult.rows.length === 0) {
-      throw new Error('status not found');
+      throw new Error('Category not found');
     }
     const category_id = categoryResult.rows[0].id;
 
@@ -206,13 +258,33 @@ export const editTask = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Task not found or you do not have permission to edit it' });
     }
-    let estimated_time = null;
-
-    const hours = estimatedHours || 0;
-    const minutes = estimatedMinutes || 0;
-    estimated_time = `${hours} hours ${minutes} minutes`;
-
-  console.log(estimated_time);      // Update task
+    
+    // Use existing estimated_time if provided, otherwise calculate from hours/minutes
+    let task_estimated_time = estimated_time;
+    
+    // If estimated_time is an object with formatted property, extract it
+    if (task_estimated_time && typeof task_estimated_time === 'object' && task_estimated_time.formatted) {
+      // Extract formatted time string or convert to proper interval format
+      if (task_estimated_time.hours !== undefined && task_estimated_time.minutes !== undefined) {
+        const hours = Number(task_estimated_time.hours || 0);
+        const minutes = Number(task_estimated_time.minutes || 0);
+        task_estimated_time = `${hours} hours ${minutes} minutes`;
+      } else {
+        // Use the formatted string directly if present
+        task_estimated_time = task_estimated_time.formatted.replace('h', ' hours').replace('m', ' minutes');
+      }
+    }
+    
+    // If estimated_time is not provided but we have hours or minutes, create it
+    if ((!task_estimated_time || task_estimated_time === '') && (estimatedHours !== undefined || estimatedMinutes !== undefined)) {
+      const hours = Number(estimatedHours || 0);
+      const minutes = Number(estimatedMinutes || 0);
+      task_estimated_time = `${hours} hours ${minutes} minutes`;
+    }
+    
+    console.log('Using estimated_time:', task_estimated_time);
+    
+    // Update task - use timezone-adjusted timestamp
     await client.query(
       `UPDATE tasks 
        SET name = $1, 
@@ -222,9 +294,9 @@ export const editTask = async (req, res) => {
            category_id = $5,
            status = $6,
            estimated_time = $7,
-           updated_at = NOW()
+           updated_at = ${timestamp}
        WHERE task_id = $8 AND user_id = $9`,
-      [taskName, description, dueDate, priority_id, category_id,status, estimated_time, task_id, user_id]
+      [taskName, description, dueDate, priority_id, category_id, status, task_estimated_time, task_id, user_id]
     );
 
     // Update subtasks if provided
@@ -257,6 +329,10 @@ export const startSession = async (req, res) => {
   const { taskId } = req.body;
   const userId = req.user.id;
   console.log('I am in start session')
+  
+  // Get timezone-adjusted timestamp functions
+  const { now } = getClientAdjustedTime(req.clientTimezone?.name);
+  
   try {
     // First check if there's an active session for this task
     const activeSession = await pool.query(
@@ -297,6 +373,9 @@ export const endSession = async (req, res) => {
   const userId = req.user.id;
   console.log('Ending session with data:', req.body);
 
+  // Get timezone-adjusted timestamp functions
+  const { now } = getClientAdjustedTime(req.clientTimezone?.name);
+
   try {
     let result;
     
@@ -313,17 +392,10 @@ export const endSession = async (req, res) => {
         return res.status(404).json({ error: 'Session not found or already ended' });
       }
       
-      const startTime = new Date(sessionData.rows[0].start_time);
-      const endTime = new Date();
-      const durationInSeconds = Math.floor((endTime - startTime) / 1000);
-      const hours = Math.floor(durationInSeconds / 3600);
-      const minutes = Math.floor((durationInSeconds % 3600) / 60);
-      const calculatedDuration = `${hours} hours ${minutes} minutes`;
-      // console.log(calculatedDuration);
-      // Set end_time to now and update the duration
+      // Set end_time to now with timezone adjustment
       result = await pool.query(
         `UPDATE task_sessions
-         SET end_time = NOW()
+         SET end_time = ${now}
          WHERE session_id = $1 AND user_id = $2 AND end_time IS NULL
          RETURNING session_id, start_time, end_time, duration`,
         [sessionId, userId]
@@ -343,19 +415,12 @@ export const endSession = async (req, res) => {
         return res.status(404).json({ error: 'No active session found for this task' });
       }
       
-      const startTime = new Date(sessionData.rows[0].start_time);
-      const endTime = new Date();
-      const durationInSeconds = Math.floor((endTime - startTime) / 1000);
-      const hours = Math.floor(durationInSeconds / 3600);
-      const minutes = Math.floor((durationInSeconds % 3600) / 60);
-      const calculatedDuration = `${hours} hours ${minutes} minutes`;
-      
       result = await pool.query(
         `UPDATE task_sessions
-         SET end_time = NOW()
+         SET end_time = ${now}
          WHERE session_id = $1 AND end_time IS NULL
          RETURNING session_id, start_time, end_time, duration`,
-        [sessionData.rows[0].session_id, userId]
+        [sessionData.rows[0].session_id]
       );
     }
     // If duration is provided, create a completed session with the specified duration
@@ -366,7 +431,7 @@ export const endSession = async (req, res) => {
       // Calculate start time by subtracting duration from current time
       result = await pool.query(
         `INSERT INTO task_sessions (task_id, user_id, start_time, end_time)
-         VALUES ($1, $2, NOW() - INTERVAL '${durationInSeconds} seconds', NOW())
+         VALUES ($1, $2, ${now} - INTERVAL '${durationInSeconds} seconds', ${now})
          RETURNING session_id, start_time, end_time, duration`,
         [taskId, userId]
       );
@@ -389,26 +454,415 @@ export const endSession = async (req, res) => {
   }
 };
 
-// Helper function to parse duration like "2h 30m" into seconds
+// Helper function to parse duration like "2h 30m" or "2 hours 30 minutes" into seconds
 function parseHumanReadableDuration(durationStr) {
+  // Check if input is valid
+  if (!durationStr || typeof durationStr !== 'string') {
+    return { totalSeconds: 0, hours: 0, minutes: 0 };
+  }
+  
   let totalSeconds = 0;
+  let hours = 0;
+  let minutes = 0;
   
-  // Extract hours if present
-  const hoursMatch = durationStr.match(/(\d+)h/);
+  // Match formats like "2h" or "2 hours"
+  const hoursMatch = durationStr.match(/(\d+)\s*h(?:ours?)?/i);
   if (hoursMatch) {
-    totalSeconds += parseInt(hoursMatch[1], 10) * 3600;
+    hours = parseInt(hoursMatch[1], 10);
+    totalSeconds += hours * 3600;
   }
   
-  // Extract minutes if present
-  const minutesMatch = durationStr.match(/(\d+)m/);
+  // Match formats like "30m" or "30 minutes"
+  const minutesMatch = durationStr.match(/(\d+)\s*m(?:inutes?)?/i);
   if (minutesMatch) {
-    totalSeconds += parseInt(minutesMatch[1], 10) * 60;
+    minutes = parseInt(minutesMatch[1], 10);
+    totalSeconds += minutes * 60;
   }
+  
+  console.log(`Parsed duration "${durationStr}" to ${hours}h ${minutes}m (${totalSeconds} seconds)`);
   
   return {
     totalSeconds,
-    hours: hoursMatch ? parseInt(hoursMatch[1], 10) : 0,
-    minutes: minutesMatch ? parseInt(minutesMatch[1], 10) : 0
+    hours,
+    minutes
   };
 }
+
+export const fetchTaskHistory = async (req, res) => {
+  const userId = req.user.id;
+  const timeFrame = req.query.timeFrame || 'all-time'; // Default to all-time if not specified
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const searchQuery = req.query.search || '';
+  
+  let timeCondition = '';
+  const now = new Date();
+  
+  // Apply time filter
+  switch (timeFrame) {
+    case 'this-week':
+      // Get the start of the current week (Sunday)
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      timeCondition = `AND t.updated_at >= '${startOfWeek.toISOString()}'`;
+      break;
+    case 'this-month':
+      // Get the start of the current month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      timeCondition = `AND t.updated_at >= '${startOfMonth.toISOString()}'`;
+      break;
+    case 'last-month':
+      // Get the start of the last month
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      timeCondition = `AND t.updated_at >= '${startOfLastMonth.toISOString()}' AND t.updated_at <= '${endOfLastMonth.toISOString()}'`;
+      break;
+    default:
+      // All time - no condition needed
+      break;
+  }
+  
+  const client = await pool.connect();
+  
+  try {
+    // Search condition
+    const searchCondition = searchQuery 
+      ? `AND (t.name ILIKE '%${searchQuery}%' OR t.description ILIKE '%${searchQuery}%')` 
+      : '';
+    
+    // Query for completed tasks with time tracking data
+    const tasksQuery = `
+      SELECT 
+        t.task_id,
+        t.name,
+        t.status,
+        t.updated_at,
+        t.estimated_time,
+        c.name AS category,
+        p.name AS priority,
+        (
+          SELECT COALESCE(SUM(duration), interval '0 minutes')
+          FROM task_sessions
+          WHERE task_id = t.task_id AND user_id = $1
+        ) AS actual_time
+      FROM tasks t
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN priorities p ON t.priority_id = p.id
+      WHERE t.user_id = $1 
+      AND t.status = 'completed'
+      ${timeCondition}
+      ${searchCondition}
+      ORDER BY t.updated_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM tasks t
+      WHERE t.user_id = $1 
+      AND t.status = 'completed'
+      ${timeCondition}
+      ${searchCondition}
+    `;
+    
+    // Get statistical data
+    const statsQuery = `
+      SELECT 
+        COUNT(*) AS total_completed_tasks,
+        AVG(CASE WHEN ts.duration IS NOT NULL AND t.estimated_time IS NOT NULL 
+             THEN 
+               CASE 
+                 WHEN ts.duration <= t.estimated_time::interval THEN 1 
+                 ELSE 0 
+               END
+             ELSE NULL 
+            END) * 100 AS completion_rate,
+        AVG(CASE 
+              WHEN ts.duration IS NOT NULL AND t.estimated_time IS NOT NULL 
+              THEN 
+                CASE 
+                  WHEN ts.duration <= t.estimated_time::interval * 0.9 THEN 10 
+                  WHEN ts.duration <= t.estimated_time::interval THEN 9 
+                  WHEN ts.duration <= t.estimated_time::interval * 1.1 THEN 8 
+                  WHEN ts.duration <= t.estimated_time::interval * 1.2 THEN 7 
+                  WHEN ts.duration <= t.estimated_time::interval * 1.3 THEN 6 
+                  ELSE 5 
+                END
+              ELSE NULL 
+            END) AS productivity_score
+      FROM tasks t
+      LEFT JOIN (
+        SELECT task_id, SUM(duration) AS duration
+        FROM task_sessions
+        WHERE user_id = $1
+        GROUP BY task_id
+      ) ts ON t.task_id = ts.task_id
+      WHERE t.user_id = $1 AND t.status = 'completed'
+      ${timeCondition}
+    `;
+    
+    // Execute all queries
+    const [tasksResult, countResult, statsResult] = await Promise.all([
+      client.query(tasksQuery, [userId, limit, offset]),
+      client.query(countQuery, [userId]),
+      client.query(statsQuery, [userId])
+    ]);
+    
+    // Process tasks to add performance indicators
+    const tasks = tasksResult.rows.map(task => {
+      // Debug logging
+      console.log('Task time data:', {
+        taskId: task.task_id,
+        name: task.name,
+        estimated_time: task.estimated_time,
+        actual_time: task.actual_time
+      });
+      
+      // Calculate performance based on estimated vs actual time
+      let performance = 'On Track';
+      
+      if (task.estimated_time && task.actual_time) {
+        // Handle the estimated_time based on its type
+        let estimatedMinutes = 0;
+        
+        if (typeof task.estimated_time === 'string') {
+          // If it's a string like "X hours Y minutes", use parseHumanReadableDuration
+          const estimatedInterval = parseHumanReadableDuration(task.estimated_time);
+          estimatedMinutes = (estimatedInterval.hours || 0) * 60 + (estimatedInterval.minutes || 0);
+        } else if (typeof task.estimated_time === 'object') {
+          // If it's a PostgreSQL interval object
+          estimatedMinutes = 
+            (task.estimated_time.minutes || 0) + 
+            (task.estimated_time.hours || 0) * 60 + 
+            (task.estimated_time.days || 0) * 24 * 60;
+        }
+        
+        // Extract components from the interval
+        const actualInterval = task.actual_time;
+        let actualMinutes = 0;
+        
+        // Handle PostgreSQL interval object format
+        if (actualInterval) {
+          actualMinutes = 
+            (actualInterval.minutes || 0) + 
+            (actualInterval.hours || 0) * 60 + 
+            (actualInterval.days || 0) * 24 * 60;
+        }
+        
+        const difference = actualMinutes - estimatedMinutes;
+        
+        if (difference > estimatedMinutes * 0.1) {
+          performance = 'Delayed';
+        } else if (difference < -estimatedMinutes * 0.1) {
+          performance = 'Early';
+        }
+      }
+      
+      return {
+        id: task.task_id,
+        name: task.name,
+        status: task.status,
+        completionDate: new Date(task.updated_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        estimatedTime: formatTimeForDisplay(task.estimated_time),
+        actualTime: formatTimeForDisplay(task.actual_time),
+        performance,
+        category: task.category,
+        priority: task.priority
+      };
+    });
+    
+    // Get total count
+    const totalTasks = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalTasks / limit);
+    
+    // Get stats
+    const stats = {
+      totalCompletedTasks: parseInt(statsResult.rows[0].total_completed_tasks) || 0,
+      completionRate: parseFloat(statsResult.rows[0].completion_rate) || 0,
+      productivityScore: parseFloat(statsResult.rows[0].productivity_score) || 0
+    };
+    
+    res.status(200).json({
+      tasks,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalTasks
+      },
+      stats
+    });
+    
+  } catch (error) {
+    console.error('Error fetching task history:', error);
+    res.status(500).json({ error: 'Failed to fetch task history' });
+  } finally {
+    client.release();
+  }
+};
+
+// Helper function to format time values for display
+function formatTimeForDisplay(timeValue) {
+  if (!timeValue) return 'Not set';
+  
+  if (timeValue === 0 || timeValue === '0') return 'Not tracked';
+  
+  // Handle string format
+  if (typeof timeValue === 'string') {
+    return timeValue;
+  }
+  
+  // Handle PostgreSQL interval object
+  if (typeof timeValue === 'object') {
+    const hours = timeValue.hours || 0;
+    const minutes = timeValue.minutes || 0;
+    const days = timeValue.days || 0;
+    
+    const totalHours = hours + (days * 24);
+    
+    return `${totalHours}h ${minutes}m`;
+  }
+  
+  return 'Unknown format';
+}
+
+export const handleSaveEdit = async (editedTask) => {
+  try {
+    setIsLoading(true);
+    
+    console.log('Saving task:', editedTask);
+    
+    // Make sure estimated_time is properly formatted
+    let estimated_time = editedTask.estimated_time;
+    if (editedTask.estimatedHours !== undefined || editedTask.estimatedMinutes !== undefined) {
+      const hours = editedTask.estimatedHours || 0;
+      const minutes = editedTask.estimatedMinutes || 0;
+      estimated_time = `${hours} hours ${minutes} minutes`;
+    }
+    
+    const taskData = {
+      ...editedTask,
+      estimated_time: estimated_time
+    };
+    
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/updateTask/${editedTask.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(taskData),
+    });
+    
+    if (!res.ok) {
+      throw new Error(`Failed to update task: ${res.status}`);
+    }
+    
+    // Fetch all tasks to ensure consistency with backend
+    await fetchTasks();
+    
+    setShowEditModal(false);
+  } catch (error) {
+    console.error('Error updating task:', error);
+    alert('Failed to update task. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Get task streaks for a user
+export const getTaskStreaks = async (req, res) => {
+  const userId = req.user.id;
+  const client = await pool.connect();
+  
+  try {
+    // Using the streak calculation SQL query to find the current and longest streaks
+    const query = `
+      -- 1. Get distinct days where tasks were completed
+      WITH completed_days AS (
+          SELECT DISTINCT
+              user_id,
+              DATE(updated_at) AS completion_date
+          FROM tasks
+          WHERE status = 'completed' AND user_id = $1
+      ),
+
+      -- 2. Group days into streaks
+      streak_groups AS (
+          SELECT
+              user_id,
+              completion_date,
+              completion_date - (ROW_NUMBER() OVER (
+                  PARTITION BY user_id ORDER BY completion_date
+              ))::integer AS streak_group
+          FROM completed_days
+      ),
+
+      -- 3. Identify each streak
+      streaks AS (
+          SELECT
+              user_id,
+              MIN(completion_date) AS streak_start,
+              MAX(completion_date) AS streak_end,
+              COUNT(*) AS streak_length
+          FROM streak_groups
+          GROUP BY user_id, streak_group
+      ),
+
+      -- 4. Longest streak per user
+      longest_streaks AS (
+          SELECT
+              user_id,
+              MAX(streak_length) AS longest_streak
+          FROM streaks
+          GROUP BY user_id
+      ),
+
+      -- 5. Current streak (must end today or yesterday)
+      current_streaks AS (
+          SELECT
+              user_id,
+              streak_length AS current_streak
+          FROM streaks
+          WHERE streak_end = CURRENT_DATE OR streak_end = CURRENT_DATE - INTERVAL '1 day'
+      )
+
+      -- Final result for the user
+      SELECT
+          $1 AS user_id,
+          COALESCE(cs.current_streak, 0) AS current_streak,
+          COALESCE(ls.longest_streak, 0) AS longest_streak
+      FROM current_streaks cs
+      FULL OUTER JOIN longest_streaks ls ON ls.user_id = cs.user_id
+      LIMIT 1
+    `;
+    
+    const result = await client.query(query, [userId]);
+    
+    // If no streaks are found (user hasn't completed any tasks yet)
+    if (result.rows.length === 0) {
+      return res.status(200).json({ 
+        current: 0, 
+        longest: 0 
+      });
+    }
+    
+    // Return the results formatted for the streak card
+    res.status(200).json({
+      current: result.rows[0].current_streak || 0,
+      longest: result.rows[0].longest_streak || 0
+    });
+    
+  } catch (error) {
+    console.error('Error calculating task streaks:', error);
+    res.status(500).json({ message: 'Server error while calculating task streaks' });
+  } finally {
+    client.release();
+  }
+};
   

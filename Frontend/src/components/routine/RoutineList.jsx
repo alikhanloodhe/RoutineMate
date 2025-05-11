@@ -57,7 +57,7 @@ const RoutineList = ({
           </div>
           {routines.map(routine => (
             <RoutineItem
-              key={routine.id}
+              key={routine.id || routine.routine_id || Math.random().toString(36).substring(7)}
               routine={routine}
               onEdit={onEdit}
               onDelete={onDelete}

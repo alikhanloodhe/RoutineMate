@@ -13,6 +13,9 @@ router.get('/habit/:habitId', habitTrackingController.getTrackingByHabit);
 // Get tracking records for a specific date
 router.get('/date/:date', habitTrackingController.getTrackingByDate);
 
+// Get max current and max longest habit streaks for the user
+router.get('/streaks', habitTrackingController.getHabitStreaks);
+
 // Toggle completion status for a habit on a specific date
 router.post('/toggle', habitTrackingController.toggleCompletion);
 

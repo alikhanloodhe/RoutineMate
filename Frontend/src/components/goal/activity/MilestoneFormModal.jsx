@@ -52,8 +52,8 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
       milestone_id: milestone?.milestone_id, // Only included when editing
       title,
       description,
-      due_date: dueDate,
-      reminder_at: reminderAt,
+      due_date: dueDate || null,
+      reminder_at: reminderAt || null,
       status,
       completion_date: status === 'completed' ? new Date().toISOString() : null
     };
@@ -62,8 +62,13 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
     resetForm();
   };
   const formatDateForInput = (dateStr) => {
+    if (!dateStr) return ''; // Return empty string for null/undefined/empty values
+    
     console.log(dateStr);
     const d = new Date(dateStr);
+    // Check if date is valid
+    if (isNaN(d.getTime())) return '';
+    
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');

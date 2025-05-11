@@ -5,8 +5,10 @@ import { group, activity } from '../components/goal';
 import { getGoalById, updateGoal } from '../utils/goalData';
 import FriendSelector from '../components/goal/group/FriendSelector';
 import PageHeader from '../components/ui/PageHeader';
+import { useToastContext } from '../context/ToastContext';
 
 const GroupGoalDetail = () => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   const token = localStorage.getItem('token');
   const { goalId } = useParams();
   const navigate = useNavigate();
@@ -34,6 +36,10 @@ const GroupGoalDetail = () => {
   // For milestone editing
   const [isEditingMilestone, setIsEditingMilestone] = useState(false);
   const [currentMilestoneId, setCurrentMilestoneId] = useState(null);
+  
+  // Confirmation dialog state
+  const [showConfirmDeleteMilestone, setShowConfirmDeleteMilestone] = useState(null);
+  const [showConfirmDeleteActivity, setShowConfirmDeleteActivity] = useState(null);
   
   // Current user info (in a real app, this would come from auth context)
   useEffect(() => {
@@ -149,7 +155,7 @@ const GroupGoalDetail = () => {
       }
     } catch (error) {
       console.error('Error updating milestone status:', error);
-      alert(`Failed to update milestone status. ${error.message || 'Please try again.'}`);
+      errorToast('Failed to update milestone status. Please try again.');
       
       // Revert the state changes on error
       setPersonalMilestoneProgress(prev => ({
@@ -190,7 +196,7 @@ const GroupGoalDetail = () => {
       );
       
       if (newMembers.length === 0) {
-        alert('Selected friends are already members of this goal');
+        infoToast('Selected friends are already members of this goal');
         return;
       }
       
@@ -237,7 +243,7 @@ const GroupGoalDetail = () => {
       
     } catch (error) {
       console.error('Error adding members:', error);
-      alert('Failed to add members. Please try again.');
+      errorToast('Failed to add members. Please try again.');
     }
   };
 
@@ -254,77 +260,86 @@ const GroupGoalDetail = () => {
 
   // Handle deleting a milestone
   const handleDeleteMilestone = async (milestoneId) => {
-    if (!window.confirm('Are you sure you want to delete this milestone?')) {
-      return;
-    }
-    
-    try {
-      // First update state
-      setGoal(prevGoal => {
-        const updatedMilestones = prevGoal.milestones.filter(m => m.id !== milestoneId);
-        const totalMilestones = updatedMilestones.length;
-        let completedCount = 0;
-        
-        updatedMilestones.forEach(milestone => {
-          if (milestone.status === 'completed') {
-            completedCount++;
-          }
+    // Simple confirmation using state pattern
+    if (showConfirmDeleteMilestone === milestoneId) {
+      try {
+        // First update state
+        setGoal(prevGoal => {
+          const updatedMilestones = prevGoal.milestones.filter(m => m.id !== milestoneId);
+          const totalMilestones = updatedMilestones.length;
+          let completedCount = 0;
+          
+          updatedMilestones.forEach(milestone => {
+            if (milestone.status === 'completed') {
+              completedCount++;
+            }
+          });
+          
+          const newProgress = totalMilestones > 0 
+            ? Math.round((completedCount / totalMilestones) * 100)
+            : 0;
+          
+          return {
+            ...prevGoal,
+            milestones: updatedMilestones,
+            progress: newProgress,
+            completedMilestones: completedCount,
+            totalMilestones: totalMilestones
+          };
         });
         
-        const newProgress = totalMilestones > 0 
-          ? Math.round((completedCount / totalMilestones) * 100)
-          : 0;
+        // Then call API
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         
-        return {
-          ...prevGoal,
-          milestones: updatedMilestones,
-          progress: newProgress,
-          completedMilestones: completedCount,
-          totalMilestones: totalMilestones
-        };
-      });
-      
-      // Then call API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete milestone');
+        if (!response.ok) {
+          throw new Error('Failed to delete milestone');
+        }
+        
+        // Reset confirmation state
+        setShowConfirmDeleteMilestone(null);
+        
+        // Show success toast
+        successToast('Milestone deleted successfully');
+      } catch (error) {
+        console.error('Error deleting milestone:', error);
+        errorToast('Failed to delete milestone. Please try again.');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteMilestone(null);
+        
+        // Refresh goal data to restore state
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setGoal(data.goal);
+        }
       }
-      
-    } catch (error) {
-      console.error('Error deleting milestone:', error);
-      alert('Failed to delete milestone. Please try again.');
-      
-      // Refresh goal data to restore state
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setGoal(data.goal);
-      }
+    } else {
+      setShowConfirmDeleteMilestone(milestoneId);
     }
   };
 
   // Handle saving a milestone (new or edited)
   const handleSaveMilestone = async () => {
     if (!milestoneTitle.trim()) {
-      alert('Please enter a milestone title');
+      errorToast('Please enter a milestone title');
       return;
     }
 
     if (!milestoneDueDate) {
-      alert('Please select a due date');
+      errorToast('Please select a due date');
       return;
     }
     try {
@@ -438,7 +453,7 @@ const GroupGoalDetail = () => {
       
     } catch (error) {
       console.error('Error saving milestone:', error);
-      alert('Failed to save milestone. Please try again.');
+      errorToast('Failed to save milestone. Please try again.');
     }
   };
 
@@ -476,17 +491,17 @@ const GroupGoalDetail = () => {
     });
     if(!res.ok) {
       console.error('Error removing member:', res);
-      alert('Failed to remove member. Please try again.');
+      errorToast('Failed to remove member. Please try again.');
     }
     else{
-      alert('Member removed successfully');
+      successToast('Member removed successfully');
     }
   };
 
   // Handle edit goal (admin only)
   const handleEdit = () => {
     if (currentUser.role !== 'admin') {
-      alert('Only admins can edit the goal');
+      errorToast('Only admins can edit the goal');
       return;
     }
     setShowFormModal(true);
@@ -495,7 +510,7 @@ const GroupGoalDetail = () => {
   // Handle delete goal (admin only)
   const handleDeleteGoal = async () => {
     if (currentUser.role !== 'admin') {
-      alert('Only admins can delete the goal');
+      errorToast('Only admins can delete the goal');
       return;
     }
 
@@ -517,11 +532,11 @@ const GroupGoalDetail = () => {
       }
 
       // On successful deletion, navigate back to goals page
-      alert('Goal deleted successfully');
+      successToast('Goal deleted successfully');
       navigate('/goals');
     } catch (error) {
       console.error('Error deleting goal:', error);
-      alert('Failed to delete goal. Please try again.');
+      errorToast('Failed to delete goal. Please try again.');
     }
   };
 
@@ -534,7 +549,7 @@ const GroupGoalDetail = () => {
   // Handle leaving the group goal (for collaborators)
   const handleLeaveGoal = () => {
     if (currentUser.role === 'admin') {
-      alert('As the admin, you cannot leave the goal. Transfer ownership first or delete the goal.');
+      errorToast('As the admin, you cannot leave the goal. Transfer ownership first or delete the goal.');
       return;
     }
     
@@ -612,13 +627,13 @@ const GroupGoalDetail = () => {
         setGoal(finalGoal);
       } else {
         console.error('Group goal not found:', goalId);
-        alert('Group goal not found. Redirecting to goals page.');
+        errorToast('Group goal not found. Redirecting to goals page.');
         navigate('/goals');
       }
 
     } catch (error) {
       console.error('Error fetching goal data:', error);
-      alert('Error loading goal details. Redirecting to goals page.');
+      errorToast('Error loading goal details. Redirecting to goals page.');
       navigate('/goals');
     } finally {
       setIsLoading(false);
@@ -743,6 +758,56 @@ const GroupGoalDetail = () => {
         return 'bg-amber-100 text-amber-800 border-amber-300';
       default:
         return 'bg-white text-gray-800 border-gray-200';
+    }
+  };
+
+  // Handle deleting an activity
+  const handleDeleteActivity = async (activityId) => {
+    // Simple confirmation using state pattern
+    if (showConfirmDeleteActivity === activityId) {
+      try {
+        // Call the API endpoint for deleting an activity
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/activities/${activityId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete activity');
+        }
+
+        // Update UI after successful deletion
+        const updatedActivities = goal.activities.filter(a => a.id !== activityId);
+
+        // Update the goal with new activities
+        const updatedGoal = {
+          ...goal,
+          activities: updatedActivities
+        };
+
+        // Update state
+        setGoal(updatedGoal);
+
+        // Keep local state in sync
+        updateGoal(goal.goal_id, updatedGoal);
+
+        // Reset confirmation state
+        setShowConfirmDeleteActivity(null);
+        
+        // Show success toast
+        successToast('Activity deleted successfully');
+      } catch (error) {
+        console.error('Error deleting activity:', error);
+        errorToast('Error deleting activity. Please try again.');
+        
+        // Reset confirmation state
+        setShowConfirmDeleteActivity(null);
+      }
+    } else {
+      setShowConfirmDeleteActivity(activityId);
     }
   };
 
@@ -1490,6 +1555,60 @@ const GroupGoalDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Confirm Delete Milestone Modal */}
+      {showConfirmDeleteMilestone && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-2">Delete Milestone</h3>
+            <p className="mb-4 text-gray-600">
+              Are you sure you want to delete this milestone? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmDeleteMilestone(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteMilestone(showConfirmDeleteMilestone)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Confirm Delete Activity Modal */}
+      {showConfirmDeleteActivity && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-2">Delete Activity</h3>
+            <p className="mb-4 text-gray-600">
+              Are you sure you want to delete this activity? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmDeleteActivity(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteActivity(showConfirmDeleteActivity)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

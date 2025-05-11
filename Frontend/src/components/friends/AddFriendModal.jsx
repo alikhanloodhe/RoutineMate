@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { FiSearch, FiX, FiUserPlus } from 'react-icons/fi';
+import { useToastContext } from '../../context/ToastContext';
 
 const AddFriendModal = ({ isOpen, onClose, onSendRequest }) => {
+  const { errorToast } = useToastContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -29,9 +31,12 @@ const AddFriendModal = ({ isOpen, onClose, onSendRequest }) => {
         const data = await res.json();
         if (res.ok) {
           setSearchResults(data.users); // expect array
+        } else {
+          errorToast(data.msg || 'Failed to search for users');
         }
       } catch (err) {
         console.error('Search error:', err);
+        errorToast('Failed to search for users. Please try again.');
       }
       setIsSearching(false);
     } else {

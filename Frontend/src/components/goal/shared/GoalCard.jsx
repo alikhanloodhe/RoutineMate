@@ -102,12 +102,28 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
     }
   };
 
+  // Handle click events
+  const handleCardClick = () => {
+    onView(goal);
+  };
+
+  const handleEditClick = (e) => {
+    e.stopPropagation(); // Prevent card click event
+    onEdit(goal);
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation(); // Prevent card click event
+    onDelete(goal);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4 hover:shadow-md transition-shadow duration-200"
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+      onClick={handleCardClick}
     >
       <div className="flex justify-between">
         <div className="flex items-start gap-4">
@@ -150,18 +166,7 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
         
         <div className="flex flex-col gap-2">
           <button 
-            onClick={() => onView(goal)}
-            className="text-xs p-1.5 text-[#4A2BAF] hover:bg-[#4A2BAF]/5 rounded-lg transition-colors"
-            title="View goal details"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </button>
-          
-          <button 
-            onClick={() => onEdit(goal)}
+            onClick={handleEditClick}
             className="text-xs p-1.5 text-[#4A2BAF] hover:bg-[#4A2BAF]/5 rounded-lg transition-colors"
             title="Edit goal"
           >
@@ -171,7 +176,7 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
           </button>
           
           <button 
-            onClick={() => onDelete(goal)}
+            onClick={handleDeleteClick}
             className="text-xs p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             title="Delete goal"
           >

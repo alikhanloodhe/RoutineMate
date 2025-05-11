@@ -204,13 +204,17 @@ export const TimerProvider = ({ children }) => {
   };
 
   // Update tasks when data changes
-  // shouldFetch parameter controls whether to trigger a fetch (defaults to false to prevent loops)
-  const updateTasks = (newTasks, shouldFetch = false) => {
+  // shouldFetch parameter controls whether to trigger a fetch (defaults to true to ensure updates are reflected)
+  const updateTasks = (newTasks, shouldFetch = true) => {
+    // First update the state with provided tasks to give immediate feedback
     setTasks(newTasks);
     
     // If shouldFetch is true and we're not already updating, fetch tasks
     if (shouldFetch && !isUpdatingTasks) {
-      fetchLatestTasks();
+      // Add a small delay to ensure backend has time to process the update
+      setTimeout(() => {
+        fetchLatestTasks();
+      }, 300);
     }
   };
   
@@ -221,12 +225,17 @@ export const TimerProvider = ({ children }) => {
     try {
       setIsUpdatingTasks(true);
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setIsUpdatingTasks(false);
+        return;
+      }
       
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Tasks/fetchTasks`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        // Add cache control to ensure fresh data
+        cache: 'no-cache'
       });
       
       if (response.ok) {

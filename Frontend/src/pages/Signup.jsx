@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiCheck } from 'react-icons/fi';
 import PasswordStrengthBar from 'react-password-strength-bar';
+import { useAuth } from '../context/AuthContext';
+import { useToastContext } from '../context/ToastContext';
 
 const Signup = () => {
   const [formData, setFormData] = useState({ 
@@ -18,6 +20,8 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
+  const { errorToast, successToast } = useToastContext();
   
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,6 +37,7 @@ const Signup = () => {
     // Check password match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      errorToast('Passwords do not match');
       setLoading(false);
       return;
     }
@@ -40,6 +45,7 @@ const Signup = () => {
     // Check agreement to terms
     if (!agreeToTerms) {
       setError('Please agree to the Terms of Service');
+      errorToast('Please agree to the Terms of Service');
       setLoading(false);
       return;
     }
@@ -49,25 +55,23 @@ const Signup = () => {
     const { confirmPassword, ...submitData } = formData;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiUrl}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submitData),
-      });
+      // Use the register function from AuthContext
+      const result = await register(submitData);
 
-      const data = await res.json();
-
-      if (res.ok) {
+      if (result.success) {
         // Clear form and redirect to login
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+        successToast('Registration successful! Please login with your credentials.');
         navigate('/login');
       } else {
-        setError(data.message || 'Signup failed. Please try again.');
+        setError(result.error || 'Signup failed. Please try again.');
+        errorToast(result.error || 'Signup failed. Please try again.');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      setError('Network error. Please try again later.');
+      const errorMsg = 'Network error. Please try again later.';
+      setError(errorMsg);
+      errorToast(errorMsg);
     } finally {
       setLoading(false);
     }

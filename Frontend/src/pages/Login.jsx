@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
+import { useToastContext } from '../context/ToastContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -9,6 +11,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { errorToast, successToast } = useToastContext();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,27 +26,19 @@ const Login = () => {
     setError('');
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+      const result = await login(formData);
+      
+      if (result.success) {
+        successToast('Login successful!');
         navigate('/dashboard');
       } else {
-        setError(data.message || 'Login failed. Please check your credentials.');
+        setError(result.error || 'Login failed. Please check your credentials.');
+        errorToast(result.error || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Login error:', error);
       setError('Network error. Please try again later.');
+      errorToast('Network error. Please try again later.');
     } finally {
       setLoading(false);
     }

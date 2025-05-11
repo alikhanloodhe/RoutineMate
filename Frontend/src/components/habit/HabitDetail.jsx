@@ -2,14 +2,11 @@
 // components/habit/HabitDetail.jsx
 import React from 'react';
 import CalendarView from './CalendarView';
-import StreakStats from './StreakStats';
-import EditDeleteControls from './EditDeleteControls';
 import { motion } from 'framer-motion';
 
 const HabitDetail = ({ 
   habit, 
   trackingData = [],
-  streakData,
   completionData,
   onEdit, 
   onDelete, 
@@ -20,8 +17,7 @@ const HabitDetail = ({
   // Format the frequency display
   const frequencyDisplay = {
     'daily': 'Daily',
-    'weekly': 'Weekly',
-    'custom': habit.customDays ? `Custom (${habit.customDays.join(', ')})` : 'Custom'
+    'weekly': 'Weekly'
   };
   
   // Format date for display
@@ -102,6 +98,18 @@ const HabitDetail = ({
               </div>
             </div>
             
+            {habit.category_name && (
+              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#4A2BAF] mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <div>
+                  <div className="text-sm text-gray-500">Category</div>
+                  <div className="font-medium">{habit.category_name}</div>
+                </div>
+              </div>
+            )}
+            
             {habit.reminder_time && (
               <div className="flex items-center p-4 bg-gray-50 rounded-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#4A2BAF] mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -118,11 +126,11 @@ const HabitDetail = ({
             
             <div className="flex items-center p-4 bg-gray-50 rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#4A2BAF] mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <div className="text-sm text-gray-500">Streak</div>
-                <div className="font-medium">{streakData.current} days (Best: {streakData.best})</div>
+                <div className="text-sm text-gray-500">Completions</div>
+                <div className="font-medium">{completionData.completions} of {completionData.totalDays} days</div>
               </div>
             </div>
             
@@ -151,16 +159,6 @@ const HabitDetail = ({
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <h2 className="text-lg font-semibold text-[#1C1C1C] mb-6">Progress Calendar</h2>
         <CalendarView habit={habit} trackingData={trackingData} />
-      </div>
-      
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <h2 className="text-lg font-semibold text-[#1C1C1C] mb-6">Stats Overview</h2>
-        <StreakStats 
-          currentStreak={streakData.current}
-          bestStreak={streakData.best}
-          totalCompletions={completionData.completions}
-          totalDays={completionData.totalDays}
-        />
       </div>
     </div>
   );

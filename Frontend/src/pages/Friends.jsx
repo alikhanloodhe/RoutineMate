@@ -13,9 +13,11 @@ import Spinner from '../components/ui/Spinner';
 import FriendCardList from '../components/friends/FriendCardList';
 import AddFriendModal from '../components/friends/AddFriendModal';
 import PageHeader from '../components/ui/PageHeader';
+import { useToastContext } from '../context/ToastContext';
 import { FiSearch, FiUserPlus, FiUserCheck, FiUserX, FiUsers, FiUserMinus, FiX, FiFilter, FiChevronDown } from 'react-icons/fi';
 
 const Friends = () => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   // Friends functionality state
   const [activeTab, setActiveTab] = useState('friends');
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,13 +115,14 @@ const Friends = () => {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.msg);
+        successToast(data.msg);
         setRefreshCounter((prev) => prev + 1); // ← Trigger useEffect re-fetch
-      }else{
-        alert(data.msg);
+      } else {
+        errorToast(data.msg);
       }
     } catch (err) {
       console.error('Send request error:', err);
+      errorToast('Failed to send friend request. Please try again.');
     }
     setShowAddFriendModal(false);
   };
@@ -158,11 +161,14 @@ const Friends = () => {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.msg);
+        infoToast(data.msg);
         setRefreshCounter((prev) => prev + 1);
+      } else {
+        errorToast(data.msg || 'Failed to decline friend request');
       }
     } catch (error) {
       console.error('Error declining request:', error);
+      errorToast('Failed to decline friend request. Please try again.');
     }
   };
 
@@ -179,11 +185,14 @@ const Friends = () => {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.msg);
+        infoToast(data.msg);
         setRefreshCounter((prev) => prev + 1);
+      } else {
+        errorToast(data.msg || 'Failed to cancel friend request');
       }
     } catch (error) {
       console.error('Error canceling request:', error);
+      errorToast('Failed to cancel friend request. Please try again.');
     }
   };
 

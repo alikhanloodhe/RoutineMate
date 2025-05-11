@@ -12,7 +12,10 @@ const RoutineItem = ({
   // Get today's date and check if it's one of the routine's days
   const today = new Date();
   const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][today.getDay()];
-  const isToday = routine.daysOfWeek.includes(dayOfWeek);
+  
+  // Handle both daysOfWeek and days properties, and ensure it's an array
+  const routineDays = routine.daysOfWeek || routine.days || [];
+  const isToday = Array.isArray(routineDays) && routineDays.includes(dayOfWeek);
   
   // Check if routine was completed today
   const today_str = today.toISOString().split('T')[0];
@@ -23,45 +26,62 @@ const RoutineItem = ({
   // Check if routine is currently active (based on current time)
   const now = new Date();
   const currentTime = now.toTimeString().substring(0, 5); // Format: HH:MM
+  const startTime = routine.startTime || routine.start_time;
+  const endTime = routine.endTime || routine.end_time;
+  
   const isActive = isToday && 
-                   routine.startTime <= currentTime && 
-                   routine.endTime > currentTime;
+                   startTime && endTime &&
+                   startTime <= currentTime && 
+                   endTime > currentTime;
 
   // Format time from 24h to 12h format
   const formatTime = (time24h) => {
-    const [hours, minutes] = time24h.split(':');
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${minutes} ${period}`;
+    if (!time24h) return 'N/A';
+    
+    try {
+      const [hours, minutes] = time24h.split(':').map(num => parseInt(num, 10));
+      if (isNaN(hours) || isNaN(minutes)) return 'Invalid time';
+      
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12;
+      return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (error) {
+      console.error('Error formatting time:', error, time24h);
+      return 'Invalid time';
+    }
   };
 
   // Format frequency (days of week) as text
   const formatFrequency = () => {
-    if (routine.daysOfWeek.length === 7) {
+    if (!Array.isArray(routineDays)) return "Not set";
+    
+    if (routineDays.length === 7) {
       return "Daily";
-    } else if (routine.daysOfWeek.length === 0) {
+    } else if (routineDays.length === 0) {
       return "Never";
-    } else if (routine.daysOfWeek.length === 2 && 
-              routine.daysOfWeek.includes("Sat") && 
-              routine.daysOfWeek.includes("Sun")) {
+    } else if (routineDays.length === 2 && 
+              routineDays.includes("Sat") && 
+              routineDays.includes("Sun")) {
       return "Weekends";
-    } else if (routine.daysOfWeek.length === 5 && 
-              !routine.daysOfWeek.includes("Sat") && 
-              !routine.daysOfWeek.includes("Sun")) {
+    } else if (routineDays.length === 5 && 
+              !routineDays.includes("Sat") && 
+              !routineDays.includes("Sun")) {
       return "Weekdays";
     } else {
-      return routine.daysOfWeek.join(", ");
+      return routineDays.join(", ");
     }
   };
   
   // Get priority color
   const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'high':
+    if (!priority) return 'text-gray-600 bg-gray-50';
+    
+    switch (priority.toString().toUpperCase()) {
+      case 'HIGH':
         return 'text-red-600 bg-red-50';
-      case 'medium':
+      case 'MEDIUM':
         return 'text-orange-600 bg-orange-50';
-      case 'low':
+      case 'LOW':
         return 'text-green-600 bg-green-50';
       default:
         return 'text-gray-600 bg-gray-50';
@@ -88,7 +108,7 @@ const RoutineItem = ({
           <div className="flex items-center space-x-3">
             {isToday && (
               <button 
-                onClick={() => onComplete(routine.id, !completedToday)}
+                onClick={() => onComplete(routine.id || routine.routine_id, !completedToday)}
                 className="w-5 h-5 flex-shrink-0 transition-all duration-200"
               >
                 {completedToday ? (
@@ -113,12 +133,12 @@ const RoutineItem = ({
                 {routine.title}
               </h3>
               <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(routine.priority)}`}>
-                  {routine.category}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100`}>
+                  {routine.category || 'Uncategorized'}
                 </span>
                 <span className="flex items-center">
                   <Clock className="w-3 h-3 mr-1" />
-                  {formatTime(routine.startTime)} - {formatTime(routine.endTime)}
+                  {formatTime(startTime)} - {formatTime(endTime)}
                 </span>
               </div>
             </div>
@@ -135,13 +155,13 @@ const RoutineItem = ({
           {/* Action buttons */}
           <div className="flex space-x-1">
             <button
-              onClick={() => onEdit(routine.id)}
+              onClick={() => onEdit(routine.id || routine.routine_id)}
               className="p-1.5 text-gray-400 hover:text-[#4A2BAF] hover:bg-[#4A2BAF]/5 rounded-md transition-colors"
             >
               <Edit className="h-4 w-4" />
             </button>
             <button
-              onClick={() => onDelete(routine.id)}
+              onClick={() => onDelete(routine.id || routine.routine_id)}
               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
             >
               <Trash2 className="h-4 w-4" />
@@ -157,7 +177,7 @@ const RoutineItem = ({
             
             {/* Priority indicator */}
             <span className={`ml-2 px-2 py-0.5 rounded-full ${getPriorityColor(routine.priority)}`}>
-              {routine.priority} Priority
+              {routine.priority || 'No'} Priority
             </span>
           </div>
           

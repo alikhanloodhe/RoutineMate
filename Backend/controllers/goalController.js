@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { getClientAdjustedTime, parseClientDate } from '../utils/timeUtils.js';
 
 export const addGoal = async (req, res) => {
     console.log('Request body:', req.body); // Log the request body for debugging
@@ -17,7 +18,7 @@ export const addGoal = async (req, res) => {
     
         const newGoal = await pool.query(
         'INSERT INTO goals (creator_id, title, description, goal_type,category_id,start_date,end_date,status,progress) VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9) RETURNING *',
-        [user_id, title, description, goal_type,category_id,start_date,end_date,status,progress]
+        [user_id, title, description, goal_type,category_id,start_date || null,end_date || null,status,progress]
         );
 
         const goal_id = newGoal.rows[0].goal_id; // Get the goal_id of the newly created goal
@@ -26,7 +27,14 @@ export const addGoal = async (req, res) => {
             for (let i = 0; i < milestones.length; i++) {
               await pool.query(
                 'INSERT INTO goal_milestones(goal_id,title,description,due_date,reminder_at,status) VALUES($1, $2, $3, $4, $5, $6)',
-                [goal_id, milestones[i].title, milestones[i].description, milestones[i].due_date, milestones[i].reminder_at, status2]
+                [
+                  goal_id, 
+                  milestones[i].title, 
+                  milestones[i].description, 
+                  milestones[i].due_date || null, 
+                  milestones[i].reminder_at || null, 
+                  status2
+                ]
               );
             }
         }
@@ -47,7 +55,14 @@ export const addGoal = async (req, res) => {
             // First insert the milestone and get its ID
             const newMilestone = await pool.query(
                 'INSERT INTO goal_milestones(goal_id, title, description, due_date, reminder_at, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-                [goalId, title, description, due_date, reminder_at, status2]
+                [
+                    goalId, 
+                    title, 
+                    description, 
+                    due_date || null, 
+                    reminder_at || null, 
+                    status2
+                ]
             );
             
             const milestone_id = newMilestone.rows[0].milestone_id;
@@ -222,6 +237,9 @@ export const updateMilestone = async (req, res) => {
   console.log('Milestone ID:', milestoneId);
   console.log('Update data:', updateData); // Log the update data for debugging
   
+  // Get timezone-adjusted timestamp functions
+  const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
+  
   try {
     // Check if this is a personal or group goal
     const goalTypeResult = await pool.query(
@@ -251,10 +269,10 @@ export const updateMilestone = async (req, res) => {
         [
           updateData.title, 
           updateData.description,
-          updateData.due_date,
-          updateData.reminder_at,
+          updateData.due_date || null,
+          updateData.reminder_at || null,
           updateData.status,
-          updateData.completion_date,
+          updateData.completion_date || null,
           milestoneId,
           goalId
         ]
@@ -290,9 +308,9 @@ export const updateMilestone = async (req, res) => {
           [
             updateData.title, 
             updateData.description,
-            updateData.due_date,
-            updateData.reminder_at,
-            updateData.completion_date,
+            updateData.due_date || null,
+            updateData.reminder_at || null,
+            updateData.completion_date || null,
             milestoneId,
             goalId
           ]
@@ -313,7 +331,7 @@ export const updateMilestone = async (req, res) => {
           // If no record exists, insert a new one
           updatedMilestone = await pool.query(
             'INSERT INTO milestone_users (milestone_id, user_id, status, completion_date) VALUES ($1, $2, $3, $4) RETURNING *',
-            [milestoneId, userId, updateData.status, updateData.completion_date]
+            [milestoneId, userId, updateData.status, updateData.completion_date || null]
           );
         } else {
           // Update existing record
@@ -325,7 +343,7 @@ export const updateMilestone = async (req, res) => {
              RETURNING *`,
             [
               updateData.status,
-              updateData.completion_date,
+              updateData.completion_date || null,
               milestoneId,
               userId
             ]
@@ -351,7 +369,7 @@ export const updateMilestone = async (req, res) => {
             await pool.query(
               `UPDATE goal_milestones
                SET status = 'completed', 
-                   completion_date = CURRENT_TIMESTAMP
+                   completion_date = ${timestamp}
                WHERE milestone_id = $1`,
               [milestoneId]
             );
@@ -465,6 +483,10 @@ export const updateGoal = async (req, res) => {
     } = req.body;
     console.log(req.body);
     const user_id = req.user.id; 
+    
+    // Get timezone-adjusted timestamp functions
+    const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
+    
     try {
       // Optional: Verify if goal exists and belongs to the user
       const existingGoal = await pool.query(
@@ -488,7 +510,7 @@ export const updateGoal = async (req, res) => {
           end_date = COALESCE($6, end_date),
           status = COALESCE($7, status),
           progress = COALESCE($8, progress),
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = ${timestamp}
         WHERE goal_id = $9 AND creator_id = $10
         RETURNING *;
         `,
@@ -497,8 +519,8 @@ export const updateGoal = async (req, res) => {
           description,
           goal_type,
           category_id,
-          start_date,
-          end_date,
+          start_date || null,
+          end_date || null,
           status,
           progress,
           goalId,
@@ -510,7 +532,14 @@ export const updateGoal = async (req, res) => {
           for (let i = 0; i < milestones.length; i++) {
             await pool.query(
               'INSERT INTO goal_milestones(goal_id,title,description,due_date,reminder_at,status) VALUES($1, $2, $3, $4, $5, $6)',
-              [goalId, milestones[i].title, milestones[i].description, milestones[i].due_date, milestones[i].reminder_at, status2]
+              [
+                goalId, 
+                milestones[i].title, 
+                milestones[i].description, 
+                milestones[i].due_date || null, 
+                milestones[i].reminder_at || null, 
+                status2
+              ]
             );
           }
       }

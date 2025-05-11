@@ -1,8 +1,6 @@
 // components/habit/HabitDashboard.jsx
-import React, { useEffect } from 'react';
-import DashboardStats from './DashboardStats';
+import React from 'react';
 import HabitList from './HabitList';
-import AddHabitButton from './AddHabitButton';
 import { motion } from 'framer-motion';
 
 const HabitDashboard = ({ 
@@ -12,25 +10,17 @@ const HabitDashboard = ({
   onViewDetails,
   onEditHabit,
   totalHabits,
-  activeStreaks,
   successRate,
-  completionStatus,
-  streaks
+  completionStatus
 }) => {
-  // Log when completion status changes
-  useEffect(() => {
-    console.log('HabitDashboard received updated completionStatus:', completionStatus);
-  }, [completionStatus]);
-
   // Debug wrapper for toggle complete
   const handleToggleComplete = (habitId, completed) => {
-    console.log(`HabitDashboard: forwarding toggle for habit ${habitId} to ${completed}`);
     onToggleComplete(habitId, completed);
   };
 
   return (
     <div>
-      {/* Header with Add Button */}
+      {/* Header with Add Button and Progress Bar */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -40,9 +30,12 @@ const HabitDashboard = ({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-[#1C1C1C]">Your Habits</h1>
-            <p className="text-gray-600 mt-1">Track and maintain your daily routines</p>
+            <p className="text-gray-600 mt-1">Manage your daily routines efficiently</p>
           </div>
-          <div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+              {totalHabits} habit{totalHabits !== 1 ? 's' : ''}
+            </div>
             <button 
               onClick={onAddHabit} 
               className="px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center space-x-1"
@@ -56,40 +49,28 @@ const HabitDashboard = ({
         </div>
         
         {/* Progress Overview */}
-        <div className="w-full">
-          <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium text-gray-700">Success Rate</span>
-            <span className="text-sm font-medium text-gray-700">
-              {successRate}%
-            </span>
+        {habits.length > 0 && (
+          <div className="w-full">
+            <div className="flex justify-between mb-1">
+              <span className="text-sm font-medium text-gray-700">Success Rate</span>
+              <span className="text-sm font-medium text-gray-700">
+                {successRate}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
+                style={{ width: `${successRate}%` }}
+              ></div>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
-              style={{ width: `${successRate}%` }}
-            ></div>
-          </div>
-        </div>
+        )}
       </motion.div>
-      
-      {/* Stats Cards */}
-      <div className="mb-6">
-        <DashboardStats 
-          totalHabits={totalHabits}
-          activeStreaks={activeStreaks}
-          successRate={successRate}
-        />
-      </div>
       
       {/* Habits List */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-[#1C1C1C]">All Habits</h2>
-          {habits.length > 0 && (
-            <div className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              {habits.length} habit{habits.length !== 1 ? 's' : ''}
-            </div>
-          )}
         </div>
         
         <HabitList 
@@ -98,7 +79,6 @@ const HabitDashboard = ({
           onViewDetails={onViewDetails}
           onEditHabit={onEditHabit}
           completionStatus={completionStatus}
-          streaks={streaks}
         />
       </div>
     </div>

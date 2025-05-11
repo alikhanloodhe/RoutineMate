@@ -23,16 +23,16 @@ const RoutineForm = ({
 
   // Categories, priorities and days - based on backend schema
   const categories = [
-    { id: "Physical", name: "Physical" },
-    { id: "Mental", name: "Mental" }, 
-    { id: "Spiritual", name: "Spiritual" }, 
-    { id: "Social", name: "Social" }
+    { id: 1, name: "Physical" },
+    { id: 2, name: "Mental" }, 
+    { id: 3, name: "Spiritual" }, 
+    { id: 4, name: "Social" }
   ];
   
   const priorities = [
-    { id: "HIGH", name: "High" },
-    { id: "MEDIUM", name: "Medium" },
-    { id: "LOW", name: "Low" }
+    { id: 1, name: "HIGH" },
+    { id: 2, name: "MEDIUM" },
+    { id: 3, name: "LOW" }
   ];
   
   const daysOfWeek = [
@@ -48,15 +48,33 @@ const RoutineForm = ({
   // If editing, populate form with routine data
   useEffect(() => {
     if (initialValues) {
+      console.log("Initializing form with values:", initialValues);
       setTitle(initialValues.title || '');
-      setCategoryId(initialValues.category_id || initialValues.category || '');
+      
+      // Handle category_id correctly
+      const categoryIdValue = initialValues.category_id || 
+                             (initialValues.category && categories.find(c => c.name === initialValues.category)?.id) || 
+                             '';
+      setCategoryId(String(categoryIdValue));
+      
+      // Set times
       setStartTime(initialValues.start_time || initialValues.startTime || '08:00');
       setEndTime(initialValues.end_time || initialValues.endTime || '09:00');
-      setSelectedDays(initialValues.days || initialValues.daysOfWeek || []);
-      setPriorityId(initialValues.priority_id || initialValues.priority || '');
+      
+      // Set days
+      const daysArray = initialValues.days || initialValues.daysOfWeek || [];
+      setSelectedDays(Array.isArray(daysArray) ? daysArray : []);
+      
+      // Handle priority_id correctly
+      const priorityIdValue = initialValues.priority_id || 
+                             (initialValues.priority && priorities.find(p => p.name === initialValues.priority)?.id) || 
+                             '';
+      setPriorityId(String(priorityIdValue));
+      
+      // Set status
       setStatus(initialValues.status || 'pending');
     }
-  }, [initialValues]);
+  }, [initialValues]); // Add initialValues as dependency to re-run when editing different routines
 
   // Validate routine details
   const validateRoutineDetails = () => {
@@ -117,24 +135,33 @@ const RoutineForm = ({
       // Compile all data to match backend schema
       const routineData = {
         title,
-        category_id: categoryId,
+        category_id: parseInt(categoryId, 10) || categoryId,
         start_time: startTime,
         end_time: endTime,
         days: selectedDays,
-        priority_id: priorityId,
+        priority_id: parseInt(priorityId, 10) || priorityId,
         status,
         // For compatibility with the frontend while in transition
-        category: categoryId,
         startTime: startTime,
         endTime: endTime,
         daysOfWeek: selectedDays,
-        priority: priorityId,
+        category: categories.find(c => c.id === parseInt(categoryId, 10))?.name || categoryId,
+        priority: priorities.find(p => p.id === parseInt(priorityId, 10))?.name || priorityId,
         active: true, // Always active for UI display purposes
-        // Add additional properties for existing routines
-        ...(initialValues && { id: initialValues.id }),
-        ...(initialValues && { routine_id: initialValues.routine_id }),
-        ...(initialValues && { completionData: initialValues.completionData })
       };
+      
+      // Add ID if we're editing an existing routine
+      if (initialValues) {
+        routineData.id = initialValues.id;
+        routineData.routine_id = initialValues.routine_id;
+        
+        // Preserve completion data if it exists
+        if (initialValues.completionData) {
+          routineData.completionData = initialValues.completionData;
+        }
+      }
+      
+      console.log("Submitting routine data:", routineData);
       
       // Call onSubmit with routine data
       onSubmit(routineData);
@@ -155,6 +182,7 @@ const RoutineForm = ({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter your routine title"
             className={`w-full border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
+            autoFocus
           />
           {errors.title && (
             <div className="flex items-center text-red-500 text-sm mt-1">
@@ -178,7 +206,7 @@ const RoutineForm = ({
               >
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id.toString()}>{cat.name}</option>
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
@@ -202,9 +230,9 @@ const RoutineForm = ({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setPriorityId(p.id)}
+                  onClick={() => setPriorityId(p.id.toString())}
                   className={`py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                    priorityId === p.id
+                    priorityId === p.id.toString() || priorityId === p.id
                       ? 'bg-[#4A2BAF] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}

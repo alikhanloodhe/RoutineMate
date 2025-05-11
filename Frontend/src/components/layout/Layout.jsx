@@ -4,14 +4,14 @@ import Header from '../header/Header';
 import Sidebar from '../sidebar/Sidebar';
 
 const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   
   // Handle responsive sidebar collapse based on window width
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < 1024 && sidebarOpen) {
         setSidebarOpen(false);
       }
     };
@@ -32,10 +32,14 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-      <div className="flex h-[calc(100vh-60px)]">
-        <Sidebar sidebarOpen={sidebarOpen} />
-        <div className={`flex-1 overflow-y-auto ${!sidebarOpen && 'lg:ml-16'}`}>
+      <Sidebar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+      <div 
+        className={`transition-all duration-300 ${
+          windowWidth >= 1024 ? (sidebarOpen ? 'ml-64' : 'ml-16') : 'ml-0'
+        }`}
+      >
+        <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+        <div className="overflow-auto p-4 pt-0">
           <Outlet />
         </div>
       </div>

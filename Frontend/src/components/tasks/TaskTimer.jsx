@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { FiClock, FiPause, FiPlay, FiSquare, FiX, FiMove } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiClock, FiPause, FiPlay, FiSquare, FiX, FiMove, FiMinimize2, FiMaximize2, FiCheck } from 'react-icons/fi';
 
 const TaskTimer = ({ taskId, tasks, onClose }) => {
   const [isRunning, setIsRunning] = useState(true);
@@ -9,8 +9,12 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
   const [startTime, setStartTime] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+  const [isHovered, setIsHovered] = useState(false);
   
   // Refs for drag functionality
   const timerRef = useRef(null);
@@ -23,6 +27,17 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
 
   // Ref for interval to prevent memory leaks
   const timerIntervalRef = useRef(null);
+
+  // Track window resize for responsive positioning
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize timer when component mounts
   useEffect(() => {
@@ -47,6 +62,11 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
           // Restore position if saved
           if (session.position) {
             setPosition(session.position);
+          }
+          
+          // Restore minimized state if saved
+          if (session.isMinimized !== undefined) {
+            setIsMinimized(session.isMinimized);
           }
         } catch (error) {
           console.error('Error parsing saved session:', error);
@@ -90,7 +110,7 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
       }, 1000);
       
       // Update session running state
-      updateSessionRunningState(true);
+      updateSessionState({ isRunning: true });
     }
     
     return () => {
@@ -108,7 +128,13 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
       const newX = e.clientX - dragStartOffset.current.x;
       const newY = e.clientY - dragStartOffset.current.y;
       
-      setPosition({ x: newX, y: newY });
+      // Ensure timer stays visible on screen
+      const maxX = window.innerWidth - 100;
+      const maxY = window.innerHeight - 100;
+      const boundedX = Math.max(0, Math.min(newX, maxX));
+      const boundedY = Math.max(0, Math.min(newY, maxY));
+      
+      setPosition({ x: boundedX, y: boundedY });
     };
     
     const handleMouseUp = () => {
@@ -133,17 +159,16 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
     };
   }, [isDragging]);
 
-  const updateSessionRunningState = (runningState) => {
+  const updateSessionState = (updates) => {
     try {
       const savedSession = localStorage.getItem(`task_session_${taskId}`);
       if (savedSession) {
         const session = JSON.parse(savedSession);
-        session.isRunning = runningState;
-        session.position = position; // Save current position
-        localStorage.setItem(`task_session_${taskId}`, JSON.stringify(session));
+        const updatedSession = { ...session, ...updates };
+        localStorage.setItem(`task_session_${taskId}`, JSON.stringify(updatedSession));
       }
     } catch (error) {
-      console.error('Error updating session running state:', error);
+      console.error('Error updating session state:', error);
     }
   };
 
@@ -152,7 +177,7 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
     setIsRunning(newIsRunning);
     
     // Update session with new running state
-    updateSessionRunningState(newIsRunning);
+    updateSessionState({ isRunning: newIsRunning });
   };
 
   const resetTimer = () => {
@@ -160,9 +185,15 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
     setIsRunning(false);
     
     // Update the existing session state but don't create a new one
-    updateSessionRunningState(false);
+    updateSessionState({ isRunning: false });
     // We don't reset the startTime because that would change the actual session duration
     // This is just a UI reset, not a session reset
+  };
+  
+  const toggleMinimize = () => {
+    const newMinimizedState = !isMinimized;
+    setIsMinimized(newMinimizedState);
+    updateSessionState({ isMinimized: newMinimizedState });
   };
   
   const saveTimerState = () => {
@@ -174,7 +205,8 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
           taskId,
           startTime,
           isRunning,
-          position
+          position,
+          isMinimized
         };
         
         localStorage.setItem(`task_session_${taskId}`, JSON.stringify(sessionData));
@@ -258,33 +290,29 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
         }
       }
       
-      // Clear the local storage session
+      // Clean up local storage
       localStorage.removeItem(`task_session_${taskId}`);
       
-      // Call the onClose handler from parent component
+      // Call the onClose callback to update parent components
       onClose();
     } catch (error) {
-      console.error('Error ending session:', error);
+      console.error('Error ending timer session:', error);
       setError(error.message || 'Failed to end timer session');
-      // Don't call onClose, let the user retry
     } finally {
       setIsSaving(false);
     }
   };
-
+  
   const formatTime = () => {
     const hours = Math.floor(elapsed / 3600);
     const minutes = Math.floor((elapsed % 3600) / 60);
     const seconds = elapsed % 60;
+    
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
-
-  // Handle drag start
+  
   const handleMouseDown = (e) => {
-    setIsDragging(true);
-    
-    // Record the starting mouse position
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    if (isMinimized) return;
     
     // Calculate the offset from the mouse position to the timer's top-left corner
     const timerRect = timerRef.current.getBoundingClientRect();
@@ -293,109 +321,144 @@ const TaskTimer = ({ taskId, tasks, onClose }) => {
       y: e.clientY - timerRect.top
     };
     
-    // Prevent text selection during drag
-    e.preventDefault();
+    dragStartPos.current = { ...position };
+    setIsDragging(true);
   };
   
-  // Save position to localStorage
   const savePosition = () => {
-    try {
-      const savedSession = localStorage.getItem(`task_session_${taskId}`);
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        session.position = position;
-        localStorage.setItem(`task_session_${taskId}`, JSON.stringify(session));
-      }
-    } catch (error) {
-      console.error('Error saving position:', error);
-    }
+    updateSessionState({ position });
   };
 
-  if (!task) {
-    return null;
+  // Calculate proper position for minimized timer to ensure it's visible
+  const safeTop = Math.max(20, Math.min(position.y, windowHeight - 80));
+  
+  // Render different UI based on minimized state
+  if (isMinimized) {
+    return (
+      <motion.div
+        className="fixed z-50" 
+        style={{ top: safeTop, right: 0 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <motion.div 
+          className="flex items-center bg-[#4A2BAF] text-white px-3 py-2 rounded-l-lg shadow-lg cursor-pointer"
+          initial={{ x: 60 }}
+          animate={{ x: isHovered ? 0 : 40 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        >
+          <div className="flex items-center" onClick={toggleMinimize}>
+            <FiClock className="text-white mr-2" size={18} />
+            <span className="font-medium whitespace-nowrap">{formatTime()}</span>
+          </div>
+          <button
+            onClick={toggleMinimize}
+            className="ml-3 p-1 hover:bg-white/20 rounded flex items-center justify-center"
+            title="Maximize timer"
+          >
+            <FiMaximize2 size={14} />
+          </button>
+        </motion.div>
+      </motion.div>
+    );
   }
 
   return (
-    <div 
+    <motion.div 
       ref={timerRef}
-      className="fixed bg-white rounded-xl shadow-lg overflow-hidden w-72 z-50"
-      style={{
-        bottom: 'auto',
-        right: 'auto',
-        top: position.y,
-        left: position.x,
-        cursor: isDragging ? 'grabbing' : 'grab',
-        transition: isDragging ? 'none' : 'opacity 0.3s ease'
-      }}
+      className="fixed z-50"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      style={{ left: `${position.x}px`, top: `${position.y}px` }}
     >
-      <div 
-        className={`flex items-center justify-between p-3 ${isDragging ? 'bg-purple-100' : 'bg-gray-100'}`}
-        onMouseDown={handleMouseDown}
-      >
-        <div className="flex items-center cursor-grab active:cursor-grabbing">
-          <FiMove className="mr-2 text-gray-500" />
-          <FiClock className="mr-2 text-gray-700" />
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
-              {taskTitle}
-            </span>
-            <span className="text-xs text-gray-500">
-              {task?.category || "Task"}
-            </span>
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 w-64">
+        <div 
+          className="bg-[#4A2BAF] text-white px-4 py-2 rounded-t-xl flex items-center justify-between cursor-move"
+          onMouseDown={handleMouseDown}
+        >
+          <div className="flex items-center">
+            <FiClock className="mr-2" />
+            <span className="font-medium">Task Timer</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <button 
+              onClick={toggleMinimize}
+              className="p-1 hover:bg-white/20 rounded"
+              title="Minimize timer"
+            >
+              <FiMinimize2 size={14} />
+            </button>
+            <button 
+              onClick={handleClose}
+              className="p-1 hover:bg-white/20 rounded"
+              disabled={isSaving}
+              title="Close timer"
+            >
+              <FiX size={16} />
+            </button>
           </div>
         </div>
-        <button 
-          onClick={handleClose} 
-          disabled={isSaving}
-          className="text-gray-500 hover:text-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          <FiX />
-        </button>
-      </div>
-      
-      {error && (
-        <div className="p-2 bg-red-50 text-red-600 text-xs">
-          <p>{error}</p>
-          <button 
-            onClick={() => setError(null)}
-            className="underline text-red-700 text-xs mt-1"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-      
-      <div className="p-4 flex flex-col items-center">
-        <div className="text-3xl font-bold mb-4">{formatTime()}</div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={toggleTimer}
-            disabled={isSaving}
-            className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-          >
-            {isRunning ? <FiPause /> : <FiPlay />}
-          </button>
-          <button 
-            onClick={resetTimer}
-            disabled={isSaving}
-            className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-          >
-            <FiSquare />
-          </button>
-          <button 
+        
+        <div className="p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Task:</h3>
+            <p className="text-gray-800 font-medium truncate">{taskTitle}</p>
+          </div>
+          
+          <div className="bg-gray-100 p-3 rounded-lg mb-4 text-center">
+            <span className="text-2xl font-bold text-[#4A2BAF]">{formatTime()}</span>
+          </div>
+          
+          <div className="flex justify-between mb-1">
+            <button
+              onClick={toggleTimer}
+              className={`flex-1 flex items-center justify-center py-2 rounded-md mr-2 ${
+                isRunning 
+                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' 
+                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+              disabled={isSaving}
+            >
+              {isRunning ? <FiPause className="mr-1" /> : <FiPlay className="mr-1" />}
+              {isRunning ? 'Pause' : 'Resume'}
+            </button>
+            
+            <button
+              onClick={resetTimer}
+              className="flex-1 flex items-center justify-center py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              disabled={isSaving || elapsed === 0}
+            >
+              <FiSquare className="mr-1" />
+              Reset
+            </button>
+          </div>
+          
+          <button
             onClick={handleClose}
+            className="w-full mt-2 flex items-center justify-center py-2 bg-[#4A2BAF] text-white rounded-md hover:bg-[#3A1C9F] disabled:bg-gray-400"
             disabled={isSaving}
-            className="p-2 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center disabled:bg-red-300 disabled:cursor-not-allowed"
           >
             {isSaving ? (
-              <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <>
+                <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                Saving...
+              </>
             ) : (
-              "End"
+              <>
+                <FiCheck className="mr-1" />
+                Done
+              </>
             )}
           </button>
+          
+          {error && (
+            <div className="mt-2 text-xs text-red-600">
+              {error}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
