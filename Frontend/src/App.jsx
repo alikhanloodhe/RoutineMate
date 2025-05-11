@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -62,7 +62,7 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <TimerProvider>
+        <TimerProvider> {/* would be able to work in all components */}
           <Router>
             <Routes>
               {/* Public routes */}

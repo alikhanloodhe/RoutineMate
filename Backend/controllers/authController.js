@@ -102,7 +102,7 @@ export const login = async (req, res) => {
 
 export const getUser = async (req, res) => { 
     try {
-        const userId = req.user.id; // Assuming you have middleware to set req.user
+        const userId = req.user.id;
         
         const user = await pool.query('SELECT  id, name, email FROM users WHERE id = $1', [userId]);
         
