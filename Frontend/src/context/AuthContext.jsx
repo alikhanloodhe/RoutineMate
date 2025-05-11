@@ -3,6 +3,29 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 // Create context
 const AuthContext = createContext();
 
+// Helper function to decode JWT token and check expiration
+const decodeToken = (token) => {
+  try {
+    // JWT tokens are made of three parts: header.payload.signature
+    // We need the payload part which is the second part (index 1)
+    const base64Url = token.split('.')[1];
+    
+    // Convert base64url to base64
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Decode the payload
+    const payload = JSON.parse(window.atob(base64));
+    
+    return {
+      ...payload,
+      isExpired: payload.exp ? payload.exp * 1000 < Date.now() : false
+    };
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return { isExpired: true };
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -10,6 +33,25 @@ export const AuthProvider = ({ children }) => {
 
   // Set API URL with fallback
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  // Check if token is valid or expired
+  const checkTokenValidity = () => {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      return false;
+    }
+    
+    const decodedToken = decodeToken(token);
+    
+    if (decodedToken.isExpired) {
+      // Token is expired, clear auth data
+      logout();
+      return false;
+    }
+    
+    return true;
+  };
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -19,6 +61,17 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem('token');
         
         if (!token) {
+          setIsAuthenticated(false);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Check if token is expired
+        const decodedToken = decodeToken(token);
+        if (decodedToken.isExpired) {
+          console.log('Token expired, logging out');
+          localStorage.removeItem('token');
           setIsAuthenticated(false);
           setUser(null);
           setLoading(false);
@@ -70,6 +123,21 @@ export const AuthProvider = ({ children }) => {
     
     checkAuthStatus();
   }, []);
+
+  // Set up periodic token validation check
+  useEffect(() => {
+    // Check token validity every minute
+    const tokenCheckInterval = setInterval(() => {
+      if (isAuthenticated && !checkTokenValidity()) {
+        console.log('Token expired during session, logging out');
+        setIsAuthenticated(false);
+        setUser(null);
+        // The logout function will be called by checkTokenValidity
+      }
+    }, 60000); // check every minute
+    
+    return () => clearInterval(tokenCheckInterval);
+  }, [isAuthenticated]);
 
   const login = async (credentials) => {
     try {
@@ -259,7 +327,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    updateUserProfile
+    updateUserProfile,
+    checkTokenValidity
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

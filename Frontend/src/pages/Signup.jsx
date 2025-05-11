@@ -86,7 +86,7 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row-reverse bg-[#FAF3E0]">
+    <div className="min-h-screen flex flex-col md:flex-row-reverse bg-gray-50">
       {/* Left Section (Illustration - now on right on desktop) */}
       <motion.div 
         className="hidden md:flex md:w-1/2 bg-[#111827] items-center justify-center p-10"
@@ -173,7 +173,7 @@ const Signup = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -196,7 +196,7 @@ const Signup = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -219,7 +219,7 @@ const Signup = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -263,11 +263,11 @@ const Signup = () => {
                     type={showConfirmPassword ? "text" : "password"}
                     id="confirmPassword"
                     name="confirmPassword"
-                    placeholder="Confirm your password"
+                    placeholder="Re-enter your password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchCategories } from '../../../services/categoryService';
 
 const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Physical');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date(new Date().setDate(new Date().getDate() + 7)));
   const [visibility, setVisibility] = useState('private');
   const [status, setStatus] = useState('pending');
   const [milestones, setMilestones] = useState([]);
@@ -23,14 +24,19 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   // Error states
   const [dateErrors, setDateErrors] = useState({ goal: '', milestone: '' });
   
+  // New state variables for categories
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState(null);
+
   // Set form values when editing an existing goal
   useEffect(() => {
     if (goal) {
       setTitle(goal.title || '');
       setDescription(goal.description || '');
       setCategory(goal.category || 'Physical');
-      setStartDate(goal.start_date || '');
-      setEndDate(goal.end_date || '');
+      setStartDate(goal.start_date ? new Date(goal.start_date) : new Date());
+      setEndDate(goal.end_date ? new Date(goal.end_date) : new Date(new Date().setDate(new Date().getDate() + 7)));
       setVisibility(goal.visibility || 'private');
       setStatus(goal.status || 'pending');
       setMilestones(goal.milestones || []);
@@ -40,13 +46,39 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     }
   }, [goal, isOpen]);
 
+  // Fetch categories on component mount
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const fetchedCategories = await fetchCategories();
+        setCategories(fetchedCategories);
+        
+        // If we have categories and no category is selected yet, set the first one as default
+        if (fetchedCategories.length > 0 && !category) {
+          setCategory(fetchedCategories[0].name);
+        }
+        
+        setLoadingCategories(false);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setCategoryError('Failed to load categories');
+        setLoadingCategories(false);
+      }
+    };
+
+    if (isOpen) {
+      getCategories();
+    }
+  }, [isOpen]);
+
   // Reset form to default values
   const resetForm = () => {
     setTitle('');
     setDescription('');
     setCategory('Physical');
-    setStartDate('');
-    setEndDate('');
+    setStartDate(new Date());
+    setEndDate(new Date(new Date().setDate(new Date().getDate() + 7)));
     setVisibility('private');
     setStatus('pending');
     setMilestones([]);
@@ -350,13 +382,19 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        disabled={loadingCategories}
                       >
-                        <option value="Physical">Physical</option>
-                        <option value="Mental">Mental</option>
-                        <option value="Spiritual">Spiritual</option>
-                        <option value="Social">Social</option>
-
+                        {loadingCategories ? (
+                          <option>Loading categories...</option>
+                        ) : (
+                          categories.map((cat) => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          ))
+                        )}
                       </select>
+                      {categoryError && (
+                        <p className="text-red-500 text-xs mt-1">{categoryError}</p>
+                      )}
                     </div>
                   </div>
                   

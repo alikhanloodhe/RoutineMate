@@ -233,7 +233,15 @@ const Friends = () => {
       </div>
       <div className="p-4 bg-gray-50">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500">Friends since {new Date(user.friend_since).getFullYear()}</span>
+          <span className="text-sm text-gray-500">
+            Friends since {new Date(user.friend_since).toLocaleDateString(undefined, {year: 'numeric', month: 'long'})}
+          </span>
+          <button
+            onClick={() => handleRemoveFriend(user.id)}
+            className="text-red-500 hover:text-red-700 text-sm flex items-center transition-colors duration-200"
+          >
+            <FiUserMinus className="mr-1" /> Remove
+          </button>
         </div>
       </div>
     </motion.div>
@@ -257,12 +265,18 @@ const Friends = () => {
       </div>
       <div className="p-4 bg-gray-50">
         <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-500">
+            {isReceived ? 'Requesting to connect' : 'Waiting for response'}
+            <span className="ml-1 inline-block">•</span>
+            <span className="ml-1">{new Date(user.created_at).toLocaleDateString()}</span>
+          </span>
           {isReceived ? (
             <div className="flex gap-2">
               <Button 
                 variant="primary" 
                 size="sm" 
                 onClick={() => handleAcceptRequest(user.id)}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
               >
                 Accept
               </Button>
@@ -279,6 +293,7 @@ const Friends = () => {
               variant="light" 
               size="sm" 
               onClick={() => handleCancelRequest(user.id)}
+              className="text-red-500 border border-red-500 hover:bg-red-50"
             >
               Cancel
             </Button>
@@ -288,9 +303,39 @@ const Friends = () => {
     </motion.div>
   );
 
+  // Add new function to handle removing friends
+  const handleRemoveFriend = async (friendId) => {
+    // Show confirmation dialog
+    if (!window.confirm("Are you sure you want to remove this friend?")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/friends/removeFriend`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ friendId }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        infoToast(data.msg || 'Friend removed successfully');
+        setRefreshCounter((prev) => prev + 1);
+      } else {
+        errorToast(data.msg || 'Failed to remove friend');
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      errorToast('Failed to remove friend. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="px-6 py-6 flex justify-center items-center">
+      <div className="px-6 py-6 flex justify-center items-center h-full">
         <div className="text-center">
           <div className="w-16 h-16 border-t-4 border-b-4 border-[#5D4EFF] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Loading your connections...</p>
@@ -300,7 +345,7 @@ const Friends = () => {
   }
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-50 min-h-screen">
       <div className="px-6 py-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -395,7 +440,12 @@ const Friends = () => {
             <>
               {filteredFriends.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredFriends.map(user => renderFriendCard(user))}
+                  {/* Use Set to ensure only unique friend IDs are rendered */}
+                  {filteredFriends
+                    .filter((friend, index, self) => 
+                      index === self.findIndex(f => f.id === friend.id)
+                    )
+                    .map(user => renderFriendCard(user))}
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
