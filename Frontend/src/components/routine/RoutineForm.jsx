@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, Tag, AlertCircle } from 'lucide-react';
+import { fetchCategories } from '../../services/categoryService';
 
 const RoutineForm = ({ 
   isEdit = false,
@@ -16,19 +17,17 @@ const RoutineForm = ({
   const [priorityId, setPriorityId] = useState('');
   const [status, setStatus] = useState('pending');
   
+  // State for dynamic categories
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   // Validation states
   const [errors, setErrors] = useState({});
   // Additional state for time conflict validation
   const [timeConflict, setTimeConflict] = useState(false);
 
-  // Categories, priorities and days - based on backend schema
-  const categories = [
-    { id: 1, name: "Physical" },
-    { id: 2, name: "Mental" }, 
-    { id: 3, name: "Spiritual" }, 
-    { id: 4, name: "Social" }
-  ];
-  
+  // Priorities and days - based on backend schema
   const priorities = [
     { id: 1, name: "HIGH" },
     { id: 2, name: "MEDIUM" },
@@ -44,6 +43,24 @@ const RoutineForm = ({
     { id: 6, name: "Sat" },
     { id: 7, name: "Sun" }
   ];
+
+  // Fetch categories from backend
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        setLoading(true);
+        const fetchedCategories = await fetchCategories();
+        setCategories(fetchedCategories);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setError('Failed to load categories');
+        setLoading(false);
+      }
+    };
+
+    getCategories();
+  }, []);
 
   // If editing, populate form with routine data
   useEffect(() => {
@@ -75,7 +92,7 @@ const RoutineForm = ({
       setStatus(initialValues.status || 'pending');
     }
   // Only run on initial mount and when initialValues or initialValues.id changes  
-  }, [initialValues?.id, initialValues?.routine_id, isEdit]);
+  }, [initialValues?.id, initialValues?.routine_id, isEdit, categories]);
 
   // Validate routine details
   const validateRoutineDetails = () => {
@@ -211,6 +228,7 @@ const RoutineForm = ({
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className={`w-full border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
+                disabled={loading}
               >
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
@@ -226,6 +244,12 @@ const RoutineForm = ({
                 <AlertCircle size={16} className="mr-1" />
                 <span>{errors.categoryId}</span>
               </div>
+            )}
+            {loading && (
+              <div className="text-sm text-gray-500 mt-1">Loading categories...</div>
+            )}
+            {error && (
+              <div className="text-sm text-red-500 mt-1">{error}</div>
             )}
           </div>
           

@@ -7,7 +7,8 @@ import {
   acceptFriend,
   declineFriend,
   cancelFriend,
-  getAllFriends
+  getAllFriends,
+  removeFriend
 } from '../controllers/addFriendController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -22,5 +23,6 @@ router.post('/acceptFriend', acceptFriend);
 router.delete('/declineFriend', declineFriend);
 router.delete('/cancelRequest', cancelFriend);
 router.get('/getFriends', getAllFriends);
+router.delete('/removeFriend', removeFriend);
 
 export default router;

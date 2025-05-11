@@ -217,17 +217,56 @@ export const getAllFriends = async (req, res) => {
     // Use adjustColumn for proper timezone display
     const { adjustColumn } = getClientAdjustedTime(req.clientTimezone?.name);
     
+    // Modified query to use DISTINCT ON to ensure each friend appears only once
     const result = await client.query(`
-      SELECT u.id, u.name, u.email, ${adjustColumn('f.created_at')} AS friend_since
+      SELECT DISTINCT ON (u.id) u.id, u.name, u.email, ${adjustColumn('f.created_at')} AS friend_since
       FROM friends f
       JOIN users u ON u.id = f.friend_id
       WHERE f.user_id = $1
+      ORDER BY u.id, f.created_at
     `, [user_id]);
 
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching friends:', error);
     res.status(500).json({ msg: 'Failed to fetch friends' });
+  } finally {
+    client.release();
+  }
+};
+
+export const removeFriend = async (req, res) => {
+  const user_id = req.user.id;
+  const { friendId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    // Start a transaction
+    await client.query('BEGIN');
+    
+    // Remove both directions of the friendship (user_id -> friend_id and friend_id -> user_id)
+    await client.query(
+      'DELETE FROM friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
+      [user_id, friendId]
+    );
+    
+    // Also set any friend requests between these users to 'removed'
+    await client.query(
+      `UPDATE friend_requests 
+       SET status = 'removed'
+       WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)`,
+      [user_id, friendId]
+    );
+    
+    // Commit the transaction
+    await client.query('COMMIT');
+    
+    res.status(200).json({ msg: 'Friend removed successfully' });
+  } catch (error) {
+    // Rollback in case of error
+    await client.query('ROLLBACK');
+    console.error('Error removing friend:', error);
+    res.status(500).json({ msg: 'Failed to remove friend' });
   } finally {
     client.release();
   }

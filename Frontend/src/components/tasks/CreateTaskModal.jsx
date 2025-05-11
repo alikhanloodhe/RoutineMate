@@ -1,22 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
+import { fetchCategories } from '../../services/categoryService';
 
 const CreateTaskModal = ({ onClose, onCreateTask }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [taskData, setTaskData] = useState({
     name: '',
     description: '',
-    category_id: 1, // Default category ID
-    priority_id: 1, // Default priority ID (High)
+    category_id: '',
+    priority_id: 1,
     dueDate: '',
-    status: 'pending', // Default to pending, hidden from user
+    status: 'pending',
     estimatedHours: '',
     estimatedMinutes: '',
     subtasks: []
   });
   
   const [newSubtask, setNewSubtask] = useState('');
+
+  // State for categories
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState(null);
 
   // Map priority IDs to labels for display
   const priorityMap = {
@@ -30,8 +37,36 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
     1: 'Physical',
     2: 'Mental',
     3: 'Spiritual',
-    4: 'Social'
+    4: 'Social',
+    5: 'Professional'
   };
+
+  // Fetch categories when component mounts
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const fetchedCategories = await fetchCategories();
+        setCategories(fetchedCategories);
+        
+        // Set default category ID if categories are loaded
+        if (fetchedCategories.length > 0) {
+          setTaskData(prev => ({
+            ...prev,
+            category_id: fetchedCategories[0].id.toString()
+          }));
+        }
+        
+        setLoadingCategories(false);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setCategoryError('Failed to load categories');
+        setLoadingCategories(false);
+      }
+    };
+
+    getCategories();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,27 +74,26 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
   };
 
   const addSubtask = () => {
-    if (!newSubtask.trim()) return;
-    
-    const newSubtaskObj = {
-      id: Date.now(),
-      name: newSubtask,
-      status: 'pending',
-      estimated_time: null
-    };
-    
-    setTaskData(prev => ({
-      ...prev,
-      subtasks: [...prev.subtasks, newSubtaskObj]
-    }));
-    
-    setNewSubtask('');
+    if (newSubtask.trim()) {
+      const newSubtaskItem = {
+        id: uuidv4(),
+        name: newSubtask.trim(),
+        completed: false
+      };
+      
+      setTaskData(prev => ({
+        ...prev,
+        subtasks: [...prev.subtasks, newSubtaskItem]
+      }));
+      
+      setNewSubtask('');
+    }
   };
 
   const removeSubtask = (id) => {
     setTaskData(prev => ({
       ...prev,
-      subtasks: prev.subtasks.filter(st => st.id !== id)
+      subtasks: prev.subtasks.filter(task => task.id !== id)
     }));
   };
 
@@ -75,7 +109,7 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
     try {
       setIsSubmitting(true);
       
-      // Format estimated time as a PostgreSQL interval string
+      // Format estimated time
       let estimatedTime = null;
       if (taskData.estimatedHours || taskData.estimatedMinutes) {
         const hours = taskData.estimatedHours || 0;
@@ -83,19 +117,22 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
         estimatedTime = `${hours} hours ${minutes} minutes`;
       }
       
-      // Create task object from form data
+      // Find category name based on ID
+      const selectedCategory = categories.find(c => c.id.toString() === taskData.category_id.toString());
+      const categoryName = selectedCategory ? selectedCategory.name : '';
+      
+      // Create task object
       const newTask = {
-        name: taskData.name, // For database
+        name: taskData.name,
         description: taskData.description,
-        category_id: parseInt(taskData.category_id),
-        priority_id: parseInt(taskData.priority_id),
+        category_id: parseInt(taskData.category_id, 10),
+        category: categoryName,
+        priority_id: parseInt(taskData.priority_id, 10),
+        priority: taskData.priority_id === '1' ? 'High' : taskData.priority_id === '2' ? 'Medium' : 'Low',
+        due_date: taskData.dueDate || null,
         status: taskData.status,
-        dueDate: taskData.dueDate || null, // For backend
         estimated_time: estimatedTime,
-        subtasks: taskData.subtasks.map(st => ({
-          name: st.name,
-          status: st.status
-        }))
+        subtasks: taskData.subtasks
       };
       
       await onCreateTask(newTask);
@@ -113,7 +150,7 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
     setTaskData({
       name: '',
       description: '',
-      category_id: 1,
+      category_id: categories.length > 0 ? categories[0].id.toString() : '',
       priority_id: 1,
       dueDate: '',
       status: 'pending',
@@ -189,14 +226,22 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
                     name="category_id"
                     value={taskData.category_id}
                     onChange={handleChange}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || loadingCategories}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
                   >
-                    <option value="1">Physical</option>
-                    <option value="2">Mental</option>
-                    <option value="3">Spiritual</option>
-                    <option value="4">Social</option>
+                    {loadingCategories ? (
+                      <option>Loading categories...</option>
+                    ) : (
+                      categories.map((category) => (
+                        <option key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
                   </select>
+                  {categoryError && (
+                    <p className="text-red-500 text-xs mt-1">{categoryError}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>

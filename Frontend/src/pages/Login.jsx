@@ -49,7 +49,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#FAF3E0]">
+    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Left Section (Illustration/Quote) */}
       <motion.div 
         className="hidden md:flex md:w-1/2 bg-[#111827] items-center justify-center p-10"
@@ -136,7 +136,7 @@ const Login = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -164,7 +164,7 @@ const Login = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-[#FAF3E0]/30 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"

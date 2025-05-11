@@ -48,13 +48,9 @@ const ProductivityTrend = () => {
         console.log('Fetching productivity trend data...');
         const apiUrl = `${import.meta.env.VITE_API_URL}/api/dashboard/productivity-trend`;
         
-        // Get client's timezone offset in minutes for consistent date handling
-        const timezoneOffset = new Date().getTimezoneOffset();
-        
         const response = await axios.get(apiUrl, {
           headers: {
-            Authorization: `Bearer ${token}`,
-            'X-Timezone-Offset': timezoneOffset
+            Authorization: `Bearer ${token}`
           }
         });
         
@@ -102,26 +98,37 @@ const ProductivityTrend = () => {
 
   // Generate appropriate week labels based on user account age
   const getWeekLabels = () => {
-    // If we don't have full 4 weeks of data yet
-    if (fullWeeks < 4 && userCreatedAt) {
-      // For new users, show labels relative to when they joined
+    // If we have detailed stats, use them to generate date-based labels
+    if (detailedStats && detailedStats.length > 0) {
+      // Create array to hold labels, with oldest week first (reversed)
       const labels = [];
       
-      for (let i = 0; i < 4; i++) {
-        if (i < fullWeeks) {
-          // For active weeks, show "Week 1", "Week 2", etc.
-          // The weeks should be ordered from oldest to newest (left to right)
-          labels.push(`Week ${fullWeeks - i}`);
+      // Create a copy of detailedStats and reverse to get oldest first
+      const orderedStats = [...detailedStats].reverse();
+      
+      orderedStats.forEach((stat, index) => {
+        if (stat && stat.weekLabel) {
+          // Format date to like "Apr 28" or "May 5"
+          const date = new Date(stat.weekLabel);
+          const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          });
+          labels.push(formattedDate);
         } else {
-          // For weeks before the user joined, show "N/A"
           labels.push("N/A");
         }
+      });
+      
+      // Pad with N/A if we have less than 4 weeks
+      while (labels.length < 4) {
+        labels.unshift("N/A");
       }
-      // Reverse the labels to show oldest first
-      return labels.reverse();
+      
+      return labels;
     }
     
-    // Default labels for users with 4+ weeks of data
+    // Fallback to generic week labels
     return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
   };
 
@@ -135,16 +142,21 @@ const ProductivityTrend = () => {
       // Reverse the detailed stats to show oldest first
       const orderedStats = [...detailedStats].reverse();
       
-      for (let i = 0; i < weeklyData.length; i++) {
+      for (let i = 0; i < orderedStats.length; i++) {
         const stat = orderedStats[i];
         
         // For active weeks, use the actual score
-        if (stat && stat.hasData) {
+        if (stat && stat.hasRealData) {
           processedData.push(stat.productivityScore);
         } else {
           // For inactive weeks, use null to create a gap in the line
           processedData.push(null);
         }
+      }
+      
+      // Pad with nulls if we have less than 4 weeks
+      while (processedData.length < 4) {
+        processedData.unshift(null);
       }
     } else {
       // If no detailed stats, use the raw data but reverse it
@@ -154,92 +166,59 @@ const ProductivityTrend = () => {
     return processedData;
   };
 
+  // Get the chart data
   const data = {
     labels: getWeekLabels(),
     datasets: [
       {
-        label: 'Completion Rate',
+        label: 'Productivity Score',
         data: prepareChartData(),
-        borderColor: '#4A2BAF',
-        backgroundColor: 'rgba(74, 43, 175, 0.1)',
-        tension: 0.3,
-        fill: 'start',
-        // Add a custom pointStyle function to show different point styles for weeks without data
-        pointStyle: (ctx) => {
-          if (detailedStats && detailedStats[ctx.dataIndex]) {
-            return detailedStats[ctx.dataIndex].hasData ? 'circle' : 'cross';
-          }
-          return 'circle';
+        fill: {
+          target: 'origin',
+          above: 'rgba(75, 192, 192, 0.2)',
         },
-        // Set point radius based on whether the week has data
-        pointRadius: (ctx) => {
-          // For data points that have null value (gaps in the line)
-          if (ctx.raw === null) return 0;
-          
-          if (detailedStats && detailedStats[ctx.dataIndex]) {
-            return detailedStats[ctx.dataIndex].hasData ? 4 : 0;
-          }
-          return 4;
-        },
-        // Set border color for points
-        pointBackgroundColor: '#4A2BAF',
-        pointBorderColor: '#FFFFFF',
-        // Don't show line segment to/from null values
-        spanGaps: false
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHitRadius: 10,
+        tension: 0.4,
+        spanGaps: false // Do not connect points with null data
       }
     ]
   };
 
+  // Chart options
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false
+        display: false,
       },
       tooltip: {
-        mode: 'index',
-        intersect: false,
         callbacks: {
           label: function(context) {
-            // Use the reversed index to match our chronological display
-            const weekIndex = detailedStats.length - 1 - context.dataIndex;
-            const weekStats = detailedStats[weekIndex];
-            
-            // For weeks where the user wasn't active yet
-            if (!weekStats || !weekStats.hasData) {
-              return 'Not active during this week';
+            // Get the week from detailed stats
+            if (detailedStats && detailedStats.length) {
+              const statIndex = detailedStats.length - 1 - context.dataIndex;
+              const stat = statIndex >= 0 && statIndex < detailedStats.length ? detailedStats[statIndex] : null;
+              
+              if (stat && stat.hasRealData) {
+                return [
+                  `Score: ${stat.productivityScore}%`,
+                  `Tasks: ${stat.tasks.completed}/${stat.tasks.due}`,
+                  stat.milestones && `Milestones: ${stat.milestones.completed}/${stat.milestones.due}`,
+                  `Routines: ${stat.routines.completed}/${stat.routines.total}`,
+                  `Habits: ${stat.habits.completed}/${stat.habits.opportunities}`
+                ].filter(Boolean);
+              }
             }
             
-            return `Completion Rate: ${context.raw || 0}%`;
-          },
-          // Add detailed stats to tooltip if available
-          afterLabel: function(context) {
-            // Use the reversed index to match our chronological display
-            const weekIndex = detailedStats.length - 1 - context.dataIndex;
-            if (detailedStats && detailedStats[weekIndex] && detailedStats[weekIndex].hasData) {
-              const stats = detailedStats[weekIndex];
-              
-              // Only show stats that have data
-              const tooltipLines = [];
-              
-              if (stats.tasks.total > 0) {
-                tooltipLines.push(`Tasks: ${stats.tasks.completed}/${stats.tasks.total}`);
-              }
-              
-              if (stats.routines.total > 0) {
-                tooltipLines.push(`Routines: ${stats.routines.completed}/${stats.routines.total}`);
-              }
-              
-              if (stats.habits.opportunities > 0) {
-                // Cap habit completions to opportunities to avoid showing illogical ratios like 14/7
-                const cappedHabitCompletions = Math.min(stats.habits.completed, stats.habits.opportunities);
-                tooltipLines.push(`Habits: ${cappedHabitCompletions}/${stats.habits.opportunities}`);
-              }
-              
-              return tooltipLines.length > 0 ? tooltipLines : ['No activities recorded'];
-            }
-            return null;
+            return `Score: ${context.raw}%`;
           }
         }
       }
@@ -251,11 +230,10 @@ const ProductivityTrend = () => {
         ticks: {
           callback: function(value) {
             return value + '%';
-          },
-          stepSize: 20
+          }
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.05)'
+          color: 'rgba(0, 0, 0, 0.05)',
         }
       },
       x: {
@@ -263,52 +241,129 @@ const ProductivityTrend = () => {
           display: false
         }
       }
-    },
-    elements: {
-      point: {
-        radius: 4,
-        hoverRadius: 6
-      },
-      line: {
-        borderWidth: 3
-      }
     }
   };
 
-  // Generate appropriate message based on user account age
-  const getChangeMessage = () => {
-    if (isNewUser || fullWeeks < 2) {
-      return "Welcome! Start tracking your productivity";
-    }
-    
-    // Don't show change if it's absurdly high from a small data sample
-    if (Math.abs(change) > 50) {
-      return "Building your productivity history...";
-    }
-    
-    return `${isPositive ? '↑' : '↓'} ${Math.abs(change)}% from last week`;
-  };
-
-  // Find the most recent week's score
+  // Get the most recent productivity score, carefully handling possible empty data
   const getCurrentScore = () => {
-    if (!detailedStats || detailedStats.length === 0) return null;
+    if (detailedStats && detailedStats.length > 0) {
+      const latestWeek = detailedStats[0];
+      return latestWeek.hasRealData ? latestWeek.productivityScore : null;
+    }
     
-    const activeWeeks = detailedStats.filter(week => week.hasData);
-    if (activeWeeks.length === 0) return null;
+    if (weeklyData && weeklyData.length > 0) {
+      return weeklyData[0];
+    }
     
-    // Return the most recent week's score
-    return activeWeeks[0].productivityScore;
-  };
-
-  // Get appropriate color based on the score
-  const getScoreColor = (score) => {
-    if (score === null) return 'text-gray-500';
-    if (score >= 70) return 'text-green-600';
-    if (score >= 40) return 'text-amber-500';
-    return 'text-red-500';
+    return null;
   };
 
   const currentScore = getCurrentScore();
+
+  // Get a color based on the score
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-green-600'; // Excellent
+    if (score >= 60) return 'text-emerald-500'; // Good
+    if (score >= 40) return 'text-yellow-500'; // Adequate
+    if (score >= 20) return 'text-orange-500'; // Needs improvement
+    return 'text-red-500'; // Poor
+  };
+
+  // Get a message about the productivity change
+  const getChangeMessage = () => {
+    if (change === 0) return 'No change';
+    
+    const arrow = isPositive ? '↑' : '↓';
+    const absChange = Math.abs(change);
+    
+    if (absChange < 5) {
+      return `${arrow} ${absChange}% Slight ${isPositive ? 'increase' : 'decrease'}`;
+    } else if (absChange < 15) {
+      return `${arrow} ${absChange}% ${isPositive ? 'Improving' : 'Decreasing'}`;
+    } else {
+      return `${arrow} ${absChange}% Significant ${isPositive ? 'improvement' : 'decrease'}`;
+    }
+  };
+
+  // Format a date for display in the table
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString;
+    }
+  };
+
+  // Render a details table for all metrics
+  const renderMetricsTable = () => {
+    if (!detailedStats || detailedStats.length === 0) {
+      return null;
+    }
+
+    // Only show the table if we have real data
+    const hasAnyRealData = detailedStats.some(stat => stat.hasRealData);
+    if (!hasAnyRealData) {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-sm text-left text-gray-600">
+          <thead className="text-xs text-gray-700 bg-gray-100">
+            <tr>
+              <th className="px-2 py-2">Week</th>
+              <th className="px-2 py-2">Tasks</th>
+              <th className="px-2 py-2">Milestones</th>
+              <th className="px-2 py-2">Routines</th>
+              <th className="px-2 py-2">Habits</th>
+              <th className="px-2 py-2">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detailedStats.map((stat, index) => (
+              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <td className="px-2 py-2 font-medium">{formatDate(stat.weekLabel)}</td>
+                <td className="px-2 py-2">
+                  {stat.hasRealData ? 
+                    <span className={stat.taskScore >= 70 ? 'text-green-600' : stat.taskScore >= 40 ? 'text-yellow-500' : 'text-red-500'}>
+                      {stat.tasks.completed}/{stat.tasks.due} ({stat.taskScore}%)
+                    </span> : 'N/A'}
+                </td>
+                <td className="px-2 py-2">
+                  {stat.hasRealData && stat.milestones ? 
+                    <span className={stat.milestoneScore >= 70 ? 'text-green-600' : stat.milestoneScore >= 40 ? 'text-yellow-500' : 'text-red-500'}>
+                      {stat.milestones.completed}/{stat.milestones.due} ({stat.milestoneScore}%)
+                    </span> : 'N/A'}
+                </td>
+                <td className="px-2 py-2">
+                  {stat.hasRealData ? 
+                    <span className={stat.routineScore >= 70 ? 'text-green-600' : stat.routineScore >= 40 ? 'text-yellow-500' : 'text-red-500'}>
+                      {stat.routines.completed}/{stat.routines.total} ({stat.routineScore}%)
+                    </span> : 'N/A'}
+                </td>
+                <td className="px-2 py-2">
+                  {stat.hasRealData ? 
+                    <span className={stat.habitScore >= 70 ? 'text-green-600' : stat.habitScore >= 40 ? 'text-yellow-500' : 'text-red-500'}>
+                      {stat.habits.completed}/{stat.habits.opportunities} ({stat.habitScore}%)
+                    </span> : 'N/A'}
+                </td>
+                <td className={`px-2 py-2 font-bold ${getScoreColor(stat.productivityScore)}`}>
+                  {stat.hasRealData ? `${stat.productivityScore}%` : 'N/A'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <motion.div 
@@ -345,9 +400,11 @@ const ProductivityTrend = () => {
         </div>
       )}
       
+      {renderMetricsTable()}
+      
       {isNewUser && (
         <div className="mt-3 text-xs text-gray-500 text-center">
-          Start completing tasks, routines, and habits to see your productivity trend
+          Start completing tasks, routines, habits, and goal milestones to see your productivity trend
         </div>
       )}
       

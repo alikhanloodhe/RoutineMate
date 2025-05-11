@@ -1,6 +1,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FriendSelector from './FriendSelector';
+import { fetchCategories } from '../../../services/categoryService';
 
 const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   // Form State
@@ -24,6 +25,11 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
 
   // Error states
   const [dateErrors, setDateErrors] = useState({ goal: '', milestone: '' });
+
+  // New state variables for categories
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState(null);
 
   // Current user info (in a real app, this would come from auth context)
   // const currentUser = {
@@ -75,6 +81,32 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       resetForm();
     }
   }, [goal, isOpen, currentUser]);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const fetchedCategories = await fetchCategories();
+        setCategories(fetchedCategories);
+        
+        // If we have categories and no category is selected yet, set the first one as default
+        if (fetchedCategories.length > 0 && !category) {
+          setCategory(fetchedCategories[0].name);
+        }
+        
+        setLoadingCategories(false);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setCategoryError('Failed to load categories');
+        setLoadingCategories(false);
+      }
+    };
+
+    if (isOpen) {
+      getCategories();
+    }
+  }, [isOpen]);
 
   const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
@@ -439,12 +471,19 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        disabled={loadingCategories}
                       >
-                        <option value="Physical">Physical</option>
-                        <option value="Mental">Mental</option>
-                        <option value="Spiritual">Spiritual</option>
-                        <option value="Social">Social</option>
+                        {loadingCategories ? (
+                          <option>Loading categories...</option>
+                        ) : (
+                          categories.map((cat) => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          ))
+                        )}
                       </select>
+                      {categoryError && (
+                        <p className="text-red-500 text-xs mt-1">{categoryError}</p>
+                      )}
                     </div>
                   </div>
                   

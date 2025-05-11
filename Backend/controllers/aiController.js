@@ -112,7 +112,7 @@ Always structure your response EXACTLY like this example:
     "type": "habit",
     "interval": "07:30 AM - 08:30 AM",
     "priority": 2,
-    "category": "Physical"
+    "category": "Physical" // Use any category that exists in the system (Physical, Mental, Spiritual, Social, Professional, etc.)
   },
   ...more items...
 ]
