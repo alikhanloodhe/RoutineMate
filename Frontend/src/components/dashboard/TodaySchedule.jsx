@@ -214,6 +214,11 @@ const TodaySchedule = () => {
   const filteredHabitsWithoutTime = habitsWithoutTime.filter(habit =>
     showCompleted || !habit.completed
   );
+  
+  // Filter goals based on completion status
+  const filteredGoalsWithoutTime = goalsWithoutTime.filter(goal =>
+    showCompleted || !goal.completed
+  );
 
   if (loading) {
     return (
@@ -382,7 +387,7 @@ const TodaySchedule = () => {
           ))}
 
           {/* Goals without time */}
-          {goalsWithoutTime.map((goal) => (
+          {filteredGoalsWithoutTime.map((goal) => (
             <div
               key={`goal-${goal.id}`}
               className={`flex items-center border-l-4 ${goal.completed ? 'border-green-500' : 'border-[#4A2BAF]/70'} pl-3 py-2 bg-gray-50 rounded-r-lg`}
@@ -423,7 +428,7 @@ const TodaySchedule = () => {
           {allScheduleItems.length === 0 &&
             filteredTasksWithoutTime.length === 0 &&
             filteredHabitsWithoutTime.length === 0 &&
-            goalsWithoutTime.length === 0 && (
+            filteredGoalsWithoutTime.length === 0 && (
               <div className="py-8 text-center">
                 <p className="text-gray-500">No activities scheduled for today</p>
               </div>

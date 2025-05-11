@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { FiX, FiClock, FiCalendar, FiArrowUp, FiArrowDown, FiTag, FiAlertTriangle } from 'react-icons/fi';
+import React, { useRef, useEffect, useState } from 'react';
+import { FiX, FiClock, FiCalendar, FiArrowUp, FiArrowDown, FiTag, FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const FullScheduleModal = ({ 
@@ -13,6 +13,17 @@ const FullScheduleModal = ({
 }) => {
   const modalRef = useRef(null);
   const currentTimeRef = useRef(null);
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    
+    return () => clearInterval(timer);
+  }, []);
   
   // Types and their corresponding icons and colors
   const typeConfig = {
@@ -21,6 +32,11 @@ const FullScheduleModal = ({
     habit: { color: 'bg-green-100 text-green-700', icon: <FiCalendar className="mr-2" /> },
     goal: { color: 'bg-orange-100 text-orange-700', icon: <FiCalendar className="mr-2" /> },
     suggested: { color: 'bg-gray-100 text-gray-600', icon: <FiClock className="mr-2" /> }
+  };
+  
+  // Toggle completed items visibility
+  const toggleCompletedVisibility = () => {
+    setShowCompleted(!showCompleted);
   };
   
   // Priority colors
@@ -53,54 +69,43 @@ const FullScheduleModal = ({
     return "bg-gray-100 text-gray-700";
   };
   
+  // Parse time string to 24-hour minutes
+  const parseTimeToMinutes = (timeString) => {
+    if (!timeString) return -1;
+    
+    try {
+      const [timePart, ampm] = timeString.split(' ');
+      let [hours, minutes] = timePart.split(':').map(Number);
+      
+      // Convert to 24-hour format
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      
+      return hours * 60 + minutes;
+    } catch (error) {
+      console.error('Error parsing time:', error);
+      return -1;
+    }
+  };
+  
   // Find the current time slot index to scroll to
   const getCurrentTimeSlotIndex = () => {
     if (!schedule || schedule.length === 0) {
       return -1;
     }
     
+    // Get current time in minutes (24-hour format)
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
     
-    // Find the current or next upcoming time slot
+    // Find the item that contains the current time
     return schedule.findIndex((item) => {
-      try {
-        if (!item.time || !item.endTime) return false;
-        
-        // Parse start time
-        const [startTimePart, startAmpm] = item.time.split(' ');
-        const [startHours, startMinutes] = startTimePart.split(':').map(Number);
-        
-        // Parse end time
-        const [endTimePart, endAmpm] = item.endTime.split(' ');
-        let endHours = 0, endMinutes = 0;
-        if (endTimePart) {
-          [endHours, endMinutes] = endTimePart.split(':').map(Number);
-        } else {
-          // If no end time, assume it's 1 hour after start
-          endHours = startHours;
-          endMinutes = startMinutes + 60;
-          if (endMinutes >= 60) {
-            endHours += Math.floor(endMinutes / 60);
-            endMinutes = endMinutes % 60;
-          }
-        }
-        
-        // Convert to 24-hour format
-        let startTotalMinutes = startHours * 60 + startMinutes;
-        if (startAmpm === 'PM' && startHours < 12) startTotalMinutes += 12 * 60;
-        if (startAmpm === 'AM' && startHours === 12) startTotalMinutes -= 12 * 60;
-        
-        let endTotalMinutes = endHours * 60 + endMinutes;
-        if (endAmpm === 'PM' && endHours < 12) endTotalMinutes += 12 * 60;
-        if (endAmpm === 'AM' && endHours === 12) endTotalMinutes -= 12 * 60;
-        
-        // Return true if current time is within this time slot
-        return currentTime >= startTotalMinutes && currentTime <= endTotalMinutes;
-      } catch (error) {
-        console.error('Error parsing time:', error);
-        return false;
-      }
+      const startMinutes = parseTimeToMinutes(item.time);
+      const endMinutes = parseTimeToMinutes(item.endTime);
+      
+      if (startMinutes === -1 || endMinutes === -1) return false;
+      
+      return currentTimeMinutes >= startMinutes && currentTimeMinutes <= endMinutes;
     });
   };
   
@@ -129,22 +134,37 @@ const FullScheduleModal = ({
     return date;
   };
   
-  // Sort schedule by time
-  const sortedSchedule = [...schedule].sort((a, b) => {
-    return parseTime(a.time) - parseTime(b.time);
-  });
+  // Filter and sort items based on completion status
+  const filteredSchedule = [...schedule]
+    .filter(item => showCompleted || !item.completed)
+    .sort((a, b) => {
+      return parseTime(a.time) - parseTime(b.time);
+    });
+    
+  const filteredTasksWithoutTime = tasksWithoutTime.filter(task =>
+    showCompleted || !task.completed
+  );
+  
+  const filteredHabitsWithoutTime = habitsWithoutTime.filter(habit =>
+    showCompleted || !habit.completed
+  );
+  
+  const filteredGoalsWithoutTime = goalsWithoutTime.filter(goal =>
+    showCompleted || !goal.completed
+  );
   
   // Get current time index
   const currentTimeIndex = getCurrentTimeSlotIndex();
+  const hasCurrentTimeActivity = currentTimeIndex !== -1;
   
   // Format current time for display
   const formatCurrentTime = () => {
-    return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   };
   
   // Scroll to current time slot
   const scrollToCurrentTime = () => {
-    if (currentTimeRef.current) {
+    if (hasCurrentTimeActivity && currentTimeRef.current) {
       currentTimeRef.current.scrollIntoView({ 
         behavior: 'smooth', 
         block: 'center' 
@@ -152,8 +172,11 @@ const FullScheduleModal = ({
     }
   };
   
-  // Count total items
-  const totalItems = schedule.length + tasksWithoutTime.length + habitsWithoutTime.length + goalsWithoutTime.length;
+  // Count total items (filtered)
+  const totalItems = filteredSchedule.length + 
+    filteredTasksWithoutTime.length + 
+    filteredHabitsWithoutTime.length + 
+    filteredGoalsWithoutTime.length;
 
   return (
     <AnimatePresence>
@@ -182,81 +205,113 @@ const FullScheduleModal = ({
               </button>
             </div>
             
-            <div className="overflow-y-auto px-6 py-4 flex-grow">
+            {/* Fixed control bar at the top */}
+            <div className="border-b sticky top-0 bg-white z-20">
               {/* Action buttons row */}
-              <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 py-2 border-b">
-                <div className="flex items-center">
-                  <button 
-                    onClick={scrollToCurrentTime}
-                    className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${
-                      currentTimeIndex >= 0 
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    } transition-colors`}
+              <div className="flex justify-between items-center px-6 py-3">
+                <div className="flex items-center gap-2">
+                  {hasCurrentTimeActivity && (
+                    <button 
+                      onClick={scrollToCurrentTime}
+                      className="flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                    >
+                      <FiClock className="mr-1.5" />
+                      Current Time
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={toggleCompletedVisibility}
+                    className="flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                    title={showCompleted ? "Hide completed items" : "Show completed items"}
                   >
-                    <FiClock className="mr-1.5" />
-                    Current Time
+                    {showCompleted ? <FiEyeOff className="mr-1.5" /> : <FiEye className="mr-1.5" />}
+                    {showCompleted ? "Hide Completed" : "Show Completed"}
                   </button>
                 </div>
                 <div className="text-sm text-gray-500">
+                  <span className="mr-3">{formatCurrentTime()}</span>
                   {totalItems} items
                 </div>
               </div>
               
               {/* Current time indicator appears only if we found a current time slot */}
-              {currentTimeIndex >= 0 && (
-                <div className="sticky top-[52px] mb-4 bg-red-100 border border-red-500 rounded-md p-2 z-10 flex items-center">
+              {hasCurrentTimeActivity && (
+                <div className="bg-red-100 border-y border-red-500 p-2 z-10 flex items-center">
                   <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse mr-2"></div>
-                  <span className="text-red-700 text-sm font-medium">Current Time: {formatCurrentTime()}</span>
+                  <span className="text-red-700 text-sm font-medium">Current Activity: {filteredSchedule[currentTimeIndex]?.title}</span>
                 </div>
               )}
-              
+            </div>
+            
+            <div className="overflow-y-auto px-6 py-4 flex-grow">
               {/* Time-slotted activities */}
-              {sortedSchedule.length > 0 ? (
+              {filteredSchedule.length > 0 ? (
                 <>
                   <h3 className="text-lg font-medium text-gray-800 mb-4">Scheduled Activities</h3>
                   <div className="space-y-3 mb-8">
-                    {sortedSchedule.map((item, index) => (
-                      <div 
-                        key={`${item.type}-${item.id}`}
-                        ref={index === currentTimeIndex ? currentTimeRef : null}
-                        className={`p-4 rounded-lg border ${
-                          index === currentTimeIndex 
-                            ? 'border-red-300 bg-red-50' 
-                            : 'border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{item.title}</h4>
-                            <div className="flex items-center mt-1 text-sm text-gray-500">
-                              <FiClock className="mr-1.5 h-3.5 w-3.5" />
-                              {item.interval}
+                    {filteredSchedule.map((item, index) => {
+                      // Check if this item contains current time
+                      const now = new Date();
+                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                      const startMinutes = parseTimeToMinutes(item.time);
+                      const endMinutes = parseTimeToMinutes(item.endTime);
+                      const isCurrentTimeSlot = startMinutes !== -1 && endMinutes !== -1 && 
+                                               currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+                      
+                      return (
+                        <div 
+                          key={`${item.type}-${item.id}`}
+                          ref={isCurrentTimeSlot ? currentTimeRef : null}
+                          className={`p-4 rounded-lg border ${
+                            isCurrentTimeSlot 
+                              ? 'border-red-300 bg-red-50' 
+                              : item.completed
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className={`font-medium ${item.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                                {item.title}
+                                {isCurrentTimeSlot && (
+                                  <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Now</span>
+                                )}
+                              </h4>
+                              <div className="flex items-center mt-1 text-sm text-gray-500">
+                                <FiClock className="mr-1.5 h-3.5 w-3.5" />
+                                {item.interval}
+                              </div>
+                            </div>
+                            
+                            <div className={`px-3 py-1 rounded-full text-sm ${typeConfig[item.type]?.color || 'bg-gray-100 text-gray-700'}`}>
+                              {item.completed ? `${item.type} (Completed)` : item.type}
                             </div>
                           </div>
                           
-                          <div className={`px-3 py-1 rounded-full text-sm ${typeConfig[item.type]?.color || 'bg-gray-100 text-gray-700'}`}>
-                            {item.type}
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {item.priority && (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
+                                Priority {item.priority}
+                              </span>
+                            )}
+                            
+                            {item.category && (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}>
+                                {item.category}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {item.priority && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
-                              Priority {item.priority}
-                            </span>
-                          )}
-                          
-                          {item.category && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}>
-                              {item.category}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
+              ) : filteredSchedule.length === 0 && schedule.length > 0 ? (
+                <div className="bg-gray-50 rounded-lg p-6 text-center mb-8">
+                  <p className="text-gray-500">All scheduled activities are completed and filtered out</p>
+                </div>
               ) : (
                 <div className="bg-gray-50 rounded-lg p-6 text-center mb-8">
                   <p className="text-gray-500">No scheduled activities for today</p>
@@ -264,25 +319,31 @@ const FullScheduleModal = ({
               )}
               
               {/* Tasks without time slots */}
-              {tasksWithoutTime.length > 0 && (
+              {filteredTasksWithoutTime.length > 0 && (
                 <>
                   <h3 className="text-lg font-medium text-gray-800 mb-4">Tasks for Today</h3>
                   <div className="space-y-3 mb-8">
-                    {tasksWithoutTime.map((task) => (
+                    {filteredTasksWithoutTime.map((task) => (
                       <div 
                         key={`task-${task.id}`}
-                        className="p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+                        className={`p-4 rounded-lg border ${
+                          task.completed 
+                            ? 'border-green-200 bg-green-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{task.title}</h4>
+                            <h4 className={`font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                              {task.title}
+                            </h4>
                             {task.description && (
                               <p className="text-sm text-gray-500 mt-1">{task.description}</p>
                             )}
                           </div>
                           
                           <div className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
-                            Task
+                            {task.completed ? 'Task (Completed)' : 'Task'}
                           </div>
                         </div>
                         
@@ -306,22 +367,28 @@ const FullScheduleModal = ({
               )}
               
               {/* Habits without time slots */}
-              {habitsWithoutTime.length > 0 && (
+              {filteredHabitsWithoutTime.length > 0 && (
                 <>
                   <h3 className="text-lg font-medium text-gray-800 mb-4">Habits for Today</h3>
                   <div className="space-y-3 mb-8">
-                    {habitsWithoutTime.map((habit) => (
+                    {filteredHabitsWithoutTime.map((habit) => (
                       <div 
                         key={`habit-${habit.id}`}
-                        className="p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+                        className={`p-4 rounded-lg border ${
+                          habit.completed 
+                            ? 'border-green-200 bg-green-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{habit.title}</h4>
+                            <h4 className={`font-medium ${habit.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                              {habit.title}
+                            </h4>
                           </div>
                           
                           <div className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700">
-                            {habit.frequency === 'daily' ? 'Daily' : 'Weekly'} Habit
+                            {habit.completed ? 'Habit (Completed)' : `${habit.frequency === 'daily' ? 'Daily' : 'Weekly'} Habit`}
                           </div>
                         </div>
                         
@@ -339,22 +406,28 @@ const FullScheduleModal = ({
               )}
               
               {/* Goals without time slots */}
-              {goalsWithoutTime.length > 0 && (
+              {filteredGoalsWithoutTime.length > 0 && (
                 <>
                   <h3 className="text-lg font-medium text-gray-800 mb-4">Goals for Today</h3>
                   <div className="space-y-3">
-                    {goalsWithoutTime.map((goal) => (
+                    {filteredGoalsWithoutTime.map((goal) => (
                       <div 
                         key={`goal-${goal.id}`}
-                        className="p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+                        className={`p-4 rounded-lg border ${
+                          goal.completed 
+                            ? 'border-green-200 bg-green-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{goal.title}</h4>
+                            <h4 className={`font-medium ${goal.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                              {goal.title}
+                            </h4>
                           </div>
                           
                           <div className="px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-700">
-                            Goal
+                            {goal.completed ? 'Goal (Completed)' : 'Goal'}
                           </div>
                         </div>
                         
@@ -375,9 +448,13 @@ const FullScheduleModal = ({
               {totalItems === 0 && (
                 <div className="bg-gray-50 rounded-lg p-8 text-center">
                   <FiCalendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-800 mb-2">No Activities for Today</h3>
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    {showCompleted ? 'No Activities for Today' : 'All Activities Completed'}
+                  </h3>
                   <p className="text-gray-500">
-                    You don't have any scheduled activities, tasks, habits, or goals for today.
+                    {showCompleted 
+                      ? "You don't have any scheduled activities, tasks, habits, or goals for today."
+                      : "All your activities for today are completed. Toggle 'Show Completed' to view them."}
                   </p>
                 </div>
               )}

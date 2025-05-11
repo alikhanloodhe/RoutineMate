@@ -22,6 +22,9 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const [currentMilestoneIndex, setCurrentMilestoneIndex] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Error states
+  const [dateErrors, setDateErrors] = useState({ goal: '', milestone: '' });
+
   // Current user info (in a real app, this would come from auth context)
   // const currentUser = {
   //   id: 'current-user-id',
@@ -71,16 +74,16 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       // Reset form for new goal
       resetForm();
     }
-  }, [goal, isOpen]);
+  }, [goal, isOpen, currentUser]);
 
   const formatDateForInput = (dateStr) => {
-    // console.log(dateStr);
+    if (!dateStr) return '';
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return ''; // Return empty string if invalid date
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`; // this is what <input type="date"> expects
-
   };
   
   // Reset form to default values
@@ -92,7 +95,8 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     setEndDate('');
     setVisibility('private');
     setMilestones([]);
-    setMembers([{ ...currentUser }]);
+    setMembers(currentUser ? [{ ...currentUser }] : []);
+    setDateErrors({ goal: '', milestone: '' });
     resetMilestoneForm();
     setShowFriendSelector(false);
   };
@@ -104,6 +108,88 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     setMilestoneDueDate('');
     setCurrentMilestoneIndex(null);
     setShowMilestoneForm(false);
+    setDateErrors(prev => ({ ...prev, milestone: '' }));
+  };
+
+  // Validate goal dates
+  const validateGoalDates = () => {
+    if (!startDate || !endDate) return false;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (end < start) {
+      setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      return false;
+    }
+    
+    setDateErrors(prev => ({ ...prev, goal: '' }));
+    return true;
+  };
+
+  // Validate milestone date
+  const validateMilestoneDate = (dueDate) => {
+    if (!startDate) return true; // Can't validate if no goal start date set
+    
+    const goalStartDate = new Date(startDate);
+    const goalEndDate = endDate ? new Date(endDate) : null;
+    const milestoneDueDateTime = new Date(dueDate);
+    
+    if (milestoneDueDateTime < goalStartDate) {
+      setDateErrors(prev => ({ ...prev, milestone: 'Milestone due date cannot be earlier than goal start date' }));
+      return false;
+    }
+    
+    if (goalEndDate && milestoneDueDateTime > goalEndDate) {
+      setDateErrors(prev => ({ ...prev, milestone: 'Milestone due date cannot be later than goal end date' }));
+      return false;
+    }
+    
+    setDateErrors(prev => ({ ...prev, milestone: '' }));
+    return true;
+  };
+
+  // Handle start date change
+  const handleStartDateChange = (e) => {
+    const newStartDate = e.target.value;
+    setStartDate(newStartDate);
+    
+    // Validate end date if it exists
+    if (endDate) {
+      const start = new Date(newStartDate);
+      const end = new Date(endDate);
+      
+      if (end < start) {
+        setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      } else {
+        setDateErrors(prev => ({ ...prev, goal: '' }));
+      }
+    }
+  };
+
+  // Handle end date change
+  const handleEndDateChange = (e) => {
+    const newEndDate = e.target.value;
+    setEndDate(newEndDate);
+    
+    // Validate against start date
+    if (startDate) {
+      const start = new Date(startDate);
+      const end = new Date(newEndDate);
+      
+      if (end < start) {
+        setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      } else {
+        setDateErrors(prev => ({ ...prev, goal: '' }));
+      }
+    }
+  };
+
+  // Handle milestone due date change
+  const handleMilestoneDateChange = (e) => {
+    const newDueDate = e.target.value;
+    setMilestoneDueDate(newDueDate);
+    validateMilestoneDate(newDueDate);
   };
 
   // Open milestone form for new milestone
@@ -145,6 +231,11 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       return;
     }
 
+    // Validate milestone due date against goal dates
+    if (milestoneDueDate && !validateMilestoneDate(milestoneDueDate)) {
+      return; // Stop if validation fails
+    }
+
     const newMilestone = {
       id: currentMilestoneIndex !== null ? 
         milestones[currentMilestoneIndex].id : // Keep same ID when editing
@@ -167,7 +258,6 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       // Add new milestone
       setMilestones(prevMilestones => [...prevMilestones, newMilestone]);
     }
-   ;
 
     resetMilestoneForm();
   };
@@ -228,6 +318,11 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     if (!startDate || !endDate) {
       alert('Please enter start and end dates');
       return;
+    }
+
+    // Validate goal dates
+    if (!validateGoalDates()) {
+      return; // Stop if validation fails
     }
 
     const goalData = {
@@ -361,9 +456,9 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={goal?formatDateForInput(startDate):startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        value={formatDateForInput(startDate)}
+                        onChange={handleStartDateChange}
+                        className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
                       />
                     </div>
@@ -375,11 +470,14 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       </label>
                       <input
                         type="date"
-                        value={goal ?formatDateForInput(endDate):endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        value={formatDateForInput(endDate)}
+                        onChange={handleEndDateChange}
+                        className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
                       />
+                      {dateErrors.goal && (
+                        <p className="text-red-500 text-xs mt-1">{dateErrors.goal}</p>
+                      )}
                     </div>
                   </div>
                   
@@ -535,9 +633,12 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                           <input
                             type="date"
                             value={milestoneDueDate}
-                            onChange={(e) => setMilestoneDueDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
+                            onChange={handleMilestoneDateChange}
+                            className={`w-full px-3 py-2 border ${dateErrors.milestone ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm`}
                           />
+                          {dateErrors.milestone && (
+                            <p className="text-red-500 text-xs mt-1">{dateErrors.milestone}</p>
+                          )}
                         </div>
                         
                         <div className="flex justify-end gap-2">

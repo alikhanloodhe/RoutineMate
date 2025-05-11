@@ -689,16 +689,24 @@ export const getTodaySchedule = async (req, res) => {
     const endOfClientDay = new Date(clientDate);
     endOfClientDay.setHours(23, 59, 59, 999);
     
-    // Format dates for PostgreSQL - use full ISO date for timestamp comparisons
+    // Format today's date in client's timezone
     const todayFormatted = startOfClientDay.toISOString().split('T')[0];
     const endOfDayFormatted = endOfClientDay.toISOString();
     const dayOfWeek = clientDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const todayDayName = dayNames[dayOfWeek];
     
+    // Debug info for date calculations
+    console.log('=== TODAY SCHEDULE DEBUG INFO ===');
+    console.log(`Client timezone offset: ${clientTimezoneOffset} minutes`);
+    console.log(`Client date: ${clientDate.toISOString()}`);
+    console.log(`Today formatted for PostgreSQL: ${todayFormatted}`);
+    console.log(`Day of week: ${dayOfWeek} (${todayDayName})`);
+    
     // Check what day values we have in the database
     const daysDebugQuery = `SELECT * FROM days`;
     const daysDebugResult = await db.query(daysDebugQuery);
+    console.log('Days in database:', daysDebugResult.rows);
     
     // Get today's date in client's timezone for comparison
     function formatDateForPostgres(date) {
@@ -722,19 +730,13 @@ export const getTodaySchedule = async (req, res) => {
       return Boolean(value);
     }
     
-    // Format today's date for PostgreSQL
+    // Format today's date for PostgreSQL - use client date directly
     const todayFormattedPostgres = formatDateForPostgres(clientDate);
     
-    // Create an alternate date format specifically for habits using dayjs
-    let todayFormattedPostgresforhabits;
-    try {
-      // Use the already timezone-adjusted clientDate instead of creating a new date with dayjs
-      // This ensures consistency with other date calculations in the code
-      todayFormattedPostgresforhabits = formatDateForPostgres(clientDate);
-    } catch (error) {
-      console.error('Error formatting date for habits:', error);
-      todayFormattedPostgresforhabits = todayFormattedPostgres;
-    }
+    // Use the same date format for habits
+    const todayFormattedForHabits = todayFormattedPostgres;
+    
+    console.log(`Today formatted for habits: ${todayFormattedForHabits}`);
     
     // 1. Simple query for routines scheduled for today
     const routinesQuery = `
@@ -792,33 +794,34 @@ export const getTodaySchedule = async (req, res) => {
       ORDER BY priority_id ASC NULLS LAST, due_date ASC NULLS LAST
     `;
     
-    // 3. Simple query for habits scheduled for today
+    // 3. Simple query for habits scheduled for today - use direct text comparison for dates
     const habitsQuery = `
       SELECT 
-        id AS habit_id,
-        title,
-        frequency,
-        reminder_time,
-        category_id,
+        h.id AS habit_id,
+        h.title,
+        h.frequency,
+        h.reminder_time,
+        h.category_id,
         'habit' AS type,
-        (
-          SELECT EXISTS(
-            SELECT 1 FROM habit_tracking ht 
-            WHERE ht.habit_id = id 
-            AND ht.date = $2::date 
-            AND ht.completed = TRUE
-          )
-        )::boolean AS completed
-      FROM habits
-      WHERE user_id = $1
+        COALESCE(ht.completed, FALSE) AS completed
+      FROM habits h
+      LEFT JOIN LATERAL (
+        SELECT completed 
+        FROM habit_tracking 
+        WHERE habit_id = h.id 
+        AND date::text = $2::text
+        ORDER BY id DESC
+        LIMIT 1
+      ) ht ON true
+      WHERE h.user_id = $1
         AND (
-          frequency = 'daily' 
+          h.frequency = 'daily' 
           OR (
-            frequency = 'weekly' 
+            h.frequency = 'weekly' 
             AND EXTRACT(DOW FROM $2::date) = $3
           )
         )
-      ORDER BY reminder_time ASC NULLS LAST
+      ORDER BY h.reminder_time ASC NULLS LAST
     `;
     
     // 4. Improved query for goal milestones due today with better date handling
@@ -832,7 +835,7 @@ export const getTodaySchedule = async (req, res) => {
         g.category_id,
         'goal' AS type,
         gm.status,
-        gm.status != 'completed' AS active
+        gm.status = 'completed' AS completed
       FROM goals g
       JOIN goal_milestones gm ON g.goal_id = gm.goal_id
       WHERE g.creator_id = $1
@@ -845,9 +848,35 @@ export const getTodaySchedule = async (req, res) => {
       const [routinesResult, tasksResult, habitsResult, goalsResult] = await Promise.all([
         db.query(routinesQuery, [userId, todayDayName, todayFormattedPostgres]),
         db.query(tasksQuery, [userId, todayFormattedPostgres]),
-        db.query(habitsQuery, [userId, todayFormattedPostgresforhabits, dayOfWeek]),
+        db.query(habitsQuery, [userId, todayFormattedForHabits, dayOfWeek]),
         db.query(goalsQuery, [userId, todayFormattedPostgres])
       ]);
+      
+      // Debug info for habits
+      console.log(`=== HABITS DEBUG INFO ===`);
+      console.log(`Fetched ${habitsResult.rows.length} habits for today`);
+      habitsResult.rows.forEach((habit, index) => {
+        console.log(`Habit #${index + 1}: ${habit.title}`);
+        console.log(`  - ID: ${habit.habit_id}`);
+        console.log(`  - Frequency: ${habit.frequency}`);
+        console.log(`  - Completed status (raw): ${habit.completed}`);
+        console.log(`  - Completed status (type): ${typeof habit.completed}`);
+        
+        // Check habit tracking entries for this habit
+        db.query(
+          `SELECT * FROM habit_tracking WHERE habit_id = $1 AND date = $2::date`,
+          [habit.habit_id, todayFormattedForHabits]
+        ).then(trackingResult => {
+          console.log(`  - Tracking entries found: ${trackingResult.rows.length}`);
+          trackingResult.rows.forEach(entry => {
+            console.log(`    * Entry ID: ${entry.id}`);
+            console.log(`    * Date: ${entry.date}`);
+            console.log(`    * Completed: ${entry.completed}`);
+          });
+        }).catch(err => {
+          console.error(`  - Error fetching tracking entries: ${err.message}`);
+        });
+      });
       
       // Process routines with time slots
       const routinesWithTime = routinesResult.rows.map(routine => ({
@@ -865,26 +894,36 @@ export const getTodaySchedule = async (req, res) => {
       // Process habits with time
       const habitsWithTime = habitsResult.rows
         .filter(habit => habit.reminder_time)
-        .map(habit => ({
-          id: habit.habit_id,
-          title: habit.title,
-          type: 'habit',
-          time: new Date(`1970-01-01T${habit.reminder_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-          category: habit.category_id ? String(habit.category_id) : "Other",
-          completed: convertPgBoolean(habit.completed)
-        }));
+        .map(habit => {
+          const completedStatus = convertPgBoolean(habit.completed);
+          console.log(`Habit "${habit.title}" (${habit.habit_id}) - completed status after conversion: ${completedStatus}`);
+          
+          return {
+            id: habit.habit_id,
+            title: habit.title,
+            type: 'habit',
+            time: new Date(`1970-01-01T${habit.reminder_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+            category: habit.category_id ? String(habit.category_id) : "Other",
+            completed: completedStatus
+          };
+        });
       
       // Process habits without time
       const habitsWithoutTime = habitsResult.rows
         .filter(habit => !habit.reminder_time)
-        .map(habit => ({
-          id: habit.habit_id,
-          title: habit.title,
-          type: 'habit',
-          frequency: habit.frequency,
-          category: habit.category_id ? String(habit.category_id) : "Other",
-          completed: convertPgBoolean(habit.completed)
-        }));
+        .map(habit => {
+          const completedStatus = convertPgBoolean(habit.completed);
+          console.log(`Habit without time "${habit.title}" (${habit.habit_id}) - completed status after conversion: ${completedStatus}`);
+          
+          return {
+            id: habit.habit_id,
+            title: habit.title,
+            type: 'habit',
+            frequency: habit.frequency,
+            category: habit.category_id ? String(habit.category_id) : "Other",
+            completed: completedStatus
+          };
+        });
       
       // Process tasks
       const tasksWithoutTime = tasksResult.rows.map(task => ({
@@ -900,15 +939,20 @@ export const getTodaySchedule = async (req, res) => {
       }));
       
       // Process goals
-      const goalsWithoutTime = goalsResult.rows.map(goal => ({
-        id: goal.milestone_id || goal.goal_id,
-        title: goal.milestone_title ? `${goal.goal_title}: ${goal.milestone_title}` : goal.goal_title,
-        type: 'goal',
-        category: goal.category_id ? String(goal.category_id) : "Other",
-        dueDate: goal.due_date ? new Date(goal.due_date).toLocaleDateString() : null,
-        completed: !goal.active,
-        status: goal.status
-      }));
+      const goalsWithoutTime = goalsResult.rows.map(goal => {
+        const completedStatus = goal.status === 'completed';
+        console.log(`Goal milestone "${goal.milestone_title}" (${goal.milestone_id}) - status: ${goal.status}, completed: ${completedStatus}`);
+        
+        return {
+          id: goal.milestone_id || goal.goal_id,
+          title: goal.milestone_title ? `${goal.goal_title}: ${goal.milestone_title}` : goal.goal_title,
+          type: 'goal',
+          category: goal.category_id ? String(goal.category_id) : "Other",
+          dueDate: goal.due_date ? new Date(goal.due_date).toLocaleDateString() : null,
+          completed: completedStatus,
+          status: goal.status
+        };
+      });
       
       // Combine all items WITH time slots into a single schedule
       const schedule = [
@@ -930,6 +974,7 @@ export const getTodaySchedule = async (req, res) => {
       allItems.forEach(item => {
         // Convert any non-boolean completed values to booleans
         if (typeof item.completed !== 'boolean') {
+          console.log(`Converting non-boolean completed value for ${item.type} "${item.title}": ${item.completed} (${typeof item.completed})`);
           item.completed = Boolean(item.completed);
         }
       });
@@ -1016,9 +1061,144 @@ export const getCategoryDistribution = async (req, res) => {
   }
 };
 
+/**
+ * Get recent user activity log with pagination
+ * Handles timezone conversion (UTC+0 to client timezone)
+ */
+export const getUserActivityLog = async (req, res) => {
+  const userId = req.user.id;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    // Get timezone offset from request header (in minutes)
+    const clientTimezoneOffset = req.headers['x-timezone-offset'] ? 
+      parseInt(req.headers['x-timezone-offset']) : 
+      300; // Default to +5 hours (300 minutes) for Pakistan if not provided
+    
+    // Convert minutes to hours for the interval
+    const offsetHours = clientTimezoneOffset / 60;
+    
+    // Fetch activities with pagination and convert timestamp to client timezone
+    const activitiesQuery = `
+      SELECT 
+        ual.id,
+        ual.activity_type,
+        ual.activity_id,
+        ual.title,
+        ual.operation,
+        -- Convert UTC time to client timezone by adding the offset
+        (ual.performed_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' + INTERVAL '${offsetHours} hours' AS performed_at_local,
+        ual.performed_at AS performed_at_utc
+      FROM user_activity_log ual
+      WHERE ual.user_id = $1
+      ORDER BY ual.performed_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    
+    const countQuery = `
+      SELECT COUNT(*) FROM user_activity_log WHERE user_id = $1
+    `;
+    
+    const [activitiesResult, countResult] = await Promise.all([
+      db.query(activitiesQuery, [userId, limit, offset]),
+      db.query(countQuery, [userId])
+    ]);
+    
+    const activities = activitiesResult.rows;
+    const totalCount = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    // Format the time display for each activity
+    const formattedActivities = activities.map(activity => {
+      // Format the timestamp using client timezone
+      const timestamp = new Date(activity.performed_at_local);
+      
+      // Get time formatted as 12-hour with AM/PM
+      const timeFormatted = timestamp.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Format the date display based on how recent it is
+      const now = new Date();
+      const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const activityDate = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate());
+      const diffDays = Math.floor((todayDate - activityDate) / (1000 * 60 * 60 * 24));
+      
+      let dateDisplay;
+      if (diffDays === 0) {
+        dateDisplay = 'Today';
+      } else if (diffDays === 1) {
+        dateDisplay = 'Yesterday';
+      } else if (diffDays < 7) {
+        dateDisplay = `${diffDays} days ago`;
+      } else {
+        dateDisplay = timestamp.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: timestamp.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+        });
+      }
+      
+      // Format readable description based on operation type
+      let description;
+      switch (activity.operation) {
+        case 'insert':
+          description = `Created new ${activity.activity_type} "${activity.title}"`;
+          break;
+        case 'update':
+          description = `Updated ${activity.activity_type} "${activity.title}"`;
+          break;
+        case 'complete':
+          description = `Completed "${activity.title}" ${activity.activity_type}`;
+          break;
+        case 'delete':
+          description = `Deleted ${activity.activity_type} "${activity.title}"`;
+          break;
+        default:
+          description = `${activity.operation} ${activity.activity_type} "${activity.title}"`;
+      }
+      
+      return {
+        id: activity.id,
+        type: activity.activity_type,
+        description,
+        time: `${dateDisplay}, ${timeFormatted}`,
+        timestamp: activity.performed_at_local,
+        activityId: activity.activity_id
+      };
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        activities: formattedActivities,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalCount,
+          hasMore: page < totalPages
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user activity log:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch activity log',
+      error: error.message
+    });
+  }
+};
+
 export default {
   getWeeklyActivity,
   getProductivityTrend,
   getTodaySchedule,
-  getCategoryDistribution
+  getCategoryDistribution,
+  getUserActivityLog
 }; 

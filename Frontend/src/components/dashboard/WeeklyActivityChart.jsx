@@ -262,10 +262,10 @@ const WeeklyActivityChart = () => {
     
     const getMockData = () => {
       return [
-        { date: '2023-07-10', day: 'Mon', routines: 3, tasks: 2, habits: 1 },
+        { date: '2023-07-10', day: 'Mon', routines: 0, tasks: 2, habits: 1 },
         { date: '2023-07-11', day: 'Tue', routines: 2, tasks: 3, habits: 2 },
         { date: '2023-07-12', day: 'Wed', routines: 3, tasks: 1, habits: 2 },
-        { date: '2023-07-13', day: 'Thu', routines: 8, tasks: 2, habits: 3 },
+        { date: '2023-07-13', day: 'Thu', routines: 3, tasks: 2, habits: 3 },
         { date: '2023-07-14', day: 'Fri', routines: 2, tasks: 4, habits: 2 },
         { date: '2023-07-15', day: 'Sat', routines: 1, tasks: 2, habits: 1 },
         { date: '2023-07-16', day: 'Sun', routines: 3, tasks: 1, habits: 2 },

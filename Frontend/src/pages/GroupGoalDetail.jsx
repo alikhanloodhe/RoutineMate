@@ -111,21 +111,40 @@ const GroupGoalDetail = () => {
       
       // Update the UI to reflect the change
       setGoal(prevGoal => {
+        // Find the milestone with the given ID
+        const milestone = prevGoal.milestones.find(m => m.milestone_id === milestoneId);
+        
+        // Update member_progress for the current user
+        const updatedMilestones = prevGoal.milestones.map(m => {
+          if (m.milestone_id === milestoneId) {
+            return {
+              ...m,
+              member_progress: {
+                ...m.member_progress,
+                [currentUser.id]: isComplete
+              }
+            };
+          }
+          return m;
+        });
+        
+        // Recalculate the goal's progress
+        let completedCount = 0;
+        updatedMilestones.forEach(m => {
+          if (m.status === 'completed' || (m.member_progress && m.member_progress[currentUser.id])) {
+            completedCount++;
+          }
+        });
+        
+        const newProgress = updatedMilestones.length > 0 
+          ? Math.round((completedCount / updatedMilestones.length) * 100) 
+          : 0;
+        
         return {
           ...prevGoal,
-          milestones: prevGoal.milestones.map(milestone => {
-            if (milestone.milestone_id === milestoneId) {
-              const updatedMilestone = {
-                ...milestone,
-                member_progress: {
-                  ...milestone.member_progress,
-                  [currentUser.id]: isComplete
-                }
-              };
-              return updatedMilestone;
-            }
-            return milestone;
-          })
+          milestones: updatedMilestones,
+          completedMilestones: completedCount,
+          progress: newProgress
         };
       });
       
@@ -260,74 +279,66 @@ const GroupGoalDetail = () => {
 
   // Handle deleting a milestone
   const handleDeleteMilestone = async (milestoneId) => {
-    // Simple confirmation using state pattern
-    if (showConfirmDeleteMilestone === milestoneId) {
-      try {
-        // First update state
-        setGoal(prevGoal => {
-          const updatedMilestones = prevGoal.milestones.filter(m => m.id !== milestoneId);
-          const totalMilestones = updatedMilestones.length;
-          let completedCount = 0;
-          
-          updatedMilestones.forEach(milestone => {
-            if (milestone.status === 'completed') {
-              completedCount++;
-            }
-          });
-          
-          const newProgress = totalMilestones > 0 
-            ? Math.round((completedCount / totalMilestones) * 100)
-            : 0;
-          
-          return {
-            ...prevGoal,
-            milestones: updatedMilestones,
-            progress: newProgress,
-            completedMilestones: completedCount,
-            totalMilestones: totalMilestones
-          };
+    // Set the milestone to be deleted and show the confirmation modal
+    setShowConfirmDeleteMilestone(milestoneId);
+  };
+
+  // Handle confirming milestone deletion
+  const handleConfirmDeleteMilestone = async () => {
+    if (!showConfirmDeleteMilestone) return;
+    
+    const milestoneId = showConfirmDeleteMilestone;
+    
+    try {
+      // First update state (optimistically)
+      setGoal(prevGoal => {
+        const updatedMilestones = prevGoal.milestones.filter(m => m.milestone_id !== milestoneId);
+        const totalMilestones = updatedMilestones.length;
+        let completedCount = 0;
+        
+        updatedMilestones.forEach(milestone => {
+          if (milestone.status === 'completed') {
+            completedCount++;
+          }
         });
         
-        // Then call API
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
+        const newProgress = totalMilestones > 0 
+          ? Math.round((completedCount / totalMilestones) * 100)
+          : 0;
         
-        if (!response.ok) {
-          throw new Error('Failed to delete milestone');
-        }
-        
-        // Reset confirmation state
-        setShowConfirmDeleteMilestone(null);
-        
-        // Show success toast
-        successToast('Milestone deleted successfully');
-      } catch (error) {
-        console.error('Error deleting milestone:', error);
-        errorToast('Failed to delete milestone. Please try again.');
-        
-        // Reset confirmation state
-        setShowConfirmDeleteMilestone(null);
-        
-        // Refresh goal data to restore state
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/fetchGroupGoal/${goalId}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setGoal(data.goal);
-        }
+        return {
+          ...prevGoal,
+          milestones: updatedMilestones,
+          progress: newProgress,
+          completedMilestones: completedCount,
+          totalMilestones: totalMilestones
+        };
+      });
+      
+      // Then call API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete milestone');
       }
-    } else {
-      setShowConfirmDeleteMilestone(milestoneId);
+      
+      // Show success toast
+      successToast('Milestone deleted successfully');
+    } catch (error) {
+      console.error('Error deleting milestone:', error);
+      errorToast('Failed to delete milestone. Please try again.');
+      
+      // Refresh goal data to restore state
+      fetchGoalData();
+    } finally {
+      // Reset confirmation state
+      setShowConfirmDeleteMilestone(null);
     }
   };
 
@@ -471,31 +482,68 @@ const GroupGoalDetail = () => {
   };
 
   // Handle removing a member (admin only)
-  const handleRemoveMember = async (memberId,goalId) => {
-    if (!window.confirm('Are you sure you want to remove this member?')) {
+  const handleRemoveMember = async (memberId, goalId) => {
+    // Close any existing confirmation dialogs
+    setShowConfirmDeleteMilestone(null);
+    setShowConfirmDeleteActivity(null);
+    
+    // Set the member being removed
+    setMemberToRemove({ memberId, goalId });
+  };
+
+  // Handle confirm member removal
+  const handleConfirmMemberRemoval = async () => {
+    if (!memberToRemove) return;
+    
+    const { memberId, goalId } = memberToRemove;
+    
+    try {
+      // Optimistically update UI
+      setGoal(prevGoal => ({
+        ...prevGoal,
+        members: prevGoal.members.filter(member => member.id !== memberId)
+      }));
+      
+      // Make API call to remove member
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/removeMember/${goalId}/${memberId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to remove member');
+      }
+      
+      successToast('Member removed successfully');
+      
+      // If current user is leaving the goal
+      if (memberId === currentUser.id) {
+        navigate('/goals');
+      }
+    } catch (error) {
+      console.error('Error removing member:', error);
+      errorToast('Failed to remove member. Please try again.');
+      
+      // If error occurs, refresh goal data to ensure UI is in sync with server
+      fetchGoalData();
+    } finally {
+      setMemberToRemove(null);
+    }
+  };
+
+  // Handle leaving the group goal (for collaborators)
+  const handleLeaveGoal = () => {
+    if (currentUser.role === 'admin') {
+      errorToast('As the admin, you cannot leave the goal. Transfer ownership first or delete the goal.');
       return;
     }
     
-    setGoal(prevGoal => ({
-      ...prevGoal,
-      members: prevGoal.members.filter(member => member.user_id !== memberId)
-    }));
-    // Make API call to remove member
-    // goal Id ...
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/removeMember/${goalId}/${memberId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    if(!res.ok) {
-      console.error('Error removing member:', res);
-      errorToast('Failed to remove member. Please try again.');
-    }
-    else{
-      successToast('Member removed successfully');
-    }
+    // Use the same member removal flow but with current user ID
+    handleRemoveMember(currentUser.id, goal.goal_id);
   };
 
   // Handle edit goal (admin only)
@@ -546,18 +594,8 @@ const GroupGoalDetail = () => {
     setShowFormModal(false);
   };
   
-  // Handle leaving the group goal (for collaborators)
-  const handleLeaveGoal = () => {
-    if (currentUser.role === 'admin') {
-      errorToast('As the admin, you cannot leave the goal. Transfer ownership first or delete the goal.');
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to leave this group goal?')) {
-      // In a real app, this would call an API to remove the user
-      navigate('/goals');
-    }
-  };
+  // Handle member removal confirmation
+  const [memberToRemove, setMemberToRemove] = useState(null);
 
   // Define fetchGoalData outside useEffect to reuse it
   const fetchGoalData = async () => {
@@ -622,6 +660,24 @@ const GroupGoalDetail = () => {
               milestone.member_progress[currentUser?.id] || false;
           }
         });
+        
+        // Calculate overall progress statistics for the group goal
+        let completedMilestones = 0;
+        const totalMilestones = finalGoal.milestones.length;
+        
+        finalGoal.milestones.forEach(milestone => {
+          // Count milestones that are marked as completed or where current user has completed them
+          if (milestone.status === 'completed' || (milestone.member_progress && milestone.member_progress[currentUser?.id])) {
+            completedMilestones++;
+          }
+        });
+        
+        const progress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+        
+        // Update finalGoal with computed statistics
+        finalGoal.completedMilestones = completedMilestones;
+        finalGoal.totalMilestones = totalMilestones;
+        finalGoal.progress = progress;
         
         setPersonalMilestoneProgress(personalProgress);
         setGoal(finalGoal);
@@ -1244,12 +1300,15 @@ const GroupGoalDetail = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               {member.role !== 'admin' && (
                                 <button
-                                  onClick={() => handleRemoveMember(member.id,goal.goal_id)}
-                                  className="text-red-600 hover:text-red-900"
+                                  onClick={() => handleRemoveMember(member.id, goal.goal_id)}
+                                  className={`px-3 py-1.5 rounded text-white ${member.id === currentUser.id ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-500 hover:bg-red-600'}`}
                                 >
-                                {member.id === currentUser.id ?'Leave':'Remove'}
-                         
+                                  {member.id === currentUser.id ? 'Leave Goal' : 'Remove'}
                                 </button>
+                              )}
+                              
+                              {member.role === 'admin' && member.id === currentUser.id && (
+                                <span className="text-xs text-gray-500 italic">Admin (cannot leave)</span>
                               )}
                             </td>
                           </tr>
@@ -1309,7 +1368,7 @@ const GroupGoalDetail = () => {
                             // Calculate completed milestones for each member
                             let completedCount = 0;
                             goal.milestones.forEach(milestone => {
-                              if (milestone.member_progress?.[member.user_id]) {
+                              if (milestone.member_progress && milestone.member_progress[member.id]) {
                                 completedCount++;
                               }
                             });
@@ -1334,7 +1393,7 @@ const GroupGoalDetail = () => {
                             return a.name.localeCompare(b.name);
                           })
                           .map((member, index) => (
-                            <tr key={member.user_id} className={index < 3 ? getMemberRankClass(index) : ''}>
+                            <tr key={member.id} className={index < 3 ? getMemberRankClass(index) : ''}>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 {index === 0 && (
                                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
@@ -1363,7 +1422,7 @@ const GroupGoalDetail = () => {
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
                                       {member.name}
-                                      {member.user_id === currentUser.id && (
+                                      {member.id === currentUser.id && (
                                         <span className="ml-1 text-xs text-gray-500">(You)</span>
                                       )}
                                     </div>
@@ -1559,24 +1618,32 @@ const GroupGoalDetail = () => {
       {/* Confirm Delete Milestone Modal */}
       {showConfirmDeleteMilestone && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-            <h3 className="text-lg font-bold mb-2">Delete Milestone</h3>
-            <p className="mb-4 text-gray-600">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="mb-4">
+              <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-bold text-center mb-2">Delete Milestone</h3>
+            <p className="text-gray-600 text-center mb-6">
               Are you sure you want to delete this milestone? This action cannot be undone.
             </p>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-center gap-3">
               <button
                 onClick={() => setShowConfirmDeleteMilestone(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteMilestone(showConfirmDeleteMilestone)}
+                onClick={handleConfirmDeleteMilestone}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
-                Delete
+                Delete Milestone
               </button>
             </div>
           </div>
@@ -1604,6 +1671,46 @@ const GroupGoalDetail = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Member Removal Modal */}
+      {memberToRemove && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="mb-4">
+              <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                </svg>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-bold text-center mb-2">
+              {memberToRemove.memberId === currentUser.id ? 'Leave Group Goal' : 'Remove Member'}
+            </h3>
+            
+            <p className="text-gray-600 text-center mb-6">
+              {memberToRemove.memberId === currentUser.id 
+                ? 'Are you sure you want to leave this group goal? You will no longer have access to this goal or its activities.'
+                : 'Are you sure you want to remove this member? They will no longer have access to this goal or its activities.'}
+            </p>
+
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setMemberToRemove(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmMemberRemoval}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                {memberToRemove.memberId === currentUser.id ? 'Leave Goal' : 'Remove Member'}
               </button>
             </div>
           </div>

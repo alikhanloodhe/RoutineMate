@@ -19,4 +19,7 @@ router.get('/today-schedule', dashboardController.getTodaySchedule);
 // Get category distribution data
 router.get('/category-distribution', dashboardController.getCategoryDistribution);
 
+// Get user activity log with pagination
+router.get('/activity-log', dashboardController.getUserActivityLog);
+
 export default router; 

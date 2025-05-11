@@ -7,7 +7,7 @@ import GroupGoalFormModal from './GroupGoalFormModal';
 import { addGoal, updateGoal, deleteGoal } from '../../../utils/goalData';
 import { useToastContext } from '../../../context/ToastContext';
 
-const GroupGoalsTab = ({ goals, onViewGoal }) => {
+const GroupGoalsTab = ({ goals, onViewGoal, refreshGoals }) => {
   const { successToast, errorToast, infoToast } = useToastContext();
   const [showFormModal, setShowFormModal] = useState(false);
   const [currentGoal, setCurrentGoal] = useState(null);
@@ -55,12 +55,12 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
           throw new Error('Failed to delete goal');
         }
 
-        // On successful deletion, navigate back to goals page
+        // On successful deletion, refresh goals and show toast
         successToast('Goal deleted successfully');
-        navigate('/goals');
-        
         // Reset confirmation state
         setShowConfirmDelete(null);
+        // Refresh goals after deletion
+        refreshGoals();
       } catch (error) {
         console.error('Error deleting goal:', error);
         errorToast('Failed to delete goal. Please try again.');
@@ -93,6 +93,8 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
           throw new Error('Network response was not ok');
         }
         successToast('Group goal updated successfully');
+        // Refresh goals after update
+        refreshGoals();
       } else {
         // Add new goal with group type
         addGoal({
@@ -111,6 +113,8 @@ const GroupGoalsTab = ({ goals, onViewGoal }) => {
           throw new Error('Network response was not ok');
         }
         successToast('New group goal created successfully');
+        // Refresh goals after creation
+        refreshGoals();
       }
       
       setShowFormModal(false);

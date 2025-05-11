@@ -70,13 +70,6 @@ const Dashboard = () => {
     day: 'numeric' 
   });
 
-  // Mock data for recent activities
-  const recentActivities = [
-    { type: 'task', description: 'Completed "Morning Workout" task', time: 'Today, 8:30 AM' },
-    { type: 'goal', description: 'Updated goal "Read 10 books"', time: 'Yesterday, 7:45 PM' },
-    { type: 'routine', description: 'Created new routine "Evening Meditation"', time: '2 days ago, 9:15 PM' }
-  ];
-
   return (
     <div className="bg-gray-50">
       <div className="px-6 py-6">
@@ -92,9 +85,9 @@ const Dashboard = () => {
         {/* Streak Progress - Moved to top for motivation */}
         <div className="mb-6">
           <StreakProgress 
-            routineStreak={{ current: 5, longest: 14 }} 
-            taskStreak={{ current: 3, longest: 10 }} 
-            habitStreak={{ current: 7, longest: 21 }} 
+            routineStreak={{ current: 0, longest: 0 }} 
+            taskStreak={{ current: 0, longest: 0 }} 
+            habitStreak={{ current: 0, longest: 0 }} 
           />
         </div>
         
@@ -118,7 +111,7 @@ const Dashboard = () => {
         </div>
         
         {/* Recent Activity Section */}
-        <RecentActivity activities={recentActivities} />
+        <RecentActivity />
       </div>
     </div>
   );

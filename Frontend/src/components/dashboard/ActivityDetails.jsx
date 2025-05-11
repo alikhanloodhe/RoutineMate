@@ -1,49 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, CheckSquare, Target, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Calendar, CheckSquare, Target, Search, Filter, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getRecentActivities } from '../../services/activityLogService';
 
 const ActivityDetails = ({ isOpen, onClose }) => {
   const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Simulate fetching activities from backend
+  const [pagination, setPagination] = useState({
+    currentPage: 0,
+    totalPages: 1,
+    hasMore: true
+  });
+  
+  const observer = useRef();
+  const lastActivityElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && pagination.hasMore) {
+        loadMoreActivities();
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [loading, pagination.hasMore]);
+  
+  // Function to load more activities when scrolling
+  const loadMoreActivities = async () => {
+    if (!pagination.hasMore || loading) return;
+    
+    try {
+      setLoading(true);
+      const nextPage = pagination.currentPage + 1;
+      const result = await getRecentActivities(nextPage, 10);
+      
+      // Append new activities to the existing list
+      setActivities(prevActivities => [...prevActivities, ...result.activities]);
+      setPagination(result.pagination);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading more activities:', err);
+      setError('Failed to load more activities. Please try again.');
+      setLoading(false);
+    }
+  };
+  
+  // Initial data fetch when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Mock data - would be replaced with actual API call
-      const fetchActivities = async () => {
+      const fetchInitialActivities = async () => {
         try {
           setLoading(true);
-          // This would be replaced with an actual API call:
-          // const response = await axios.get(`${API_URL}/api/activities`, {
-          //   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-          // });
+          setActivities([]);
+          setPagination({
+            currentPage: 0,
+            totalPages: 1,
+            hasMore: true
+          });
           
-          // Mock data for development
-          const mockActivities = [
-            { id: 1, type: 'task', description: 'Completed "Morning Workout" task', time: 'Today, 8:30 AM' },
-            { id: 2, type: 'goal', description: 'Updated goal "Read 10 books"', time: 'Yesterday, 7:45 PM' },
-            { id: 3, type: 'routine', description: 'Created new routine "Evening Meditation"', time: '2 days ago, 9:15 PM' },
-            { id: 4, type: 'task', description: 'Completed "Weekly Planning" task', time: '3 days ago, 10:00 AM' },
-            { id: 5, type: 'routine', description: 'Missed routine "Morning Yoga"', time: '4 days ago, 7:00 AM' },
-            { id: 6, type: 'goal', description: 'Created goal "Learn Spanish"', time: '5 days ago, 8:20 PM' },
-            { id: 7, type: 'task', description: 'Completed "Email Follow-ups" task', time: '1 week ago, 2:15 PM' },
-            { id: 8, type: 'routine', description: 'Completed routine "Daily Reading"', time: '1 week ago, 9:00 PM' },
-          ];
-          
-          // Simulate backend delay
-          setTimeout(() => {
-            setActivities(mockActivities);
-            setLoading(false);
-          }, 800);
-        } catch (error) {
-          console.error('Error fetching activities:', error);
+          const result = await getRecentActivities(1, 10);
+          setActivities(result.activities);
+          setPagination(result.pagination);
+          setLoading(false);
+        } catch (err) {
+          console.error('Error fetching activities:', err);
+          setError('Failed to load activities. Please try again.');
           setLoading(false);
         }
       };
       
-      fetchActivities();
+      fetchInitialActivities();
     }
   }, [isOpen]);
 
@@ -61,6 +91,8 @@ const ActivityDetails = ({ isOpen, onClose }) => {
         return <CheckSquare className="h-5 w-5" />;
       case 'goal':
         return <Target className="h-5 w-5" />;
+      case 'habit':
+        return <Clock className="h-5 w-5" />;
       case 'routine':
       default:
         return <Calendar className="h-5 w-5" />;
@@ -74,6 +106,8 @@ const ActivityDetails = ({ isOpen, onClose }) => {
         return 'bg-purple-100 text-purple-600';
       case 'goal':
         return 'bg-indigo-100 text-indigo-600';
+      case 'habit':
+        return 'bg-green-100 text-green-600';
       case 'routine':
       default:
         return 'bg-gray-100 text-gray-800';
@@ -131,6 +165,7 @@ const ActivityDetails = ({ isOpen, onClose }) => {
                   <option value="all">All Activities</option>
                   <option value="task">Tasks</option>
                   <option value="routine">Routines</option>
+                  <option value="habit">Habits</option>
                   <option value="goal">Goals</option>
                 </select>
               </div>
@@ -138,40 +173,60 @@ const ActivityDetails = ({ isOpen, onClose }) => {
             
             {/* Activity List */}
             <div className="flex-grow overflow-y-auto p-4">
-              {loading ? (
+              {activities.length === 0 && loading ? (
                 <div className="flex items-center justify-center h-40">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
               ) : filteredActivities.length > 0 ? (
                 <div className="space-y-4">
-                  {filteredActivities.map((activity) => (
-                    <motion.div 
-                      key={activity.id}
-                      className="flex items-start p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full ${getIconBackground(activity.type)} flex items-center justify-center mr-3`}>
-                        {getIconComponent(activity.type)}
-                      </div>
-                      <div className="flex-grow">
-                        <p className="text-sm font-medium text-gray-800">{activity.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                      </div>
-                    </motion.div>
-                  ))}
+                  {filteredActivities.map((activity, index) => {
+                    // Add ref to last item for infinite scrolling
+                    const isLastItem = index === filteredActivities.length - 1;
+                    return (
+                      <motion.div 
+                        key={activity.id}
+                        className="flex items-start p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        ref={isLastItem ? lastActivityElementRef : null}
+                      >
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full ${getIconBackground(activity.type)} flex items-center justify-center mr-3`}>
+                          {getIconComponent(activity.type)}
+                        </div>
+                        <div className="flex-grow">
+                          <p className="text-sm font-medium text-gray-800">{activity.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  
+                  {/* Loading indicator at bottom when fetching more */}
+                  {loading && pagination.hasMore && (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-10">
-                  <p className="text-gray-500">No activities found</p>
+                  {error ? (
+                    <p className="text-red-500">{error}</p>
+                  ) : (
+                    <p className="text-gray-500">No activities found</p>
+                  )}
                 </div>
               )}
             </div>
             
             {/* Footer */}
             <div className="p-4 border-t text-xs text-gray-500 text-center">
-              Showing {filteredActivities.length} of {activities.length} activities
+              {pagination.totalCount > 0 ? (
+                `Showing ${filteredActivities.length} of ${pagination.totalCount} activities`
+              ) : (
+                'No activities available'
+              )}
             </div>
           </motion.div>
         </div>

@@ -35,35 +35,39 @@ const FriendCardList = ({ list, type, onAccept, onDecline, onCancel }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 ">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {list.map(user => (
-        <Card key={user.id} hoverable className="flex items-center p-4">
-          <div className={`w-12 h-12 mb-4 mt-2 ml-2 rounded-full flex items-center justify-center font-medium ${getBgClass()}`}>
-            {user.name.charAt(0)}
+        <Card key={user.id} hoverable className="p-4">
+          <div className="flex items-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-medium ${getBgClass()}`}>
+              {user.name.charAt(0)}
+            </div>
+            <div className="ml-4 flex-1">
+              <h3 className="font-medium text-gray-900">{user.name}</h3>
+              <p className="text-sm text-gray-500">{user.email}</p>
+            </div>
           </div>
-          <div className="ml-2 flex-1">
-            <h3 className="font-medium text-gray-900">{user.name}</h3>
-            <p className="text-sm text-gray-500">{user.email}</p>
-          </div>
-
+          
           {type === 'friends' && (
-            <Button className='mt-4 ml-2' variant="light" size="sm" icon={FiUserCheck}>
-              Friend
-            </Button>
+            <div className="mt-3 text-sm text-gray-500">
+              Friends since {new Date(user.friend_since).getFullYear()}
+            </div>
           )}
 
           {type === 'sent' && (
-            <Button variant="light" size="sm" icon={FiUserX} onClick={() => handleCancel(user.id)}>
-              Cancel
-            </Button>
+            <div className="mt-3">
+              <Button variant="light" size="sm" onClick={() => handleCancel(user.id)}>
+                Cancel
+              </Button>
+            </div>
           )}
 
           {type === 'received' && (
-            <div className="flex gap-2">
-              <Button variant="primary" size="sm" icon={FiUserCheck} onClick={() => handleAccept(user.id)}>
+            <div className="flex gap-2 mt-3">
+              <Button variant="primary" size="sm" onClick={() => handleAccept(user.id)}>
                 Accept
               </Button>
-              <Button variant="light" size="sm" icon={FiUserX} onClick={() => handleDecline(user.id)}>
+              <Button variant="light" size="sm" onClick={() => handleDecline(user.id)}>
                 Decline
               </Button>
             </div>

@@ -28,6 +28,10 @@ const GoalDetail = () => {
   // Confirmation dialog state
   const [showConfirmDeleteMilestone, setShowConfirmDeleteMilestone] = useState(null);
   const [showConfirmDeleteActivity, setShowConfirmDeleteActivity] = useState(null);
+  
+  // Image modal state for activity photos
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [currentImage, setCurrentImage] = useState(null);
 
   const { goalId } = useParams(); /// wehere its activities are renedered
 
@@ -392,6 +396,19 @@ const GoalDetail = () => {
     setActiveDropdown(prevActive => 
       prevActive === activityId ? null : activityId
     );
+  };
+
+  // Open image modal
+  const handleImageClick = (imageUrl) => {
+    setCurrentImage(imageUrl);
+    setShowImageModal(true);
+  };
+
+  // Close image modal on ESC key press
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setShowImageModal(false);
+    }
   };
 
   // Fetch goal details
@@ -870,11 +887,15 @@ ${activity.mood === 'happy' ? 'bg-green-50 text-green-600' :
                                     src={photo.photo_url || photo}
                                     alt={`Activity photo ${index + 1}`}
                                     className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => handleImageClick(photo.photo_url || photo)}
                                   />
                                 </div>
                               ))}
                               {activity.photos.length > 4 && (
-                                <div className="aspect-square bg-gray-100 rounded-md overflow-hidden max-h-24 relative">
+                                <div 
+                                  className="aspect-square bg-gray-100 rounded-md overflow-hidden max-h-24 relative cursor-pointer"
+                                  onClick={() => handleImageClick(activity.photos[4].photo_url || activity.photos[4])}
+                                >
                                   <img
                                     src={activity.photos[4].photo_url || activity.photos[4]}
                                     alt={`Activity photo 5`}
@@ -987,6 +1008,47 @@ ${activity.mood === 'happy' ? 'bg-green-50 text-green-600' :
                 >
                   Delete
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Modal for Activity Photos */}
+        {showImageModal && (
+          <div 
+            className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4 md:p-8"
+            onClick={() => setShowImageModal(false)}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+          >
+            <div className="relative max-w-5xl w-full max-h-[90vh]">
+              {/* Close button */}
+              <button 
+                className="absolute -top-10 right-0 md:top-2 md:right-2 z-10 p-2 text-white bg-black bg-opacity-50 rounded-full hover:bg-opacity-70 transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowImageModal(false);
+                }}
+                aria-label="Close image"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
+              {/* Image container */}
+              <div 
+                className="h-full flex items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={currentImage}
+                  alt="Enlarged activity photo"
+                  className="max-w-full max-h-[85vh] object-contain"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/800x600?text=Image+Not+Available';
+                  }}
+                />
               </div>
             </div>
           </div>
