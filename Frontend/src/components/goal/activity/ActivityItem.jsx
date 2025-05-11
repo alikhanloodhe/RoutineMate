@@ -14,6 +14,7 @@ const ActivityItem = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(activity.content || '');
   const [isLikeProcessing, setIsLikeProcessing] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const likeDebounceTimer = useRef(null);
 
   const handleAddComment = () => {
@@ -115,6 +116,18 @@ const ActivityItem = ({
     }, 1000); // 1 second debounce
   };
 
+  // Toggle image modal
+  const toggleImageModal = () => {
+    setShowImageModal(!showImageModal);
+  };
+
+  // Close image modal on ESC key press
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setShowImageModal(false);
+    }
+  };
+
   console.log("Current activity:", activity.id, "Owner:", isActivityOwner, "Current user:", currentUser.id, "Activity user:", activity.user.id);
 
   return (
@@ -212,7 +225,8 @@ const ActivityItem = ({
             <img
               src={photoUrl}
               alt="Post photo"
-              className="max-w-full max-h-96 object-contain rounded-lg"
+              className="max-w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={toggleImageModal}
               onError={(e) => {
                 console.error('Image failed to load:', {
                   src: e.target.src,
@@ -232,6 +246,47 @@ const ActivityItem = ({
                 };
               }}
             />
+            
+            {/* Full-screen Image Modal */}
+            {showImageModal && (
+              <div 
+                className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4 md:p-8"
+                onClick={toggleImageModal}
+                onKeyDown={handleKeyDown}
+                tabIndex={0}
+              >
+                <div className="relative max-w-5xl w-full max-h-[90vh]">
+                  {/* Close button */}
+                  <button 
+                    className="absolute -top-10 right-0 md:top-2 md:right-2 z-10 p-2 text-white bg-black bg-opacity-50 rounded-full hover:bg-opacity-70 transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowImageModal(false);
+                    }}
+                    aria-label="Close image"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  
+                  {/* Image container */}
+                  <div 
+                    className="h-full flex items-center justify-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <img
+                      src={photoUrl}
+                      alt="Enlarged post photo"
+                      className="max-w-full max-h-[85vh] object-contain"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/800x600?text=Image+Not+Available';
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (activity.photos && activity.photos.length > 0 && activity.photos[0] instanceof File) || 
            (activity.isTemporary || activity.post_id?.toString().startsWith('temp-') || activity._file) ? (

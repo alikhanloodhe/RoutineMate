@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PlusCircle, Calendar, List, Clock, AlarmClock } from 'lucide-react';
+import { PlusCircle, Calendar, List, Clock, AlarmClock, Filter } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 
 // Import custom components
@@ -159,6 +159,7 @@ const Routines = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [routineTypeFilter, setRoutineTypeFilter] = useState("all");
   const { successToast, errorToast, infoToast } = useToastContext();
 
   // Get token for API calls
@@ -258,13 +259,47 @@ const Routines = () => {
       const lowercaseSearch = searchTerm.toLowerCase();
       result = result.filter(routine =>
         routine.title.toLowerCase().includes(lowercaseSearch) ||
-        routine.description.toLowerCase().includes(lowercaseSearch) ||
+        routine.description?.toLowerCase().includes(lowercaseSearch) ||
         routine.category.toLowerCase().includes(lowercaseSearch)
       );
     }
 
+    // Apply routine type filter
+    if (routineTypeFilter !== 'all') {
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      const weekends = ['Sat', 'Sun'];
+      const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      
+      result = result.filter(routine => {
+        const routineDays = routine.daysOfWeek || routine.days || [];
+        
+        // Check for specific day filter (Mon, Tue, etc.)
+        if (allDays.includes(routineTypeFilter)) {
+          return routineDays.includes(routineTypeFilter);
+        }
+        
+        // Check for other filter types
+        if (routineTypeFilter === 'daily') {
+          // Daily routines have all 7 days
+          return routineDays.length === 7;
+        } else if (routineTypeFilter === 'weekday') {
+          // Weekday routines have at least one weekday and no weekend days
+          const hasWeekday = routineDays.some(day => weekdays.includes(day));
+          const hasWeekend = routineDays.some(day => weekends.includes(day));
+          return hasWeekday && !hasWeekend;
+        } else if (routineTypeFilter === 'weekend') {
+          // Weekend routines have at least one weekend day and no weekday days
+          const hasWeekday = routineDays.some(day => weekdays.includes(day));
+          const hasWeekend = routineDays.some(day => weekends.includes(day));
+          return hasWeekend && !hasWeekday;
+        }
+        
+        return true;
+      });
+    }
+
     setFilteredRoutines(result);
-  }, [routines, searchTerm]);
+  }, [routines, searchTerm, routineTypeFilter]);
 
   // Get routines for today
   const getTodayRoutines = () => {
@@ -285,7 +320,16 @@ const Routines = () => {
     return getTodayRoutines().filter(routine => {
       const startTime = routine.startTime || routine.start_time;
       const endTime = routine.endTime || routine.end_time;
-      return startTime <= timeStr && endTime > timeStr && routine.status !== 'completed';
+      
+      // Check if routine is active at current time
+      const isActiveTime = startTime <= timeStr && endTime > timeStr;
+      
+      // Check if routine is NOT completed (both status and history)
+      const isNotCompleted = 
+        routine.status !== 'completed' && 
+        !routine.completionData?.history?.some(h => h.date === todayStr && h.completed);
+      
+      return isActiveTime && isNotCompleted;
     });
   };
 
@@ -403,6 +447,8 @@ const Routines = () => {
   // Get weekly schedule from Sunday to Saturday
   const getWeeklySchedule = () => {
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const workWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weekendDays = ['Sat', 'Sun'];
 
     // Get first day of week (Sunday)
     const firstDay = new Date(today);
@@ -414,7 +460,7 @@ const Routines = () => {
       const dateStr = date.toISOString().split('T')[0];
 
       // Get routines for this day - ensuring we use the actual routines from state
-      const dayRoutines = routines.filter(routine => {
+      let dayRoutines = routines.filter(routine => {
         // Handle both daysOfWeek and days formats
         const routineDays = routine.daysOfWeek || routine.days;
         
@@ -423,6 +469,30 @@ const Routines = () => {
         
         return isActive && Array.isArray(routineDays) && routineDays.includes(day);
       });
+      
+      // Apply routine type filter to weekly schedule if it's not 'all'
+      if (routineTypeFilter !== 'all') {
+        dayRoutines = dayRoutines.filter(routine => {
+          const routineDays = routine.daysOfWeek || routine.days || [];
+          
+          if (routineTypeFilter === 'daily') {
+            // Daily routines have all 7 days
+            return routineDays.length === 7;
+          } else if (routineTypeFilter === 'weekday') {
+            // Weekday routines have at least one weekday and no weekend days
+            const hasWeekday = routineDays.some(day => workWeekdays.includes(day));
+            const hasWeekend = routineDays.some(day => weekendDays.includes(day));
+            return hasWeekday && !hasWeekend;
+          } else if (routineTypeFilter === 'weekend') {
+            // Weekend routines have at least one weekend day and no weekday days
+            const hasWeekday = routineDays.some(day => workWeekdays.includes(day));
+            const hasWeekend = routineDays.some(day => weekendDays.includes(day));
+            return hasWeekend && !hasWeekday;
+          }
+          
+          return true;
+        });
+      }
       
       return {
         day,
@@ -472,10 +542,16 @@ const Routines = () => {
     const newStartTime = getMinutesSinceMidnight(newRoutine.startTime || newRoutine.start_time);
     const newEndTime = getMinutesSinceMidnight(newRoutine.endTime || newRoutine.end_time);
     
+    const routineId = newRoutine.id || newRoutine.routine_id;
+    console.log("Checking conflicts for routine ID:", routineId);
+    
     // Check against each existing routine
     for (const existingRoutine of routinesToCheck) {
+      const existingId = existingRoutine.id || existingRoutine.routine_id;
+      
       // Skip the routine being edited (if any)
-      if (existingRoutine.id === newRoutine.id || existingRoutine.routine_id === newRoutine.routine_id) {
+      if (routineId && (existingId === routineId)) {
+        console.log("Skipping the same routine:", existingId);
         continue;
       }
       
@@ -498,6 +574,7 @@ const Routines = () => {
       );
       
       if (hasTimeOverlap) {
+        console.log("Found conflict with routine:", existingRoutine.title);
         return true;
       }
     }
@@ -595,10 +672,14 @@ const Routines = () => {
         daysOfWeek: updatedFields.daysOfWeek || updatedFields.days,
       };
       
+      // Get a list of all routines except the one being updated
+      const otherRoutines = routines.filter(r => 
+        (r.id !== routineId && r.routine_id !== routineId) && 
+        (r.id !== updatedRoutine.id && r.routine_id !== updatedRoutine.routine_id)
+      );
+      
       // Check for time conflicts before proceeding
-      if (checkTimeConflicts(updatedRoutine, routines.filter(r => 
-        r.id !== routineId && r.routine_id !== routineId
-      ))) {
+      if (checkTimeConflicts(updatedRoutine, otherRoutines)) {
         setError('This routine conflicts with another routine on the same day(s).');
         errorToast('This routine conflicts with another routine on the same day(s).');
         return;
@@ -847,8 +928,13 @@ const Routines = () => {
   // Current active routines
   const currentRoutines = getCurrentRoutines();
   const upcomingRoutines = getUpcomingRoutines();
-  const weeklySchedule = getWeeklySchedule();
+  const [weeklyScheduleData, setWeeklyScheduleData] = useState([]);
   const timeSlots = getTimeSlots();
+  
+  // Update weekly schedule when routines or filter changes
+  useEffect(() => {
+    setWeeklyScheduleData(getWeeklySchedule());
+  }, [routines, routineTypeFilter]);
 
   // Display loading spinner when fetching routines
   if (loading) {
@@ -1009,6 +1095,8 @@ const Routines = () => {
             <FilterBar
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
+              routineTypeFilter={routineTypeFilter}
+              setRoutineTypeFilter={setRoutineTypeFilter}
             />
           )}
 
@@ -1039,212 +1127,310 @@ const Routines = () => {
 
           {/* List View */}
           {viewMode === "list" && (
-            <RoutineList
-              routines={filteredRoutines}
-              isEditMode={isEditMode}
-              onEdit={editRoutine}
-              onToggleActive={toggleRoutineActive}
-              onDelete={(id) => setShowConfirmDelete(id)}
-              onComplete={markRoutineComplete}
-            />
+            <>
+              {filteredRoutines.length === 0 ? (
+                <div className="bg-white border border-gray-200 rounded-md p-8 text-center">
+                  <div className="text-gray-500 mb-2">No routines match your filter</div>
+                  <button 
+                    onClick={() => {
+                      setRoutineTypeFilter('all');
+                      setSearchTerm('');
+                    }}
+                    className="text-[#4A2BAF] hover:underline text-sm font-medium"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                <RoutineList
+                  routines={filteredRoutines}
+                  isEditMode={isEditMode}
+                  onEdit={editRoutine}
+                  onToggleActive={toggleRoutineActive}
+                  onDelete={(id) => setShowConfirmDelete(id)}
+                  onComplete={markRoutineComplete}
+                />
+              )}
+            </>
           )}
 
           {/* Timetable View with improved calendar-style layout */}
           {viewMode === "timetable" && (
             <div className="bg-white border border-gray-200 rounded-md overflow-hidden shadow-sm">
-              {/* Quick-jump time navigation */}
-              <div className="px-4 py-2 border-b border-gray-200 flex items-center gap-2 overflow-x-auto bg-gray-50">
-                <button 
-                  onClick={() => {
-                    const currentHourElement = document.getElementById(`hour-${currentTime.getHours().toString().padStart(2, '0')}`);
-                    if (currentHourElement) {
-                      currentHourElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-[#4A2BAF] text-white text-xs rounded-md flex items-center gap-1.5 flex-shrink-0"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                  </svg>
-                  Jump to Current Time
-                </button>
-                
-                {/* Time period quick jumps */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0">
-                  <span>Jump to:</span>
-                </div>
-                
-                {[
-                  { label: 'Morning', hours: '06-12', startHour: '06' },
-                  { label: 'Afternoon', hours: '12-17', startHour: '12' },
-                  { label: 'Evening', hours: '17-21', startHour: '17' },
-                  { label: 'Night', hours: '21-00', startHour: '21' }
-                ].map(period => (
+              {/* Quick-jump time navigation and filtering */}
+              <div className="border-b border-gray-200 bg-gray-50">
+                {/* Time navigation */}
+                <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto">
                   <button 
-                    key={period.hours}
                     onClick={() => {
-                      const targetHourElement = document.getElementById(`hour-${period.startHour}`);
-                      if (targetHourElement) {
-                        targetHourElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      const currentHourElement = document.getElementById(`hour-${currentTime.getHours().toString().padStart(2, '0')}`);
+                      if (currentHourElement) {
+                        currentHourElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                       }
                     }}
-                    className="px-2 py-1 rounded-md bg-gray-200 text-xs text-gray-700 hover:bg-gray-300 transition-colors flex-shrink-0"
+                    className="px-3 py-1.5 bg-[#4A2BAF] text-white text-xs rounded-md flex items-center gap-1.5 flex-shrink-0"
                   >
-                    {period.label} ({period.hours})
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Jump to Current Time
                   </button>
-                ))}
-              </div>
-              
-              <div className="overflow-x-auto overflow-y-auto max-h-[600px] relative">
-                <div className="min-w-[900px] lg:w-full">
-                  {/* Day headers - Sticky */}
-                  <div className="grid grid-cols-8 border-b border-gray-200 sticky top-0 bg-white z-20">
-                    <div className="py-3 px-3 text-center font-medium text-sm text-gray-600 border-r border-gray-200">
-                      Time
-                    </div>
-                    {weeklySchedule.map(day => (
-                      <div
-                        key={day.day}
-                        className={`py-3 px-1 text-center ${day.isToday ? 'bg-[#4A2BAF]/5' : ''}`}
-                      >
-                        <div className={`text-sm font-medium ${day.isToday ? 'text-[#4A2BAF]' : 'text-gray-800'}`}>
-                          {day.day}
-                        </div>
-                        <div className={`text-xs ${day.isToday ? 'text-[#4A2BAF]' : 'text-gray-500'}`}>
-                          {day.date.getDate()}
-                        </div>
-                      </div>
-                    ))}
+                  
+                  {/* Time period quick jumps */}
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0">
+                    <span>Jump to:</span>
                   </div>
-
-                  {/* Time grid - One row per hour with routines positioned inside */}
-                  <div className="relative">
-                    {/* Create time slots for each hour */}
-                    {Array.from({ length: 24 }).map((_, hourIndex) => {
-                      const hour = hourIndex.toString().padStart(2, '0');
-                      const timeStr = `${hour}:00`;
-                      const isCurrentHour = currentTime.getHours() === hourIndex;
-                      
-                      return (
-                        <div 
-                          id={`hour-${hour}`}
-                          key={`hour-${hour}`} 
-                          className={`grid grid-cols-8 border-b border-gray-200 ${isCurrentHour ? 'bg-[#4A2BAF]/5' : hourIndex % 2 === 0 ? 'bg-gray-50' : ''}`}
-                        >
-                          {/* Time label */}
-                          <div className="py-2 px-2 text-xs font-medium text-gray-600 border-r border-gray-200 h-24">
-                            {formatTime(timeStr)}
-                          </div>
-                          
-                          {/* Day columns */}
-                          {weeklySchedule.map(day => (
-                            <div 
-                              key={`${day.day}-${hour}`} 
-                              className={`relative h-24 ${day.isToday ? 'bg-[#4A2BAF]/5' : ''}`}
-                            >
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Overlay routines on the grid */}
-                    {weeklySchedule.map((day, dayIndex) => 
-                      day.routines.map(routine => {
-                        // Get start and end times in minutes since midnight
-                        const startMinutes = getMinutesSinceMidnight(routine.startTime);
-                        const endMinutes = getMinutesSinceMidnight(routine.endTime);
-                        const durationMinutes = endMinutes - startMinutes;
-                        
-                        // Calculate position and height
-                        const topPosition = (startMinutes / 60) * 96; // 24px per 15min
-                        const heightValue = (durationMinutes / 60) * 96; // 24px per 15min
-                        
-                        // Position from left based on day index (add 1 to account for time column)
-                        const leftPosition = `calc(${(dayIndex + 1) * 12.5}% + 4px)`;
-                        const widthValue = `calc(12.5% - 8px)`;
-                        
-                        const isCompleted = routine.status === 'completed' || 
-                          routine.completionData?.history?.some(
-                            h => h.date === day.dateStr && h.completed
-                          );
-                        
-                        const priorityColor = 
-                          routine.priority === 'HIGH' || routine.priority === 'High' ? 'border-red-500' : 
-                          routine.priority === 'MEDIUM' || routine.priority === 'Medium' ? 'border-yellow-500' : 
-                          routine.priority === 'LOW' || routine.priority === 'Low' ? 'border-blue-500' : 
-                          'border-gray-500';
-                        
-                        return (
-                          <div
-                            key={`${routine.id}-${day.day}`}
-                            style={{
-                              position: 'absolute',
-                              top: `${topPosition}px`,
-                              left: leftPosition,
-                              height: `${heightValue}px`,
-                              width: widthValue,
-                              zIndex: 10
-                            }}
-                            className={`rounded-md p-2 flex flex-col shadow-sm overflow-hidden border-l-2 hover:shadow-md transition-shadow group ${
-                              isCompleted
-                                ? 'bg-green-100 border-green-500'
-                                : `bg-[#4A2BAF]/10 ${priorityColor}`
-                            }`}
-                            onClick={() => editRoutine(routine.id)}
-                          >
-                            <div className="font-medium text-xs truncate">{routine.title}</div>
-                            <div className="text-gray-600 text-[10px] mt-auto truncate">
-                              {formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}
-                            </div>
-                            
-                            {/* Detailed tooltip on hover */}
-                            <div className="absolute invisible group-hover:visible bg-white p-2 rounded-md shadow-lg border border-gray-200 left-full ml-2 top-0 w-48 z-30 text-xs">
-                              <div className="font-bold text-gray-800">{routine.title}</div>
-                              <div className="mt-1 text-gray-600">
-                                <div>{formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}</div>
-                                <div className="mt-1">
-                                  <span className="font-semibold">Category:</span> {routine.category}
-                                </div>
-                                <div>
-                                  <span className="font-semibold">Priority:</span> {routine.priority}
-                                </div>
-                                <div>
-                                  <span className="font-semibold">Status:</span> {routine.status === 'completed' ? 'Completed' : 'Pending'}
-                                </div>
-                                {routine.description && (
-                                  <div className="mt-1 border-t border-gray-100 pt-1">
-                                    {routine.description}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    
-                    {/* Current time indicator */}
-                    <div 
-                      style={{
-                        position: 'absolute',
-                        top: `${(currentTime.getHours() * 60 + currentTime.getMinutes()) / 60 * 96}px`,
-                        left: 0,
-                        right: 0,
-                        height: '2px',
-                        backgroundColor: 'red',
-                        zIndex: 20
+                  
+                  {[
+                    { label: 'Morning', hours: '06-12', startHour: '06' },
+                    { label: 'Afternoon', hours: '12-17', startHour: '12' },
+                    { label: 'Evening', hours: '17-21', startHour: '17' },
+                    { label: 'Night', hours: '21-00', startHour: '21' }
+                  ].map(period => (
+                    <button 
+                      key={period.hours}
+                      onClick={() => {
+                        const targetHourElement = document.getElementById(`hour-${period.startHour}`);
+                        if (targetHourElement) {
+                          targetHourElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
                       }}
+                      className="px-2 py-1 rounded-md bg-gray-200 text-xs text-gray-700 hover:bg-gray-300 transition-colors flex-shrink-0"
                     >
-                      <div 
-                        className="w-3 h-3 rounded-full bg-red-500 absolute -left-1 -top-1.5"
-                        style={{ boxShadow: '0 0 0 2px white' }}
-                      />
-                    </div>
+                      {period.label} ({period.hours})
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Routine type filter */}
+                <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto border-t border-gray-200">
+                  <div className="flex items-center text-xs text-gray-600 mr-1">
+                    <Filter className="h-4 w-4 mr-1" />
+                    <span>Show:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setRoutineTypeFilter('all')}
+                      className={`px-3 py-1 text-xs rounded-full ${
+                        routineTypeFilter === 'all'
+                          ? 'bg-[#4A2BAF] text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      All Routines
+                    </button>
+                    <button
+                      onClick={() => setRoutineTypeFilter('daily')}
+                      className={`px-3 py-1 text-xs rounded-full ${
+                        routineTypeFilter === 'daily'
+                          ? 'bg-[#4A2BAF] text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      onClick={() => setRoutineTypeFilter('weekday')}
+                      className={`px-3 py-1 text-xs rounded-full ${
+                        routineTypeFilter === 'weekday'
+                          ? 'bg-[#4A2BAF] text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Weekdays
+                    </button>
+                    <button
+                      onClick={() => setRoutineTypeFilter('weekend')}
+                      className={`px-3 py-1 text-xs rounded-full ${
+                        routineTypeFilter === 'weekend'
+                          ? 'bg-[#4A2BAF] text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Weekends
+                    </button>
                   </div>
                 </div>
               </div>
+              
+              {weeklyScheduleData.every(day => day.routines.length === 0) ? (
+                <div className="p-8 text-center">
+                  <div className="text-gray-500 mb-2">No routines match your filter</div>
+                  <button 
+                    onClick={() => setRoutineTypeFilter('all')}
+                    className="text-[#4A2BAF] hover:underline text-sm font-medium"
+                  >
+                    Show all routines
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] relative">
+                  <div className="min-w-[900px] lg:w-full">
+                    {/* Day headers - Sticky */}
+                    <div className="grid grid-cols-8 border-b border-gray-200 sticky top-0 bg-white z-20">
+                      <div className="py-3 px-3 text-center font-medium text-sm text-gray-600 border-r border-gray-200">
+                        Time
+                      </div>
+                      {weeklyScheduleData.map(day => (
+                        <div
+                          key={day.day}
+                          className={`py-3 px-1 text-center ${day.isToday ? 'bg-[#4A2BAF]/5' : ''}`}
+                        >
+                          <div className={`text-sm font-medium ${day.isToday ? 'text-[#4A2BAF]' : 'text-gray-800'}`}>
+                            {day.day}
+                          </div>
+                          <div className={`text-xs ${day.isToday ? 'text-[#4A2BAF]' : 'text-gray-500'}`}>
+                            {day.date.getDate()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Time grid - One row per hour with routines positioned inside */}
+                    <div className="relative">
+                      {/* Create time slots for each hour */}
+                      {Array.from({ length: 24 }).map((_, hourIndex) => {
+                        const hour = hourIndex.toString().padStart(2, '0');
+                        const timeStr = `${hour}:00`;
+                        const isCurrentHour = currentTime.getHours() === hourIndex;
+                        
+                        return (
+                          <div 
+                            id={`hour-${hour}`}
+                            key={`hour-${hour}`} 
+                            className={`grid grid-cols-8 border-b border-gray-200 ${isCurrentHour ? 'bg-[#4A2BAF]/5' : hourIndex % 2 === 0 ? 'bg-gray-50' : ''}`}
+                          >
+                            {/* Time label */}
+                            <div className="py-2 px-2 text-xs font-medium text-gray-600 border-r border-gray-200 h-24 flex flex-col justify-center items-center bg-gray-50">
+                              <span className="text-sm font-semibold">{formatTime(timeStr)}</span>
+                              {isCurrentHour && (
+                                <span className="text-[10px] text-[#4A2BAF] mt-1 bg-[#4A2BAF]/10 px-2 py-0.5 rounded-full">
+                                  NOW
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Day columns */}
+                            {weeklyScheduleData.map(day => (
+                              <div 
+                                key={`${day.day}-${hour}`} 
+                                className={`relative h-24 ${day.isToday ? 'bg-[#4A2BAF]/5' : ''}`}
+                              >
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Overlay routines on the grid */}
+                      {weeklyScheduleData.map((day, dayIndex) => 
+                        day.routines.map(routine => {
+                          // Get start and end times in minutes since midnight
+                          const startMinutes = getMinutesSinceMidnight(routine.startTime);
+                          const endMinutes = getMinutesSinceMidnight(routine.endTime);
+                          const durationMinutes = endMinutes - startMinutes;
+                          
+                          // Flag for short duration routines (less than 30 minutes)
+                          const isShortDuration = durationMinutes < 30;
+                          
+                          // Calculate position and height
+                          const topPosition = (startMinutes / 60) * 96; // 24px per 15min
+                          
+                          // Set minimum height for short routines - increase to make them more visible
+                          const heightValue = isShortDuration 
+                            ? 30 // Increased minimum height for short routines (was 24)
+                            : Math.max(24, (durationMinutes / 60) * 96); // 24px per 15min with minimum
+                          
+                          // Position from left based on day index (add 1 to account for time column)
+                          const leftPosition = `calc(${(dayIndex + 1) * 12.5}% + 4px)`;
+                          const widthValue = `calc(12.5% - 8px)`;
+                          
+                          const isCompleted = routine.status === 'completed' || 
+                            routine.completionData?.history?.some(
+                              h => h.date === day.dateStr && h.completed
+                            );
+                          
+                          const priorityColor = 
+                            routine.priority === 'HIGH' || routine.priority === 'High' ? 'border-red-500' : 
+                            routine.priority === 'MEDIUM' || routine.priority === 'Medium' ? 'border-yellow-500' : 
+                            routine.priority === 'LOW' || routine.priority === 'Low' ? 'border-blue-500' : 
+                            'border-gray-500';
+                          
+                          return (
+                            <div
+                              key={`${routine.id}-${day.day}`}
+                              style={{
+                                position: 'absolute',
+                                top: `${topPosition}px`,
+                                left: leftPosition,
+                                height: `${heightValue}px`,
+                                width: widthValue,
+                                zIndex: 10
+                              }}
+                              className={`rounded-md p-2 flex flex-col shadow-sm overflow-hidden border-l-2 hover:shadow-md transition-shadow group ${
+                                isCompleted
+                                  ? 'bg-green-100 border-green-500'
+                                  : isShortDuration
+                                    ? `bg-[#4A2BAF]/5 ${priorityColor} border-dashed`
+                                    : `bg-[#4A2BAF]/10 ${priorityColor}`
+                              }`}
+                              onClick={() => editRoutine(routine.id)}
+                            >
+                              <div className="font-medium text-xs truncate">{routine.title}</div>
+                              {!isShortDuration && (
+                                <div className="text-gray-600 text-[10px] mt-auto truncate">
+                                  {formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}
+                                </div>
+                              )}
+                              
+                              {/* Detailed tooltip on hover */}
+                              <div className="absolute invisible group-hover:visible bg-white p-2 rounded-md shadow-lg border border-gray-200 left-full ml-2 top-0 w-48 z-30 text-xs">
+                                <div className="font-bold text-gray-800">{routine.title}</div>
+                                <div className="mt-1 text-gray-600">
+                                  <div>{formatTime(routine.startTime || routine.start_time)} - {formatTime(routine.endTime || routine.end_time)}</div>
+                                  <div className="mt-1">
+                                    <span className="font-semibold">Category:</span> {routine.category}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold">Priority:</span> {routine.priority}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold">Status:</span> {routine.status === 'completed' ? 'Completed' : 'Pending'}
+                                  </div>
+                                  {routine.description && (
+                                    <div className="mt-1 border-t border-gray-100 pt-1">
+                                      {routine.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      
+                      {/* Current time indicator */}
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: `${(currentTime.getHours() * 60 + currentTime.getMinutes()) / 60 * 96}px`,
+                          left: 0,
+                          right: 0,
+                          height: '2px',
+                          backgroundColor: 'red',
+                          zIndex: 20
+                        }}
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full bg-red-500 absolute -left-1 -top-1.5"
+                          style={{ boxShadow: '0 0 0 2px white' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-4 py-2 px-4 border-t border-gray-200 mt-2">
@@ -1267,6 +1453,12 @@ const Routines = () => {
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
                   <span className="text-xs text-gray-600">Current Time</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-[#4A2BAF]/5 border-l-2 border-dashed border-gray-500 rounded flex items-center justify-center">
+                    <span className="text-[8px] font-bold text-gray-500">S</span>
+                  </div>
+                  <span className="text-xs text-gray-600">Short Duration (&lt;30 min)</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-2 sm:mt-0 ml-auto">
                   <span>Hover for details · Click to edit</span>
@@ -1299,9 +1491,9 @@ const Routines = () => {
                 </div>
 
                 <div className="p-6 overflow-y-auto">
-                  {/* Force a complete remount of the form component each time to avoid state issues */}
+                  {/* Only remount the form component when editing a different routine */}
                   <RoutineForm
-                    key={`form-${isEditMode ? (editingRoutineId || 'edit') : 'new'}-${Date.now()}`}
+                    key={`form-${isEditMode ? (editingRoutineId || 'edit') : 'new'}`}
                     isEdit={isEditMode}
                     initialValues={routineToEdit}
                     onSubmit={(routineData) => {

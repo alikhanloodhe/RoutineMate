@@ -111,18 +111,23 @@ export const acceptFriend = async (req, res) => {
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
 
   try {
+    // Start a transaction
+    await client.query('BEGIN');
+    
+    // Get the friend request details
     const result = await client.query(
       'SELECT sender_id FROM friend_requests WHERE id = $1',
       [requestId]
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ msg: 'Friend request not found' });
     }
 
     const friend_id = result.rows[0].sender_id;
 
-    // Add friendship (bi-directional) with timestamp
+    // Add bi-directional friendship entries with timestamp
     await client.query(
       `INSERT INTO friends(user_id, friend_id, created_at) 
        VALUES ($1, $2, ${now})`, 
@@ -135,16 +140,21 @@ export const acceptFriend = async (req, res) => {
       [friend_id, user_id]
     );
 
-    // Update the friend request status to accepted with timestamp
+    // Update the friend request status
     await client.query(
       `UPDATE friend_requests 
-       SET status = $1, updated_at = ${now} 
+       SET status = $1
        WHERE id = $2`, 
       ['accepted', requestId]
     );
 
+    // Commit the transaction
+    await client.query('COMMIT');
+    
     res.status(201).json({ msg: 'Friend Added Successfully' });
   } catch (error) {
+    // Rollback in case of error
+    await client.query('ROLLBACK');
     console.error('Error:', error);
     res.status(500).json({ msg: 'Failed to accept friend request' });
   } finally {

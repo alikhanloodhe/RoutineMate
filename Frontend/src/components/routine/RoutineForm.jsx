@@ -74,7 +74,8 @@ const RoutineForm = ({
       // Set status
       setStatus(initialValues.status || 'pending');
     }
-  }, [initialValues]); // Add initialValues as dependency to re-run when editing different routines
+  // Only run on initial mount and when initialValues or initialValues.id changes  
+  }, [initialValues?.id, initialValues?.routine_id, isEdit]);
 
   // Validate routine details
   const validateRoutineDetails = () => {
@@ -92,6 +93,12 @@ const RoutineForm = ({
       const end = new Date(`2000-01-01T${endTime}`);
       if (start >= end) {
         newErrors.endTime = 'End time must be after start time';
+      } else {
+        // Check for short duration (less than 30 minutes)
+        const durationMinutes = (end - start) / (1000 * 60);
+        if (durationMinutes < 30) {
+          newErrors.shortDuration = 'Short routines (<30 min) will display differently in the schedule view';
+        }
       }
     }
     
@@ -100,7 +107,8 @@ const RoutineForm = ({
     }
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 || 
+           (Object.keys(newErrors).length === 1 && newErrors.shortDuration);
   };
 
   // Toggle day selection
@@ -300,6 +308,16 @@ const RoutineForm = ({
             )}
           </div>
         </div>
+        
+        {/* Short Duration Warning */}
+        {errors.shortDuration && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-3">
+            <div className="flex items-center text-amber-600 text-sm">
+              <AlertCircle size={18} className="mr-2" />
+              <span>{errors.shortDuration}</span>
+            </div>
+          </div>
+        )}
         
         {/* Time Conflict Warning */}
         {errors.timeConflict && (

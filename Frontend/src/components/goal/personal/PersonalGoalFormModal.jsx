@@ -19,6 +19,10 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const [milestoneDueDate, setMilestoneDueDate] = useState('');
   const [currentMilestoneIndex, setCurrentMilestoneIndex] = useState(null);
   const [reminderAt, setReminderAt] = useState('');
+
+  // Error states
+  const [dateErrors, setDateErrors] = useState({ goal: '', milestone: '' });
+  
   // Set form values when editing an existing goal
   useEffect(() => {
     if (goal) {
@@ -46,6 +50,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     setVisibility('private');
     setStatus('pending');
     setMilestones([]);
+    setDateErrors({ goal: '', milestone: '' });
     resetMilestoneForm();
   };
 
@@ -56,6 +61,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     setMilestoneDueDate('');
     setCurrentMilestoneIndex(null);
     setShowMilestoneForm(false);
+    setDateErrors(prev => ({ ...prev, milestone: '' }));
   };
 
   // Open milestone form for new milestone
@@ -81,11 +87,97 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     );
   };
 
+  // Validate milestone date
+  const validateMilestoneDate = (dueDate) => {
+    if (!startDate) return true; // Can't validate if no goal start date set
+    
+    const goalStartDate = new Date(startDate);
+    const goalEndDate = endDate ? new Date(endDate) : null;
+    const milestoneDueDateTime = new Date(dueDate);
+    
+    if (milestoneDueDateTime < goalStartDate) {
+      setDateErrors(prev => ({ ...prev, milestone: 'Milestone due date cannot be earlier than goal start date' }));
+      return false;
+    }
+    
+    if (goalEndDate && milestoneDueDateTime > goalEndDate) {
+      setDateErrors(prev => ({ ...prev, milestone: 'Milestone due date cannot be later than goal end date' }));
+      return false;
+    }
+    
+    setDateErrors(prev => ({ ...prev, milestone: '' }));
+    return true;
+  };
+
+  // Validate goal dates
+  const validateGoalDates = () => {
+    if (!startDate || !endDate) return false;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (end < start) {
+      setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      return false;
+    }
+    
+    setDateErrors(prev => ({ ...prev, goal: '' }));
+    return true;
+  };
+
+  // Handle start date change
+  const handleStartDateChange = (e) => {
+    const newStartDate = e.target.value;
+    setStartDate(newStartDate);
+    
+    // Validate end date if it exists
+    if (endDate) {
+      const start = new Date(newStartDate);
+      const end = new Date(endDate);
+      
+      if (end < start) {
+        setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      } else {
+        setDateErrors(prev => ({ ...prev, goal: '' }));
+      }
+    }
+  };
+
+  // Handle end date change
+  const handleEndDateChange = (e) => {
+    const newEndDate = e.target.value;
+    setEndDate(newEndDate);
+    
+    // Validate against start date
+    if (startDate) {
+      const start = new Date(startDate);
+      const end = new Date(newEndDate);
+      
+      if (end < start) {
+        setDateErrors(prev => ({ ...prev, goal: 'End date cannot be earlier than start date' }));
+      } else {
+        setDateErrors(prev => ({ ...prev, goal: '' }));
+      }
+    }
+  };
+
+  // Handle milestone due date change
+  const handleMilestoneDateChange = (e) => {
+    const newDueDate = e.target.value;
+    setMilestoneDueDate(newDueDate);
+    validateMilestoneDate(newDueDate);
+  };
+
   // Save milestone
   const handleSaveMilestone = () => {
     if (!milestoneTitle.trim()) {
       alert('Please enter a milestone title');
       return;
+    }
+
+    // Validate milestone due date against goal dates
+    if (milestoneDueDate && !validateMilestoneDate(milestoneDueDate)) {
+      return; // Stop if validation fails
     }
 
     const newMilestone = {
@@ -129,6 +221,11 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       return;
     }
 
+    // Validate goal dates
+    if (!validateGoalDates()) {
+      return; // Stop if validation fails
+    }
+
     const goalData = {
       goal_id: goal?.goal_id, // Only included when editing
       title,
@@ -154,7 +251,9 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     onClose();
   };
   const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return ''; // Return empty string if invalid date
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -259,24 +358,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
 
                       </select>
                     </div>
-                    
-                    {/* Status */}
-                    {/* <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="paused">Paused</option>
-                      </select>
-                    </div>
-                  </div> */}
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* Start Date */}
@@ -287,8 +369,8 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       <input
                         type="date"
                         value={formatDateForInput(startDate)}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        onChange={handleStartDateChange}
+                        className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
                       />
                     </div>
@@ -301,53 +383,15 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       <input
                         type="date"
                         value={formatDateForInput(endDate)}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                        onChange={handleEndDateChange}
+                        className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
                       />
+                      
+                      {dateErrors.goal && (
+                        <p className="text-red-500 text-xs mt-1">{dateErrors.goal}</p>
+                      )}
                     </div>
-                  </div>
-                  
-                  {/* Visibility */}
-                  {/* <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Visibility
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="visibility"
-                          value="private"
-                          checked={visibility === 'private'}
-                          onChange={() => setVisibility('private')}
-                          className="mr-2 text-[#4A2BAF] focus:ring-[#4A2BAF]"
-                        />
-                        Private
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="visibility"
-                          value="friends"
-                          checked={visibility === 'friends'}
-                          onChange={() => setVisibility('friends')}
-                          className="mr-2 text-[#4A2BAF] focus:ring-[#4A2BAF]"
-                        />
-                        Friends
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="visibility"
-                          value="public"
-                          checked={visibility === 'public'}
-                          onChange={() => setVisibility('public')}
-                          className="mr-2 text-[#4A2BAF] focus:ring-[#4A2BAF]"
-                        />
-                        Public
-                      </label>
-                    </div> */}
                   </div>
                   
                   {/* Milestones Section */}
@@ -417,23 +461,26 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                           <input
                             type="date"
                             value={milestoneDueDate}
-                            onChange={(e) => setMilestoneDueDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
+                            onChange={handleMilestoneDateChange}
+                            className={`w-full px-3 py-2 border ${dateErrors.milestone ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm`}
                           />
+                          {dateErrors.milestone && (
+                            <p className="text-red-500 text-xs mt-1">{dateErrors.milestone}</p>
+                          )}
                         </div>
                          
-                  {/* Reminder */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Set Reminder (Optional)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={reminderAt}
-                      onChange={(e) => setReminderAt(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
-                    />
-                  </div>
+                        {/* Reminder */}
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Set Reminder (Optional)
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={reminderAt}
+                            onChange={(e) => setReminderAt(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                          />
+                        </div>
                         
                         <div className="flex justify-end gap-2">
                           <button

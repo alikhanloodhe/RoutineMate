@@ -6,7 +6,7 @@ import GoalFormModal from './PersonalGoalFormModal';
 import { addGoal, updateGoal, deleteGoal } from '../../../utils/goalData';
 import { useToastContext } from '../../../context/ToastContext';
 
-const PersonalGoalsTab = ({ goals, onViewGoal }) => {
+const PersonalGoalsTab = ({ goals, onViewGoal, refreshGoals }) => {
   const { successToast, errorToast, infoToast } = useToastContext();
   const [showFormModal, setShowFormModal] = useState(false);
   const [currentGoal, setCurrentGoal] = useState(null);
@@ -51,16 +51,12 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
         successToast('Goal deleted successfully');
         // Reset confirmation state
         setShowConfirmDelete(null);
+        // Refresh goals list after successful deletion
+        refreshGoals();
       }
       catch (error) {
         console.error('Error deleting goal:', error);
         errorToast('Failed to delete goal. Please try again.');
-      }
-      
-      if (deletedGoal) {
-        // You would typically need to update the parent component's state
-        // This is handled by the parent component's state management
-        // But we could emit an event to the parent if needed
       }
     } else {
       setShowConfirmDelete(goal.goal_id);
@@ -87,6 +83,8 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
             throw new Error('Network response was not ok');
           }
           successToast('Goal updated successfully');
+          // Refresh goals list after successful update
+          refreshGoals();
         }
         catch (error) {
           console.error('Error updating goal:', error);
@@ -112,6 +110,8 @@ const PersonalGoalsTab = ({ goals, onViewGoal }) => {
             throw new Error('Network response was not ok');
           }
           successToast('New goal created successfully');
+          // Refresh goals list after successful creation
+          refreshGoals();
         }
         catch (error) {
           console.error('Error adding goal:', error);
