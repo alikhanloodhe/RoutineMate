@@ -113,7 +113,7 @@ const updateHabit = async (req, res) => {
   try {
     const habitId = req.params.id;
     const userId = req.user.id;
-    const {
+    let {
       title,
       description,
       frequency,
@@ -137,6 +137,30 @@ const updateHabit = async (req, res) => {
       return res.status(404).json({ message: 'Habit not found or not authorized' });
     }
     
+    // Process the category_id - convert empty string to null and validate type
+    if (category_id === '' || category_id === undefined || category_id === 'null' || category_id === null) {
+      category_id = null;
+    } else {
+      // Make sure the category_id is a number if provided
+      const categoryIdNum = parseInt(category_id, 10);
+      if (isNaN(categoryIdNum)) {
+        return res.status(400).json({ message: 'Invalid category ID format' });
+      }
+      category_id = categoryIdNum;
+    }
+    
+    // Process total_target_days - convert empty string to null and validate type
+    if (total_target_days === '' || total_target_days === undefined || total_target_days === 'null') {
+      total_target_days = null;
+    } else if (total_target_days !== null) {
+      // Convert to number if not null
+      const daysNum = parseInt(total_target_days, 10);
+      if (isNaN(daysNum)) {
+        return res.status(400).json({ message: 'Invalid total target days format' });
+      }
+      total_target_days = daysNum;
+    }
+    
     // Update the habit
     const updateQuery = `
       UPDATE habits
@@ -148,8 +172,8 @@ const updateHabit = async (req, res) => {
         why_reason = COALESCE($5, why_reason),
         start_date = COALESCE($6, start_date),
         goal_type = COALESCE($7, goal_type),
-        total_target_days = COALESCE($8, total_target_days),
-        category_id = COALESCE($9, category_id),
+        total_target_days = $8,
+        category_id = $9,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $10 AND user_id = $11
       RETURNING *
@@ -184,30 +208,56 @@ const deleteHabit = async (req, res) => {
     const habitId = req.params.id;
     const userId = req.user.id;
     
-    // Validate ownership
-    const checkQuery = `
+    // First, get the habit details to have the title for activity logging
+    const getHabitQuery = `
       SELECT * FROM habits
       WHERE id = $1 AND user_id = $2
     `;
     
-    const checkResult = await db.query(checkQuery, [habitId, userId]);
+    const habitResult = await db.query(getHabitQuery, [habitId, userId]);
     
-    if (checkResult.rows.length === 0) {
+    if (habitResult.rows.length === 0) {
       return res.status(404).json({ message: 'Habit not found or not authorized' });
     }
     
-    // Delete the habit
+    const habitData = habitResult.rows[0];
+    
+    // Manual activity logging before deletion
+    try {
+      // Only proceed with deletion if we got the title
+      if (!habitData.title) {
+        return res.status(400).json({ message: 'Habit title is required for deletion' });
+      }
+      
+      const logQuery = `
+        INSERT INTO user_activity_log (user_id, activity_type, activity_id, title, operation)
+        VALUES ($1, $2, $3, $4, $5)
+      `;
+      
+      await db.query(logQuery, [
+        userId,
+        'habit',
+        habitId,
+        habitData.title,
+        'Deleted'
+      ]);
+    } catch (logError) {
+      console.error('Error logging habit deletion:', logError);
+      // Continue with deletion even if logging fails
+    }
+    
+    // Now delete the habit
     const deleteQuery = `
       DELETE FROM habits
       WHERE id = $1 AND user_id = $2
-      RETURNING *
+      RETURNING id
     `;
     
-    const result = await db.query(deleteQuery, [habitId, userId]);
+    await db.query(deleteQuery, [habitId, userId]);
     
     res.status(200).json({
       message: 'Habit successfully deleted',
-      habit: result.rows[0]
+      habit: habitData
     });
   } catch (error) {
     console.error('Error deleting habit:', error);

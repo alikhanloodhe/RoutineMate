@@ -29,6 +29,7 @@ const HabitPage = () => {
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [viewMode, setViewMode] = useState('dashboard'); // 'dashboard' or 'detail'
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const { successToast, errorToast, infoToast } = useToastContext();
   const navigate = useNavigate();
@@ -228,7 +229,10 @@ const HabitPage = () => {
   };
   
   const handleDeleteHabit = async () => {
+    if (submitting) return; // Prevent multiple submissions
+    
     if (showConfirmDelete) {
+      setSubmitting(true);
       try {
         // Get API URL and token
         const apiUrl = getApiUrl();
@@ -267,6 +271,8 @@ const HabitPage = () => {
         
         // Show error toast
         errorToast("Failed to delete habit. Please try again.");
+      } finally {
+        setSubmitting(false);
       }
     } else {
       setShowConfirmDelete(true);
@@ -441,6 +447,9 @@ const HabitPage = () => {
   };
   
   const handleUpdateHabit = async (formData) => {
+    if (submitting) return; // Prevent multiple submissions
+    
+    setSubmitting(true);
     try {
       const apiUrl = getApiUrl();
       const token = getToken();
@@ -493,6 +502,8 @@ const HabitPage = () => {
       
       // Show error toast
       errorToast(`Failed to ${formData.id ? 'update' : 'create'} habit. Please try again.`);
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -564,7 +575,10 @@ const HabitPage = () => {
           title="Add New Habit"
           size="lg"
         >
-          <HabitForm onSubmit={handleUpdateHabit} />
+          <HabitForm 
+            onSubmit={handleUpdateHabit} 
+            isSubmitting={submitting}
+          />
         </Modal>
         
         {/* Edit Habit Modal */}
@@ -577,6 +591,7 @@ const HabitPage = () => {
           <HabitForm 
             habit={selectedHabit} 
             onSubmit={handleUpdateHabit} 
+            isSubmitting={submitting}
           />
         </Modal>
         
@@ -593,14 +608,16 @@ const HabitPage = () => {
                 <button
                   onClick={() => setShowConfirmDelete(false)}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteHabit}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  disabled={submitting}
                 >
-                  Delete
+                  {submitting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
