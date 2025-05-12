@@ -10,15 +10,7 @@ export const addPost = async (req, res) => {
   const user_id = req.user.id;
   const goal_id = req.params.goalId;
   
-  console.log('------ POST REQUEST DEBUG ------');
-  console.log(`Processing post request for goal ${goal_id}`);
-  console.log('Request headers:', req.headers);
-  console.log('Request file:', req.file);
-  console.log('Request files array:', req.files);
-  console.log('Request body:', req.body);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('--------------------------------');
-  
+
   // Validate required fields
   if (!goal_id || !content) {
     return res.status(400).json({ error: 'Goal ID and content are required' });
@@ -164,7 +156,7 @@ export const getPosts = async (req, res) => {
     // Get all posts for this goal with user info
     const postsResult = await pool.query(
       `SELECT gp.*, u.name as user_name, u.email as user_email,
-        (SELECT COUNT(*) FROM goal_likes WHERE post_id = gp.post_id) as likes_count,
+        (getlikes(gp.post_id)) as likes_count,
         EXISTS(SELECT 1 FROM goal_likes WHERE post_id = gp.post_id AND user_id = $1) as liked_by_user,
         (SELECT COUNT(*) FROM goal_comments WHERE post_id = gp.post_id) as comments_count
        FROM goal_posts gp
@@ -409,7 +401,7 @@ export const updatePost = async (req, res) => {
     // Get updated post with user info, likes count, and comments count
     const updatedPostResult = await client.query(
       `SELECT gp.*, u.name as user_name, u.email as user_email,
-        (SELECT COUNT(*) FROM goal_likes WHERE post_id = gp.post_id) as likes_count,
+        (getlikes(gp.post_id)) as likes_count,
         EXISTS(SELECT 1 FROM goal_likes WHERE post_id = gp.post_id AND user_id = $1) as liked_by_user,
         (SELECT COUNT(*) FROM goal_comments WHERE post_id = gp.post_id) as comments_count
        FROM goal_posts gp
@@ -644,7 +636,7 @@ export const toggleLike = async (req, res) => {
     
     // Get updated likes count
     const likesCountResult = await client.query(
-      'SELECT COUNT(*) as likes_count FROM goal_likes WHERE post_id = $1',
+      'SELECT getlikes($1) as likes_count',
       [postId]
     );
     

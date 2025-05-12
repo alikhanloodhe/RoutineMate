@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 import { getClientAdjustedTime, parseClientDate } from '../utils/timeUtils.js';
 
 export const addGoal = async (req, res) => {
-    console.log('Request body:', req.body); // Log the request body for debugging
+
     const {title,description,category,start_date,end_date,milestones,progress,goal_type } = req.body;
     const user_id = req.user.id; // Assuming you have user ID from authentication middleware
 
@@ -200,7 +200,6 @@ export const fetchGoalById = async (req, res) => {
         };
       })
     );
-    console.log('Fetched Actiitees in goal by id',activitiesWithPhotos);
     const fullGoal = {
       goal_id: goal.goal_id,
       title: goal.title,
@@ -233,10 +232,7 @@ export const updateMilestone = async (req, res) => {
   const { goalId, milestoneId } = req.params;
   const userId = req.user.id;
   const updateData = req.body;
-  console.log('Goal ID:', goalId);
-  console.log('Milestone ID:', milestoneId);
-  console.log('Update data:', updateData); // Log the update data for debugging
-  
+
   // Get timezone-adjusted timestamp functions
   const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
   
@@ -469,7 +465,6 @@ export const updateMilestone = async (req, res) => {
 // };
 export const updateGoal = async (req, res) => {
     const { goalId } = req.params;
-    console.log(goalId);
     const {
       title,
       description,
@@ -481,7 +476,7 @@ export const updateGoal = async (req, res) => {
       progress,
       milestones,
     } = req.body;
-    console.log(req.body);
+
     const user_id = req.user.id; 
     
     // Get timezone-adjusted timestamp functions

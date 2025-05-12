@@ -119,9 +119,7 @@ export const updateGroupGoals = async (req, res) => {
     } = req.body;
     
     const user_id = req.user.id;
-    console.log(user_id);
-    console.log(req.body);
-    
+
     // Begin transaction
     const client = await pool.connect();
     
@@ -218,8 +216,6 @@ export const updateGroupGoals = async (req, res) => {
             }
         }
         
-        // 4. Update milestones if provided
-        console.log(milestones);
         if (Array.isArray(milestones) && milestones.length > 0) {
             // For simplicity, we're just adding new milestones
             // A more sophisticated approach would involve comparing existing milestones
@@ -329,7 +325,6 @@ export const fetchGroupGoals = async (req, res) => {
 export const fetchGroupGoalById = async (req, res) => {
     const userId = req.user.id;
     const { goalId } = req.params;
-    // console.log('Fetching group goal with ID:', goalId);
 
     try {
         // Check if the user is a member of this goal
@@ -534,7 +529,6 @@ async function fetchFullGroupGoal(client, goalId) {
 
 export const addMember = async (req, res) => {
     const user_id = req.user.id; // From authentication middleware
-    console.log('Adding member to group goal', req.body);
     const { goalId } = req.params;
     const { members } = req.body; // Expecting an array of member objects with id and role
     const client = await pool.connect();
@@ -687,10 +681,7 @@ export const updateMilestone = async (req, res) => {
     const { goalId, milestoneId } = req.params;
     const userId = req.user.id;
     const updateData = req.body;
-    console.log('Goal ID:', goalId);
-    console.log('Milestone ID:', milestoneId);
-    console.log('Update data:', updateData);
-    
+
     const client = await pool.connect();
     
     try {

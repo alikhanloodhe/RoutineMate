@@ -27,8 +27,7 @@ const getTrackingByHabit = async (req, res) => {
     `;
     
     const result = await db.query(query, [habitId, userId]);
-    console.log(`Found ${result.rows.length} tracking records for habit ${habitId}`);
-    
+
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching habit tracking:', error);
@@ -53,8 +52,6 @@ const getTrackingByDate = async (req, res) => {
       formattedDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
     }
     
-    console.log(`Fetching tracking for date: raw=${date}, formatted=${formattedDate}`);
-    
     const query = `
       SELECT ht.id, ht.habit_id, ht.user_id, ht.date::text, ht.completed, ht.created_at, h.title, h.frequency
       FROM habit_tracking ht
@@ -63,7 +60,6 @@ const getTrackingByDate = async (req, res) => {
     `;
     
     const result = await db.query(query, [formattedDate, userId]);
-    console.log(`Found ${result.rows.length} tracking records for date ${formattedDate}`);
     
     res.status(200).json(result.rows);
   } catch (error) {
@@ -93,8 +89,7 @@ const toggleCompletion = async (req, res) => {
       formattedDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
     }
     
-    console.log(`Processing toggle request: habit_id=${habit_id}, raw date=${date}, formatted date=${formattedDate}, completed=${completed}`);
-    
+
     // Verify that the habit belongs to the user
     const checkHabitQuery = `
       SELECT * FROM habits
@@ -138,7 +133,6 @@ const toggleCompletion = async (req, res) => {
       result = await db.query(insertQuery, [habit_id, userId, formattedDate, completed]);
     }
     
-    console.log('Toggle completion result:', result.rows[0]);
     res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error('Error toggling habit completion:', error);
@@ -168,7 +162,7 @@ const createTracking = async (req, res) => {
       formattedDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
     }
     
-    console.log(`Creating tracking record: habit_id=${habit_id}, raw date=${date}, formatted date=${formattedDate}`);
+
     
     // Verify that the habit belongs to the user
     const checkHabitQuery = `

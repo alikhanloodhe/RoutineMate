@@ -2,10 +2,9 @@ import pool from '../config/db.js';
 import { getClientAdjustedTime, parseClientDate } from '../utils/timeUtils.js';
 
 export const addTask = async (req, res) => {
-  console.log("Received:", req.body);
+
   const user_id = req.user.id; 
-  console.log(req.body);
-  // const { title, description, type, user_id, dueDate, priority_id, tags, subTasks } = req.body;
+
   const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
   // Get timezone-adjusted timestamp functions
@@ -38,23 +37,22 @@ export const addTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
-    console.log('Using estimated_time:', task_estimated_time);
-    
+
     // 2. Insert task
     const insertTaskResult = await client.query(
       'INSERT INTO tasks(user_id,name, description,category_id, priority_id,status,estimated_time,due_date) VALUES($1, $2, $3,$4, $5, $6, $7,$8) RETURNING task_id',
       [user_id, name, description, category_id, priority_id, status, task_estimated_time, dueDate]
     );
     const task_id = insertTaskResult.rows[0].task_id;
-    console.log('Inserted task with ID:', task_id);
 
-    console.log(subtasks);
+
+
     // 4. Insert subtasks
     if (Array.isArray(subtasks) && subtasks.length > 0) {
       for (let i = 0; i < subtasks.length; i++) {
         await client.query(
           'INSERT INTO subtasks(task_id, name, status) VALUES($1, $2, $3)',
-          [task_id, subtasks[i].name, subtasks[i].status]
+          [task_id, subtasks[i].title || subtasks[i].name, subtasks[i].status || (subtasks[i].completed ? 'completed' : 'pending')]
         );
       }
     }
@@ -222,7 +220,6 @@ export const deleteTask = async (req, res) => {
 export const editTask = async (req, res) => {
   const user_id = req.user.id;
   const { task_id } = req.params;
-  console.log('Received', req.body); 
   const { title, name, description, dueDate, priority, category, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
   // Get timezone-adjusted timestamp functions
@@ -282,8 +279,6 @@ export const editTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
-    console.log('Using estimated_time:', task_estimated_time);
-    
     // Update task - use timezone-adjusted timestamp
     await client.query(
       `UPDATE tasks 
@@ -328,7 +323,6 @@ export const editTask = async (req, res) => {
 export const startSession = async (req, res) => {
   const { taskId } = req.body;
   const userId = req.user.id;
-  console.log('I am in start session')
   
   // Get timezone-adjusted timestamp functions
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
@@ -343,7 +337,6 @@ export const startSession = async (req, res) => {
     
     // If there's already an active session, return it
     if (activeSession.rows.length > 0) {
-      console.log('A session in progress');
       return res.status(200).json({
         message: 'Session already in progress',
         session_id: activeSession.rows[0]
@@ -371,29 +364,30 @@ export const startSession = async (req, res) => {
 export const endSession = async (req, res) => {
   const { sessionId, taskId, duration } = req.body;
   const userId = req.user.id;
-  console.log('Ending session with data:', req.body);
 
   // Get timezone-adjusted timestamp functions
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
-
+ 
+  const client =  await pool.connect();
   try {
     let result;
-    
+     await client.query('BEGIN')
     // If sessionId is provided, end that specific session
     if (sessionId) {
       // Calculate duration based on start and end times
-      const sessionData = await pool.query(
+      const sessionData = await client.query(
         `SELECT start_time FROM task_sessions 
          WHERE session_id = $1 AND user_id = $2 AND end_time IS NULL`,
         [sessionId, userId]
       );
       
       if (sessionData.rows.length === 0) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Session not found or already ended' });
       }
       
       // Set end_time to now with timezone adjustment
-      result = await pool.query(
+      result = await client.query(
         `UPDATE task_sessions
          SET end_time = ${now}
          WHERE session_id = $1 AND user_id = $2 AND end_time IS NULL
@@ -404,7 +398,7 @@ export const endSession = async (req, res) => {
     // If taskId is provided, end the latest active session for that task
     else if (taskId && !duration) {
       // Calculate duration based on start and end times for the latest session
-      const sessionData = await pool.query(
+      const sessionData = await client.query(
         `SELECT session_id, start_time FROM task_sessions 
          WHERE task_id = $1 AND user_id = $2 AND end_time IS NULL
          ORDER BY start_time DESC LIMIT 1`,
@@ -412,10 +406,11 @@ export const endSession = async (req, res) => {
       );
       
       if (sessionData.rows.length === 0) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'No active session found for this task' });
       }
       
-      result = await pool.query(
+      result = await client.query(
         `UPDATE task_sessions
          SET end_time = ${now}
          WHERE session_id = $1 AND end_time IS NULL
@@ -429,7 +424,7 @@ export const endSession = async (req, res) => {
       const durationInSeconds = durationObj.totalSeconds;
       
       // Calculate start time by subtracting duration from current time
-      result = await pool.query(
+      result = await client.query(
         `INSERT INTO task_sessions (task_id, user_id, start_time, end_time)
          VALUES ($1, $2, ${now} - INTERVAL '${durationInSeconds} seconds', ${now})
          RETURNING session_id, start_time, end_time, duration`,
@@ -437,20 +432,26 @@ export const endSession = async (req, res) => {
       );
     }
     else {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Missing required parameters: either sessionId, taskId, or both taskId and duration are required' });
     }
 
     if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Session not found or already ended' });
     }
 
+    await client.query('COMMIT'); // Commiting  the transcation if all operations are performed successfully
     res.status(200).json({
       message: 'Session ended successfully',
       sessionData: result.rows[0]
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error ending session:', error);
     res.status(500).json({ error: 'Failed to end session', details: error.message });
+  }finally{
+    client.release();
   }
 };
 
@@ -478,9 +479,6 @@ function parseHumanReadableDuration(durationStr) {
     minutes = parseInt(minutesMatch[1], 10);
     totalSeconds += minutes * 60;
   }
-  
-  console.log(`Parsed duration "${durationStr}" to ${hours}h ${minutes}m (${totalSeconds} seconds)`);
-  
   return {
     totalSeconds,
     hours,
@@ -595,14 +593,7 @@ export const fetchTaskHistory = async (req, res) => {
     
     // Process tasks to add performance indicators
     const tasks = tasksResult.rows.map(task => {
-      // Debug logging
-      console.log('Task time data:', {
-        taskId: task.task_id,
-        name: task.name,
-        estimated_time: task.estimated_time,
-        actual_time: task.actual_time
-      });
-      
+  
       // Calculate performance based on estimated vs actual time
       let performance = 'On Track';
       
@@ -723,7 +714,7 @@ export const handleSaveEdit = async (editedTask) => {
   try {
     setIsLoading(true);
     
-    console.log('Saving task:', editedTask);
+
     
     // Make sure estimated_time is properly formatted
     let estimated_time = editedTask.estimated_time;

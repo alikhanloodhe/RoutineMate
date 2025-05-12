@@ -11,8 +11,6 @@ export const addActivityWithPhoto = async (req, res) => {
   const user_id = req.user.id;
   const goalId = req.params.goalId;
   
-  console.log(`Processing request with ${req.files ? req.files.length : 0} photos`);
-  
   // Validate required fields
   if (!goalId || !title) {
     return res.status(400).json({ error: 'Goal ID and title are required' });
@@ -44,7 +42,6 @@ export const addActivityWithPhoto = async (req, res) => {
     // Check if uploads directory exists, if not create it
     if (req.files && req.files.length > 0) {
       if (!fs.existsSync('uploads')) {
-        console.log('Creating uploads directory');
         fs.mkdirSync('uploads', { recursive: true });
       }
     }
@@ -64,13 +61,9 @@ export const addActivityWithPhoto = async (req, res) => {
     const uploadedPhotos = [];
     
     // Process multiple photos if they exist
-    if (req.files && req.files.length > 0) {
-      console.log(`Processing ${req.files.length} photos`);
-      
+    if (req.files && req.files.length > 0) { 
       for (const file of req.files) {
         try {
-          console.log(`Uploading file: ${file.path}`);
-          
           // Check if file exists before attempting to upload
           if (!fs.existsSync(file.path)) {
             console.error(`File not found: ${file.path}`);
@@ -81,9 +74,7 @@ export const addActivityWithPhoto = async (req, res) => {
           const result = await cloudinary.uploader.upload(file.path, {
             folder: 'activities',
           });
-          
-          console.log('Cloudinary result:', result.secure_url);
-          
+
           // Save photo URL to database
           const photoRes = await client.query(
             `INSERT INTO activity_photos (activity_id, photo_url)
@@ -93,7 +84,6 @@ export const addActivityWithPhoto = async (req, res) => {
           );
           
           uploadedPhotos.push(photoRes.rows[0]);
-          console.log(`Photo saved to database: ${photoRes.rows[0].photo_url}`);
           
           // Delete local temp file
           try {
@@ -110,7 +100,6 @@ export const addActivityWithPhoto = async (req, res) => {
     
     // Add photos to activity object
     activity.photos = uploadedPhotos;
-    console.log(`Total photos uploaded: ${uploadedPhotos.length}`);
 
     await client.query('COMMIT');
     res.status(201).json({ 
@@ -171,7 +160,6 @@ export const getActivitiesByGoal = async (req, res) => {
         };
       })
     );
-    console.log(activitiesWithPhotos);
 
     res.status(200).json(activitiesWithPhotos);
   } catch (err) {
@@ -213,7 +201,6 @@ export const getActivityById = async (req, res) => {
     );
 
     activity.photos = photosResult.rows;
-    console.log('Activity:', activity);
     res.status(200).json(activity);
   } catch (err) {
     console.error('Error fetching activity:', err);
@@ -263,11 +250,9 @@ export const deleteActivity = async (req, res) => {
             ? publicIdWithVersion.split('/').slice(1).join('/') // Get 'activities/abcdef123456'
             : publicIdWithVersion;
           
-          console.log(`Attempting to delete Cloudinary image with public ID: ${publicId}`);
           
           // Delete from Cloudinary
           const deletionResult = await cloudinary.uploader.destroy(publicId);
-          console.log(`Cloudinary deletion result:`, deletionResult);
         } catch (cloudinaryErr) {
           // Log error but continue with deletion process
           console.error('Error deleting photo from Cloudinary:', cloudinaryErr);
@@ -313,15 +298,10 @@ export const updateActivity = async (req, res) => {
   if (req.body.removedPhotoIds) {
     try {
       removedPhotoIds = JSON.parse(req.body.removedPhotoIds);
-      console.log('Photo IDs to remove:', removedPhotoIds);
     } catch (e) {
       console.error('Error parsing removedPhotoIds:', e);
     }
   }
-  
-  console.log('Updating activity:', { activityId, title, description, mood });
-  console.log('New photos count:', photos ? photos.length : 0);
-  console.log('Photos to remove count:', removedPhotoIds.length);
 
   // Validate mood if provided
   if (mood) {
@@ -382,7 +362,6 @@ export const updateActivity = async (req, res) => {
         [removedPhotoIds]
       );
       
-      console.log(`Found ${photosToRemove.rows.length} photos to remove`);
       
       // Delete photos from Cloudinary
       for (const photo of photosToRemove.rows) {
@@ -396,11 +375,9 @@ export const updateActivity = async (req, res) => {
             ? publicIdWithVersion.split('/').slice(1).join('/') // Get 'activities/abcdef123456'
             : publicIdWithVersion;
           
-          console.log(`Attempting to delete Cloudinary image with public ID: ${publicId}`);
           
           // Delete from Cloudinary
           const deletionResult = await cloudinary.uploader.destroy(publicId);
-          console.log(`Cloudinary deletion result:`, deletionResult);
         } catch (cloudinaryErr) {
           console.error('Error deleting photo from Cloudinary:', cloudinaryErr);
         }
@@ -423,7 +400,6 @@ export const updateActivity = async (req, res) => {
       
       for (const file of photos) {
         try {
-          console.log(`Uploading file: ${file.path}`);
           
           // Check if file exists
           if (!fs.existsSync(file.path)) {
