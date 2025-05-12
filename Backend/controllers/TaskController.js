@@ -7,6 +7,10 @@ export const addTask = async (req, res) => {
 
   const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
+  // Debug logging for the request body
+  console.log('Request body in addTask:', req.body);
+  console.log('Due date from request:', dueDate);
+
   // Get timezone-adjusted timestamp functions
   const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
 
@@ -37,6 +41,15 @@ export const addTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
+    // Debug log right before database insert
+    console.log('Values before DB insert:');
+    console.log('- name:', name);
+    console.log('- description:', description);
+    console.log('- category_id:', category_id);
+    console.log('- priority_id:', priority_id);
+    console.log('- status:', status);
+    console.log('- estimated_time:', task_estimated_time);
+    console.log('- dueDate:', dueDate);
 
     // 2. Insert task
     const insertTaskResult = await client.query(
@@ -222,6 +235,10 @@ export const editTask = async (req, res) => {
   const { task_id } = req.params;
   const { title, name, description, dueDate, priority, category, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
+  // Debug logging for request parameters
+  console.log('Edit task request body:', req.body);
+  console.log('Due date in edit task:', dueDate);
+
   // Get timezone-adjusted timestamp functions
   const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
 
@@ -278,6 +295,17 @@ export const editTask = async (req, res) => {
       const minutes = Number(estimatedMinutes || 0);
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
+    
+    // Debug log before database update
+    console.log('Values before DB update:');
+    console.log('- task_id:', task_id);
+    console.log('- name:', taskName);
+    console.log('- description:', description);
+    console.log('- due_date:', dueDate);
+    console.log('- priority_id:', priority_id);
+    console.log('- category_id:', category_id);
+    console.log('- status:', status);
+    console.log('- estimated_time:', task_estimated_time);
     
     // Update task - use timezone-adjusted timestamp
     await client.query(
