@@ -86,7 +86,7 @@ export const fetchTasks = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const result = await client.query(`
+     const result = await client.query(`
       SELECT 
         t.task_id,
         t.name AS title,
@@ -97,58 +97,45 @@ export const fetchTasks = async (req, res) => {
         t.created_at,
         c.name AS category,
         p.name AS priority,
-        sb.subtask_id,
-        sb.name AS subtask_title,
-        sb.status AS subtask_status,
-        ts.duration AS time_spent
+        ts.duration AS time_spent,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', sb.subtask_id,
+              'title', sb.name,
+              'completed', sb.status = 'completed'
+            )
+          ) FILTER (WHERE sb.subtask_id IS NOT NULL), '[]'
+        ) AS subtasks
       FROM tasks t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN priorities p ON t.priority_id = p.id
-      LEFT JOIN subtasks sb ON t.task_id = sb.task_id
       LEFT JOIN (
         SELECT task_id, SUM(duration) AS duration
         FROM task_sessions
         WHERE user_id = $1
         GROUP BY task_id
       ) ts ON t.task_id = ts.task_id
+      LEFT JOIN subtasks sb ON t.task_id = sb.task_id
       WHERE t.user_id = $1
+      GROUP BY t.task_id, c.name, p.name, ts.duration
     `, [userId]);
 
-    const tasksMap = new Map();
+    const tasks = result.rows.map(row => ({
+      id: row.task_id,
+      title: row.title,
+      description: row.description,
+      dueDate: row.due_date,
+      estimated_time: formatInterval(row.estimated_time),
+      completed: row.status === 'completed',
+      status: row.status,
+      category: row.category,
+      priority: row.priority,
+      timeSpent: row.time_spent ? formatInterval(row.time_spent) : '0h 0m',
+      createdAt: new Date(row.created_at).getTime(),
+      subtasks: row.subtasks
+    }));
 
-    result.rows.forEach(row => {
-      const {
-        task_id, title, description, due_date, status,
-        estimated_time, created_at, category, priority,
-        subtask_id, subtask_title, subtask_status, time_spent
-      } = row;
-      if (!tasksMap.has(task_id)) {
-        tasksMap.set(task_id, {
-          id: task_id,
-          title,
-          description,
-          dueDate: due_date,
-          estimated_time: formatInterval(estimated_time),
-          completed: status === 'completed',
-          status: status,
-          category,
-          priority,
-          timeSpent: time_spent ? formatInterval(time_spent) : '0h 0m',
-          createdAt: new Date(created_at).getTime(),
-          subtasks: []
-        });
-      }
-
-      if (subtask_id) {
-        tasksMap.get(task_id).subtasks.push({
-          id: subtask_id,
-          title: subtask_title,
-          completed: subtask_status === 'completed'
-        });
-      }
-    });
-
-    const tasks = Array.from(tasksMap.values());
     res.status(200).json(tasks);
 
   } catch (err) {

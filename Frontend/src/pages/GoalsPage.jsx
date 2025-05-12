@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { personal, group, shared } from '../components/goal';
-import { getAllGoals } from '../utils/goalData';
 import PageHeader from '../components/ui/PageHeader';
 
 const GoalsPage = () => {
@@ -42,9 +41,6 @@ const GoalsPage = () => {
 
       const personalGoalsData = await personalGoalsRes.json();
       const groupGoalsData = await groupGoalsRes.json();
-
-      console.log('Personal goals:', personalGoalsData);
-      console.log('Group goals:', groupGoalsData);
 
       // Combine both personal and group goals
       const allGoals = [

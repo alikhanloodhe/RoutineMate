@@ -101,50 +101,42 @@ export const fetchGoals = async (req, res) => {
         const userId = req.user.id; // from auth middleware
       
         try {
-          // Fetch all personal goals of this user
-          const goalsResult = await pool.query(`
-            SELECT g.*, c.name AS category
-            FROM goals g
-            LEFT JOIN categories c ON g.category_id = c.id
-            WHERE g.creator_id = $1 AND g.goal_type = 'personal'
-          `, [userId]);
-      
-          const goals = goalsResult.rows;
-      
-          // Prepare to attach milestones and activities
-          const fullGoals = [];
-      
-          for (const goal of goals) {
-            // Fetch milestones for this goal
-            const milestonesResult = await pool.query(`
-              SELECT * FROM goal_milestones
-              WHERE goal_id = $1
-              ORDER BY due_date ASC
-            `, [goal.goal_id]);
-      
-            // Fetch activities for this goal
-            // const activitiesResult = await pool.query(`
-            //   SELECT * FROM activities
-            //   WHERE goal_id = $1
-            //   ORDER BY created_at DESC
-            // `, [goal.goal_id]);
-      
-            fullGoals.push({
-              goal_id: goal.goal_id,
-              title: goal.title,
-              description: goal.description,
-              goal_type: goal.goal_type,
-              category: goal.category,
-              start_date: goal.start_date,
-              end_date: goal.end_date,
-              status: goal.status,
-              progress: goal.progress,
-              created_at: goal.created_at,
-              milestones: milestonesResult.rows,
-              // activities: activitiesResult.rows,
-            });
-          }
-      
+          const fullGoalResult = await pool.query(`
+            SELECT 
+  g.goal_id,
+  g.title,
+  g.description,
+  g.goal_type,
+  g.start_date,
+  g.end_date,
+  g.status,
+  g.progress,
+  g.created_at,
+  c.name AS category,
+  COALESCE(
+    JSON_AGG(
+      JSON_BUILD_OBJECT(
+        'milestone_id', m.milestone_id,
+        'title', m.title,
+        'description', m.description,
+        'due_date', m.due_date,
+        'status', m.status
+      )
+      ORDER BY m.due_date
+    ) FILTER (WHERE m.milestone_id IS NOT NULL), 
+    '[]'
+  ) AS milestones
+FROM goals g
+LEFT JOIN categories c ON g.category_id = c.id
+LEFT JOIN goal_milestones m ON g.goal_id = m.goal_id
+WHERE g.creator_id = $1 AND g.goal_type = 'personal'
+GROUP BY g.goal_id, c.name
+            `,[userId]
+          );
+
+          console.log('Full Goals: ',fullGoalResult.rows);
+
+          const fullGoals = fullGoalResult.rows;
           res.status(200).json({ goals: fullGoals });
         } catch (error) {
           console.error('Error fetching goals:', error.message);
@@ -385,84 +377,6 @@ export const updateMilestone = async (req, res) => {
   }
 };
 
-// exports.updateGoal = async (req, res) => {
-//   const { goalId } = req.params;
-//   const userId = req.user.id;
-//   const updateData = req.body;
-
-//   try {
-//     // First verify that the goal belongs to this user
-//     const goalCheck = await pool.query(
-//       'SELECT * FROM goals WHERE goal_id = $1 AND creator_id = $2',
-//       [goalId, userId]
-//     );
-
-//     if (goalCheck.rows.length === 0) {
-//       return res.status(403).json({ error: 'You do not have permission to update this goal' });
-//     }
-
-//     // Build the SET part of the query dynamically based on what fields are provided
-//     const updateFields = [];
-//     const queryParams = [];
-//     let paramCounter = 1;
-
-//     // Add each field that exists in the request
-//     if (updateData.title !== undefined) {
-//       updateFields.push(`title = $${paramCounter++}`);
-//       queryParams.push(updateData.title);
-//     }
-//     if (updateData.description !== undefined) {
-//       updateFields.push(`description = $${paramCounter++}`);
-//       queryParams.push(updateData.description);
-//     }
-//     if (updateData.status !== undefined) {
-//       updateFields.push(`status = $${paramCounter++}`);
-//       queryParams.push(updateData.status);
-//     }
-//     if (updateData.progress !== undefined) {
-//       updateFields.push(`progress = $${paramCounter++}`);
-//       queryParams.push(updateData.progress);
-//     }
-//     if (updateData.start_date !== undefined) {
-//       updateFields.push(`start_date = $${paramCounter++}`);
-//       queryParams.push(updateData.start_date);
-//     }
-//     if (updateData.end_date !== undefined) {
-//       updateFields.push(`end_date = $${paramCounter++}`);
-//       queryParams.push(updateData.end_date);
-//     }
-//     if (updateData.category_id !== undefined) {
-//       updateFields.push(`category_id = $${paramCounter++}`);
-//       queryParams.push(updateData.category_id);
-//     }
-
-//     // If no fields to update, return early
-//     if (updateFields.length === 0) {
-//       return res.status(400).json({ error: 'No fields to update' });
-//     }
-
-//     // Add goal_id as the last parameter
-//     queryParams.push(goalId);
-
-//     // Execute the update query
-//     const updatedGoal = await pool.query(
-//       `UPDATE goals 
-//        SET ${updateFields.join(', ')}
-//        WHERE goal_id = $${paramCounter}
-//        RETURNING *`,
-//       queryParams
-//     );
-
-//     if (updatedGoal.rows.length === 0) {
-//       return res.status(404).json({ error: 'Goal not found' });
-//     }
-
-//     res.status(200).json({ goal: updatedGoal.rows[0] });
-//   } catch (error) {
-//     console.error('Error updating goal:', error);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 export const updateGoal = async (req, res) => {
     const { goalId } = req.params;
     const {

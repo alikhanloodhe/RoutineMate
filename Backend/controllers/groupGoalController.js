@@ -270,52 +270,59 @@ export const fetchGroupGoals = async (req, res) => {
     const userId = req.user.id;
     
     try {
-        // Fetch all group goals where the user is a member
-        const goalsResult = await pool.query(`
-            SELECT g.*, c.name AS category
-            FROM goals g
-            JOIN goal_members gm ON g.goal_id = gm.goal_id
-            LEFT JOIN categories c ON g.category_id = c.id
-            WHERE gm.user_id = $1 AND g.goal_type = 'group'
-            ORDER BY g.created_at DESC
-        `, [userId]);
+        // Query Optimized Previously N+1 
+         const result = await pool.query(`
+       SELECT 
+        g.goal_id,
+        g.title,
+        g.description,
+        g.goal_type,
+        g.start_date,
+        g.end_date,
+        g.status,
+        g.progress,
+        g.created_at,
+        c.name AS category,
+
+        -- Milestones subquery per goal
+        COALESCE((
+          SELECT JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'milestone_id', m.milestone_id,
+              'title', m.title,
+              'description', m.description,
+              'due_date', m.due_date,
+              'status', m.status
+            )
+            ORDER BY m.due_date
+          )
+          FROM goal_milestones m
+          WHERE m.goal_id = g.goal_id
+        ), '[]') AS milestones,
+
+        -- Members subquery per goal
+        COALESCE((
+          SELECT JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'user_id', u.id,
+              'name', u.name,
+              'email', u.email,
+              'role', gm_inner.role
+            )
+          )
+          FROM goal_members gm_inner
+          JOIN users u ON u.id = gm_inner.user_id
+          WHERE gm_inner.goal_id = g.goal_id
+        ), '[]') AS members
+
+      FROM goals g
+      JOIN goal_members gm ON g.goal_id = gm.goal_id
+      LEFT JOIN categories c ON g.category_id = c.id
+      WHERE gm.user_id = $1 AND g.goal_type = 'group'
+      ORDER BY g.created_at DESC
+    `, [userId]);
         
-        const goals = goalsResult.rows;
-        const fullGoals = [];
-        
-        for (const goal of goals) {
-            // Fetch members
-            const membersResult = await pool.query(`
-                SELECT gm.role, u.id as user_id, u.name, u.email
-                FROM goal_members gm
-                JOIN users u ON gm.user_id = u.id
-                WHERE gm.goal_id = $1
-            `, [goal.goal_id]);
-            
-            // Fetch milestones
-            const milestonesResult = await pool.query(`
-                SELECT * FROM goal_milestones
-                WHERE goal_id = $1
-                ORDER BY due_date ASC
-            `, [goal.goal_id]);
-            
-            fullGoals.push({
-                goal_id: goal.goal_id,
-                title: goal.title,
-                description: goal.description,
-                goal_type: goal.goal_type,
-                category: goal.category,
-                start_date: goal.start_date,
-                end_date: goal.end_date,
-                status: goal.status,
-                progress: goal.progress,
-                created_at: goal.created_at,
-                members: membersResult.rows,
-                milestones: milestonesResult.rows
-            });
-        }
-        
-        res.status(200).json({ goals: fullGoals });
+        res.status(200).json({ goals: result.rows });
     } catch (error) {
         console.error('Error fetching group goals:', error);
         res.status(500).json({ message: 'Error fetching group goals', error: error.message });
@@ -458,56 +465,125 @@ async function fetchFullGroupGoal(client, goalId) {
         ORDER BY due_date ASC
     `, [goalId]);
     
-    // Fetch activities
+    // // Fetch activities
+    // const activitiesResult = await client.query(`
+    //     SELECT * FROM activities
+    //     WHERE goal_id = $1
+    //     ORDER BY created_at DESC
+    // `, [goalId]);
+    
+    // // For each activity, get its photos
+    // const activitiesWithPhotos = await Promise.all(
+    //     activitiesResult.rows.map(async (activity) => {
+    //         const photos = await client.query(
+    //             `SELECT id, photo_url, uploaded_at FROM activity_photos 
+    //              WHERE activity_id = $1`,
+    //             [activity.id]
+    //         );
+            
+    //         return {
+    //             ...activity,
+    //             photos: photos.rows
+    //         };
+    //     })
+    // );
+    
+    // // Fetch goal posts with user info, likes count and comments
+    // const postsResult = await client.query(`
+    //     SELECT gp.*, u.name as user_name, u.email as user_email,
+    //         (SELECT COUNT(*) FROM goal_likes WHERE post_id = gp.post_id) as likes_count
+    //     FROM goal_posts gp
+    //     JOIN users u ON gp.user_id = u.id
+    //     WHERE gp.goal_id = $1
+    //     ORDER BY gp.created_at DESC
+    // `, [goalId]);
+    
+    // // For each post, get its comments
+    // const postsWithComments = await Promise.all(
+    //     postsResult.rows.map(async (post) => {
+    //         const commentsResult = await client.query(`
+    //             SELECT gc.*, u.name as user_name, u.email as user_email
+    //             FROM goal_comments gc
+    //             JOIN users u ON gc.user_id = u.id
+    //             WHERE gc.post_id = $1
+    //             ORDER BY gc.created_at ASC
+    //         `, [post.post_id]);
+            
+    //         return {
+    //             ...post,
+    //             comments: commentsResult.rows
+    //         };
+    //     })
+    // );
     const activitiesResult = await client.query(`
-        SELECT * FROM activities
-        WHERE goal_id = $1
-        ORDER BY created_at DESC
-    `, [goalId]);
-    
-    // For each activity, get its photos
-    const activitiesWithPhotos = await Promise.all(
-        activitiesResult.rows.map(async (activity) => {
-            const photos = await client.query(
-                `SELECT id, photo_url, uploaded_at FROM activity_photos 
-                 WHERE activity_id = $1`,
-                [activity.id]
-            );
-            
-            return {
-                ...activity,
-                photos: photos.rows
-            };
-        })
-    );
-    
-    // Fetch goal posts with user info, likes count and comments
-    const postsResult = await client.query(`
-        SELECT gp.*, u.name as user_name, u.email as user_email,
-            (SELECT COUNT(*) FROM goal_likes WHERE post_id = gp.post_id) as likes_count
-        FROM goal_posts gp
-        JOIN users u ON gp.user_id = u.id
-        WHERE gp.goal_id = $1
-        ORDER BY gp.created_at DESC
-    `, [goalId]);
-    
-    // For each post, get its comments
-    const postsWithComments = await Promise.all(
-        postsResult.rows.map(async (post) => {
-            const commentsResult = await client.query(`
-                SELECT gc.*, u.name as user_name, u.email as user_email
-                FROM goal_comments gc
-                JOIN users u ON gc.user_id = u.id
-                WHERE gc.post_id = $1
-                ORDER BY gc.created_at ASC
-            `, [post.post_id]);
-            
-            return {
-                ...post,
-                comments: commentsResult.rows
-            };
-        })
-    );
+    SELECT * FROM activities
+    WHERE goal_id = $1
+    ORDER BY created_at DESC
+`, [goalId]);
+
+const activities = activitiesResult.rows;
+
+// Fetch all activity photos in a single query
+let activitiesWithPhotos = activities;
+if (activities.length > 0) {
+    const activityIds = activities.map(a => a.id);
+    const photosResult = await client.query(`
+        SELECT activity_id, id, photo_url, uploaded_at
+        FROM activity_photos
+        WHERE activity_id = ANY($1)
+    `, [activityIds]);
+
+    const photosGrouped = {};
+    for (const photo of photosResult.rows) {
+        if (!photosGrouped[photo.activity_id]) {
+            photosGrouped[photo.activity_id] = [];
+        }
+        photosGrouped[photo.activity_id].push(photo);
+    }
+
+    activitiesWithPhotos = activities.map(activity => ({
+        ...activity,
+        photos: photosGrouped[activity.id] || []
+    }));
+}
+
+// Fetch goal posts with user info, likes count
+const postsResult = await client.query(`
+    SELECT gp.*, u.name as user_name, u.email as user_email,
+        (SELECT COUNT(*) FROM goal_likes WHERE post_id = gp.post_id) as likes_count
+    FROM goal_posts gp
+    JOIN users u ON gp.user_id = u.id
+    WHERE gp.goal_id = $1
+    ORDER BY gp.created_at DESC
+`, [goalId]);
+
+const posts = postsResult.rows;
+
+// Fetch all post comments in one go
+let postsWithComments = posts;
+if (posts.length > 0) {
+    const postIds = posts.map(p => p.post_id);
+    const commentsResult = await client.query(`
+        SELECT gc.*, u.name as user_name, u.email as user_email
+        FROM goal_comments gc
+        JOIN users u ON gc.user_id = u.id
+        WHERE gc.post_id = ANY($1)
+        ORDER BY gc.created_at ASC
+    `, [postIds]);
+
+    const commentsGrouped = {};
+    for (const comment of commentsResult.rows) {
+        if (!commentsGrouped[comment.post_id]) {
+            commentsGrouped[comment.post_id] = [];
+        }
+        commentsGrouped[comment.post_id].push(comment);
+    }
+
+    postsWithComments = posts.map(post => ({
+        ...post,
+        comments: commentsGrouped[post.post_id] || []
+    }));
+}
     
     return {
         goal_id: goal.goal_id,
