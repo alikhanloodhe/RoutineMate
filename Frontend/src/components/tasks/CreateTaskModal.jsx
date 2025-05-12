@@ -129,7 +129,7 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
         category: categoryName,
         priority_id: parseInt(taskData.priority_id, 10),
         priority: taskData.priority_id === '1' ? 'High' : taskData.priority_id === '2' ? 'Medium' : 'Low',
-        due_date: taskData.dueDate || null,
+        dueDate: taskData.dueDate || null,
         status: taskData.status,
         estimated_time: estimatedTime,
         subtasks: taskData.subtasks
