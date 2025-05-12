@@ -552,7 +552,7 @@ const GroupGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       isOpen={showFriendSelector}
                       onClose={() => setShowFriendSelector(false)}
                       onSelectFriends={handleFriendsSelected}
-                      initialSelectedFriends={members.filter(member => member.id !== currentUser.id)}
+                      initialSelectedFriends={members.filter(member => currentUser && member.id !== currentUser.id)}
                     />
                     
                     {/* Members List */}

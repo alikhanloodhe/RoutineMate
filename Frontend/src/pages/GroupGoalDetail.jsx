@@ -40,6 +40,7 @@ const GroupGoalDetail = () => {
   // Confirmation dialog state
   const [showConfirmDeleteMilestone, setShowConfirmDeleteMilestone] = useState(null);
   const [showConfirmDeleteActivity, setShowConfirmDeleteActivity] = useState(null);
+  const [showDeleteGoalConfirmation, setShowDeleteGoalConfirmation] = useState(false);
   
   // Current user info (in a real app, this would come from auth context)
   useEffect(() => {
@@ -56,11 +57,8 @@ const GroupGoalDetail = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        const userWithRole = {
-          ...data,
-          role: 'admin'
-        };
-        setCurrentUser(userWithRole);
+        // Don't hardcode role as admin - we'll get the proper role when goal data loads
+        setCurrentUser(data);
       } catch (error) {
         console.error('Error fetching current user:', error);
       }
@@ -73,23 +71,139 @@ const GroupGoalDetail = () => {
   
   // Initialize current user data from goal members
   useEffect(() => {
-    if (goal && goal.members) {
-      // Find current user in the goal members
+    if (goal && goal.members && goal.members.length > 0) {
+      // First try to get current user info from localStorage
       const userData = localStorage.getItem('userData');
-      if (userData) {
-        const parsedUserData = JSON.parse(userData);
-        const currentUserId = parsedUserData.userId;
-        
-        const member = goal.members.find(m => m.id === currentUserId);
-        if (member) {
-          setCurrentUser({
-            id: member.id,
-            name: member.name,
-            role: member.role,
-            avatar: null
-          });
+      
+      // Determine current user from token or fallback mechanism
+      const findCurrentUser = async () => {
+        try {
+          // First, try to get the user info directly from API if localStorage doesn't have it
+          const token = localStorage.getItem('token');
+          if (token) {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/getUser`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              const userInfo = await response.json();
+              console.log("User info from API:", userInfo);
+              
+              // Find this user in the goal members
+              const currentUserId = userInfo.id || userInfo.userId;
+              
+              // Try to find the member with matching ID in goal members
+              const member = goal.members.find(m => 
+                m.id === currentUserId || 
+                m.user_id === currentUserId || 
+                String(m.id) === String(currentUserId) || 
+                String(m.user_id) === String(currentUserId)
+              );
+              
+              if (member) {
+                console.log("Found member in goal:", member);
+                // Force set the role from what's in the goal data
+                const updatedUserInfo = {
+                  ...userInfo,
+                  id: member.id || member.user_id,
+                  name: member.name || userInfo.name,
+                  email: member.email || userInfo.email,
+                  role: member.role // This is critical - use the role from the goal
+                };
+                
+                console.log("Setting current user with role from goal:", updatedUserInfo);
+                setCurrentUser(updatedUserInfo);
+                return;
+              }
+            }
+          }
+          
+          // If we couldn't get user from API or user wasn't found in members, try localStorage
+          if (userData) {
+            try {
+              const parsedUserData = JSON.parse(userData);
+              const currentUserId = parsedUserData.userId;
+              
+              console.log("Current goal members:", goal.members);
+              console.log("Looking for user with ID:", currentUserId);
+              
+              // Try to find member by ID or user_id
+              const member = goal.members.find(m => 
+                m.id === currentUserId || 
+                m.user_id === currentUserId ||
+                String(m.id) === String(currentUserId) || 
+                String(m.user_id) === String(currentUserId)
+              );
+              
+              if (member) {
+                // Ensure we're grabbing the correct user ID from the member object
+                const memberId = member.id || member.user_id;
+                
+                const updatedUserInfo = {
+                  id: memberId,
+                  name: member.name,
+                  role: member.role, // This is the important part
+                  email: member.email,
+                  avatar: null
+                };
+                
+                console.log('Found user in members, setting role:', member.role);
+                console.log('Updated user info:', updatedUserInfo);
+                
+                setCurrentUser(updatedUserInfo);
+              } else {
+                // Last resort: if in dev mode, use the first member as the current user for testing
+                if (process.env.NODE_ENV === 'development' && goal.members.length > 0) {
+                  const firstMember = goal.members[0];
+                  console.log("DEV MODE: Using first member as current user:", firstMember);
+                  
+                  const devUserInfo = {
+                    id: firstMember.id || firstMember.user_id,
+                    name: firstMember.name,
+                    role: firstMember.role,
+                    email: firstMember.email,
+                    avatar: null
+                  };
+                  
+                  setCurrentUser(devUserInfo);
+                } else {
+                  // If all approaches fail, log the error
+                  console.error('Current user not found in goal members. User ID:', currentUserId);
+                  console.log('Available members with details:', goal.members.map(m => 
+                    `ID: ${m.id}, user_id: ${m.user_id}, name: ${m.name}, role: ${m.role}`
+                  ));
+                }
+              }
+            } catch (error) {
+              console.error("Error parsing user data from localStorage:", error);
+            }
+          } else {
+            console.log("No userData found in localStorage - using first member as fallback");
+            // If no userData in localStorage, use the first member as the current user (for testing)
+            if (goal.members.length > 0) {
+              const firstMember = goal.members[0];
+              console.log("Using first member as current user:", firstMember);
+              
+              const fallbackUserInfo = {
+                id: firstMember.id || firstMember.user_id,
+                name: firstMember.name,
+                role: firstMember.role,
+                email: firstMember.email,
+                avatar: null
+              };
+              
+              setCurrentUser(fallbackUserInfo);
+            }
+          }
+        } catch (error) {
+          console.error("Error determining current user:", error);
         }
-      }
+      };
+      
+      findCurrentUser();
     }
   }, [goal]);
   
@@ -204,15 +318,23 @@ const GroupGoalDetail = () => {
 
   // Handle adding members from friend selector
   const handleFriendsSelected = async (selectedFriends) => {
+    console.log("Selected friends:", selectedFriends);
+    
     if (!selectedFriends || selectedFriends.length === 0) {
+      console.log("No friends selected, returning");
       return;
     }
     
     try {
       // Filter out any friends that are already members
       const newMembers = selectedFriends.filter(
-        friend => !goal.members.some(member => member.user_id === friend.id)
+        friend => !goal.members.some(member => 
+          member.user_id === friend.id || 
+          member.id === friend.id
+        )
       );
+      
+      console.log("New members to add:", newMembers);
       
       if (newMembers.length === 0) {
         infoToast('Selected friends are already members of this goal');
@@ -231,12 +353,6 @@ const GroupGoalDetail = () => {
         completed_milestones: 0
       }));
       
-      // In a real app, this would call an API to add members
-      const updatedMembers = [
-        ...goal.members,
-        ...membersToAdd
-      ];
-      
       // Make API call to update group members
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addMembers/${goalId}`, {
         method: 'POST',
@@ -248,14 +364,22 @@ const GroupGoalDetail = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to add members');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add members');
       }
       
       // Update goal with new members
+      const updatedMembers = [
+        ...goal.members,
+        ...membersToAdd
+      ];
+      
       setGoal(prevGoal => ({
         ...prevGoal,
         members: updatedMembers
       }));
+      
+      successToast('Members added successfully');
       
       // Reset form
       setShowFriendSelector(false);
@@ -562,10 +686,12 @@ const GroupGoalDetail = () => {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
-      return;
-    }
+    // Show the styled confirmation modal instead of window.confirm
+    setShowDeleteGoalConfirmation(true);
+  };
 
+  // Handle confirming goal deletion
+  const handleConfirmDeleteGoal = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteGroupGoal/${goalId}`, {
         method: 'DELETE',
@@ -585,6 +711,9 @@ const GroupGoalDetail = () => {
     } catch (error) {
       console.error('Error deleting goal:', error);
       errorToast('Failed to delete goal. Please try again.');
+    } finally {
+      // Close the confirmation modal
+      setShowDeleteGoalConfirmation(false);
     }
   };
 
@@ -614,6 +743,8 @@ const GroupGoalDetail = () => {
       }
 
       const data = await res.json();
+      console.log('Fetched goal data:', data);
+      
       if (data.goal && data.goal.goal_type === 'group') {
         // Process milestone user data to create member_progress map
         const processedGoal = {
@@ -651,6 +782,17 @@ const GroupGoalDetail = () => {
           ...processedGoal,
           milestones: await Promise.all(processedGoal.milestones)
         };
+        
+        // Ensure member objects have consistent id format
+        if (finalGoal.members) {
+          finalGoal.members = finalGoal.members.map(member => ({
+            ...member,
+            id: member.id || member.user_id, // Ensure id is set to a consistent value
+          }));
+        }
+        
+        // Log members for debugging
+        console.log('Goal members:', finalGoal.members);
         
         // Calculate personal completion progress
         const personalProgress = {};
@@ -1217,105 +1359,144 @@ const GroupGoalDetail = () => {
                 onUpdate={(updatedGoal) => setGoal(updatedGoal)}
               />
             )}
-            {activeTab === 'members' && currentUser.role === 'admin' && (
+            {activeTab === 'members' && (
               // 🔹 Member Tracker Section – Role Management & Invitations
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-lg font-semibold text-[#1C1C1C]">Team Members</h2>
-                  <button
-                    onClick={() => setShowFriendSelector(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200 flex items-center space-x-1"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    <span>Add Member</span>
-                  </button>
+                  {/* Debug info */}
+                  {console.log('Current user in render:', currentUser)}
+                  {console.log('Is admin?', currentUser?.role === 'admin')}
+                  {console.log('User role explicitly:', currentUser?.role)}
+                  
+                  {/* Force render the Add Member button for admins */}
+                  {(currentUser?.role === 'admin' || 
+                   // Extra check: if any of the goal members with matching ID has admin role
+                   (currentUser?.id && goal?.members?.some(m => 
+                     (m.id === currentUser.id || m.user_id === currentUser.id) && 
+                     m.role === 'admin'
+                   ))
+                  ) && (
+                    <button
+                      onClick={() => {
+                        console.log('Add member button clicked');
+                        setShowFriendSelector(true);
+                      }}
+                      className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 transition-opacity duration-200 flex items-center space-x-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Add Member</span>
+                    </button>
+                  )}
                 </div>
                 
                 {/* Members List */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {goal.members.map(member => {
-                        // Calculate member progress
-                        let completedCount = 0;
-                        goal.milestones.forEach(milestone => {
-                          if (milestone.member_progress?.[member.user_id]) {
-                            completedCount++;
-                          }
-                        });
-                        
-                        const progress = goal.milestones.length > 0
-                          ? Math.round((completedCount / goal.milestones.length) * 100)
-                          : 0;
-                        
-                        return (
-                          <tr key={member.id} className="hover:bg-gray-50">
-                            {console.log(member)}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
-                                  {member.name.charAt(0)}
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {member.name}
-                                    {console.log(currentUser)}
-                                    {member.id === currentUser.id && (
-                                      <span className="ml-1 text-xs text-gray-500">(You)</span>
-                                    )}
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">{
+                  /* Check if we have members before rendering */
+                  goal && goal.members && goal.members.length > 0 ? (
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {goal.members.map(member => {
+                          // Calculate member progress
+                          let completedCount = 0;
+                          goal.milestones.forEach(milestone => {
+                            // Using member.id or member.user_id to ensure compatibility
+                            const memberId = member.id || member.user_id;
+                            if (milestone.member_progress?.[memberId]) {
+                              completedCount++;
+                            }
+                          });
+                          
+                          const progress = goal.milestones.length > 0
+                            ? Math.round((completedCount / goal.milestones.length) * 100)
+                            : 0;
+                          
+                          // Get member ID in a consistent way
+                          const memberId = member.id || member.user_id;
+                          const currentUserId = currentUser?.id;
+                          
+                          return (
+                            <tr key={memberId} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="w-8 h-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
+                                    {member.name.charAt(0)}
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {member.name}
+                                      {memberId === currentUserId && (
+                                        <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(member.role)}`}>
-                                {member.role === 'admin' ? 'Admin' : 'Collaborator'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(member.join_date || goal.created_at)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="w-full bg-gray-200 rounded-full h-2 mr-2 max-w-[100px]">
-                                  <div 
-                                    className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(member.role)}`}>
+                                  {member.role === 'admin' ? 'Admin' : 'Collaborator'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDate(member.join_date || goal.created_at)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="w-full bg-gray-200 rounded-full h-2 mr-2 max-w-[100px]">
+                                    <div 
+                                      className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" 
+                                      style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-xs text-gray-500">{progress}%</span>
                                 </div>
-                                <span className="text-xs text-gray-500">{progress}%</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              {member.role !== 'admin' && (
-                                <button
-                                  onClick={() => handleRemoveMember(member.id, goal.goal_id)}
-                                  className={`px-3 py-1.5 rounded text-white ${member.id === currentUser.id ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-500 hover:bg-red-600'}`}
-                                >
-                                  {member.id === currentUser.id ? 'Leave Goal' : 'Remove'}
-                                </button>
-                              )}
-                              
-                              {member.role === 'admin' && member.id === currentUser.id && (
-                                <span className="text-xs text-gray-500 italic">Admin (cannot leave)</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                {/* If current user is admin or member is viewing own profile but not an admin */}
+                                {(currentUser && currentUser.role === 'admin' && member.role !== 'admin') && (
+                                  <button
+                                    onClick={() => handleRemoveMember(memberId, goal.goal_id)}
+                                    className="px-3 py-1.5 rounded text-white bg-red-500 hover:bg-red-600"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                                
+                                {/* Allow non-admin users to leave the goal */}
+                                {memberId === currentUserId && member.role !== 'admin' && (
+                                  <button
+                                    onClick={() => handleRemoveMember(memberId, goal.goal_id)}
+                                    className="px-3 py-1.5 rounded text-white bg-amber-500 hover:bg-amber-600"
+                                  >
+                                    Leave Goal
+                                  </button>
+                                )}
+                                
+                                {member.role === 'admin' && memberId === currentUserId && (
+                                  <span className="text-xs text-gray-500 italic">Admin (cannot leave)</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500">
+                      No members found
+                    </div>
+                  )}
                 </div>
                 
                 {/* Role Explanation */}
@@ -1473,8 +1654,11 @@ const GroupGoalDetail = () => {
         {/* Friend Selector Modal */}
         {showFriendSelector && (
           <FriendSelector
+            isOpen={showFriendSelector}
             onClose={() => setShowFriendSelector(false)}
             onSelect={handleFriendsSelected}
+            onSelectFriends={handleFriendsSelected}
+            initialSelectedFriends={[]}
           />
         )}
 
@@ -1711,6 +1895,41 @@ const GroupGoalDetail = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 {memberToRemove.memberId === currentUser.id ? 'Leave Goal' : 'Remove Member'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Goal Modal */}
+      {showDeleteGoalConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="mb-4">
+              <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-bold text-center mb-2">Delete Group Goal</h3>
+            <p className="text-gray-600 text-center mb-6">
+              Are you sure you want to delete this group goal? All milestones, activities, and member data will be permanently deleted. This action cannot be undone.
+            </p>
+
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowDeleteGoalConfirmation(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteGoal}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete Goal
               </button>
             </div>
           </div>
