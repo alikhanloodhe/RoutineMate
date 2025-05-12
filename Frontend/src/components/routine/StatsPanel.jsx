@@ -2,34 +2,40 @@ import React from 'react';
 import { Target, Calendar, Clock, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const StatsPanel = ({ routines }) => {
-  // Get today's date 
-  const today = new Date();
+const StatsPanel = ({ routines, currentTime }) => {
+  // Get today's date using provided currentTime or default to now 
+  const today = currentTime ? new Date(currentTime) : new Date();
   const todayStr = today.toISOString().split('T')[0];
   const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][today.getDay()];
   
   // Calculate statistics
   const calculateStats = () => {
-    // Count today's routines
-    const todayRoutines = routines.filter(r => 
-      r.active && r.daysOfWeek.includes(dayOfWeek)
-    ).length;
+    // Count active routines for today
+    const todayRoutines = routines.filter(r => {
+      // Check if the routine is active and scheduled for today
+      const routineDays = r.daysOfWeek || r.days || [];
+      return (r.active || r.status === 'active' || r.status === 'pending') && 
+             Array.isArray(routineDays) && 
+             routineDays.includes(dayOfWeek);
+    }).length;
     
-    // Calculate success rate
-    const allCompletions = routines.flatMap(routine => 
-      routine.completionData?.history || []
-    );
+    // Count routines completed today (only consider today's date)
+    const completedToday = routines.filter(r => {
+      const routineDays = r.daysOfWeek || r.days || [];
+      const isForToday = Array.isArray(routineDays) && routineDays.includes(dayOfWeek);
+      const isCompleted = r.completionData?.history?.some(h => 
+        h.date === todayStr && h.completed
+      ) || (r.status === 'completed' && r.completionData?.lastCompleted === todayStr);
+      
+      return isForToday && isCompleted;
+    }).length;
     
-    const successRate = allCompletions.length === 0
-      ? 100
-      : Math.round((allCompletions.filter(h => h.completed).length / allCompletions.length) * 100);
+    // Calculate daily success rate (only based on today's routines)
+    let successRate = 100; // Default to 100% if no routines
     
-    // Count completed routines today
-    const completedToday = routines.filter(r => 
-      r.active && 
-      r.daysOfWeek.includes(dayOfWeek) &&
-      r.completionData?.history?.some(h => h.date === todayStr && h.completed)
-    ).length;
+    if (todayRoutines > 0) {
+      successRate = Math.round((completedToday / todayRoutines) * 100);
+    }
     
     return {
       todayRoutines,

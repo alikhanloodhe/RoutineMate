@@ -499,39 +499,47 @@ export const fetchTaskHistory = async (req, res) => {
   let timeCondition = '';
   const now = new Date();
   
-  // Apply time filter
+  // Derive time frame dates for SQL functions
+  let startDate = null; // Defaults to all time
+  let endDate = 'NOW()';
+  
+  // Apply time filter for SQL functions
   switch (timeFrame) {
     case 'this-week':
       // Get the start of the current week (Sunday)
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
-      timeCondition = `AND t.updated_at >= '${startOfWeek.toISOString()}'`;
+      startDate = `'${startOfWeek.toISOString()}'`;
+      timeCondition = `AND t.updated_at >= ${startDate}`;
       break;
     case 'this-month':
       // Get the start of the current month
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      timeCondition = `AND t.updated_at >= '${startOfMonth.toISOString()}'`;
+      startDate = `'${startOfMonth.toISOString()}'`;
+      timeCondition = `AND t.updated_at >= ${startDate}`;
       break;
     case 'last-month':
       // Get the start of the last month
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      timeCondition = `AND t.updated_at >= '${startOfLastMonth.toISOString()}' AND t.updated_at <= '${endOfLastMonth.toISOString()}'`;
+      startDate = `'${startOfLastMonth.toISOString()}'`;
+      endDate = `'${endOfLastMonth.toISOString()}'`;
+      timeCondition = `AND t.updated_at >= ${startDate} AND t.updated_at <= ${endDate}`;
       break;
     default:
-      // All time - no condition needed
+      // All time - leave as null
       break;
   }
+  
+  // Search condition
+  const searchCondition = searchQuery 
+    ? `AND (t.name ILIKE '%${searchQuery}%' OR t.description ILIKE '%${searchQuery}%')` 
+    : '';
   
   const client = await pool.connect();
   
   try {
-    // Search condition
-    const searchCondition = searchQuery 
-      ? `AND (t.name ILIKE '%${searchQuery}%' OR t.description ILIKE '%${searchQuery}%')` 
-      : '';
-    
     // Query for completed tasks with time tracking data
     const tasksQuery = `
       SELECT 
@@ -571,34 +579,9 @@ export const fetchTaskHistory = async (req, res) => {
     const statsQuery = `
       SELECT 
         COUNT(*) AS total_completed_tasks,
-        AVG(CASE WHEN ts.duration IS NOT NULL AND t.estimated_time IS NOT NULL 
-             THEN 
-               CASE 
-                 WHEN ts.duration <= t.estimated_time::interval THEN 1 
-                 ELSE 0 
-               END
-             ELSE NULL 
-            END) * 100 AS completion_rate,
-        AVG(CASE 
-              WHEN ts.duration IS NOT NULL AND t.estimated_time IS NOT NULL 
-              THEN 
-                CASE 
-                  WHEN ts.duration <= t.estimated_time::interval * 0.9 THEN 10 
-                  WHEN ts.duration <= t.estimated_time::interval THEN 9 
-                  WHEN ts.duration <= t.estimated_time::interval * 1.1 THEN 8 
-                  WHEN ts.duration <= t.estimated_time::interval * 1.2 THEN 7 
-                  WHEN ts.duration <= t.estimated_time::interval * 1.3 THEN 6 
-                  ELSE 5 
-                END
-              ELSE NULL 
-            END) AS productivity_score
+        calculate_task_completion_rate($1, ${startDate}, ${endDate}) AS completion_rate,
+        calculate_productivity_score($1, ${startDate}, ${endDate}) AS productivity_score
       FROM tasks t
-      LEFT JOIN (
-        SELECT task_id, SUM(duration) AS duration
-        FROM task_sessions
-        WHERE user_id = $1
-        GROUP BY task_id
-      ) ts ON t.task_id = ts.task_id
       WHERE t.user_id = $1 AND t.status = 'completed'
       ${timeCondition}
     `;
@@ -687,6 +670,11 @@ export const fetchTaskHistory = async (req, res) => {
       completionRate: parseFloat(statsResult.rows[0].completion_rate) || 0,
       productivityScore: parseFloat(statsResult.rows[0].productivity_score) || 0
     };
+    
+    // Log stats data for debugging
+    console.log('Task history stats query:', statsQuery);
+    console.log('Stats results:', statsResult.rows[0]);
+    console.log('Final stats:', stats);
     
     res.status(200).json({
       tasks,

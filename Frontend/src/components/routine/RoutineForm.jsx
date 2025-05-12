@@ -6,7 +6,8 @@ const RoutineForm = ({
   isEdit = false,
   initialValues = null, 
   onSubmit, 
-  onCancel 
+  onCancel,
+  isSubmitting = false
 }) => {
   // Form states mapped to backend schema
   const [title, setTitle] = useState('');
@@ -156,6 +157,9 @@ const RoutineForm = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Prevent submission if already submitting
+    if (isSubmitting) return;
+    
     if (validateRoutineDetails()) {
       // Compile all data to match backend schema
       const routineData = {
@@ -208,6 +212,7 @@ const RoutineForm = ({
             placeholder="Enter your routine title"
             className={`w-full border ${errors.title ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
             autoFocus
+            disabled={isSubmitting}
           />
           {errors.title && (
             <div className="flex items-center text-red-500 text-sm mt-1">
@@ -228,7 +233,7 @@ const RoutineForm = ({
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className={`w-full border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20`}
-                disabled={loading}
+                disabled={loading || isSubmitting}
               >
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
@@ -439,20 +444,36 @@ const RoutineForm = ({
           )}
         </div>
         
-        {/* Form Actions */}
-        <div className="flex justify-end space-x-3 pt-4 border-t">
+        {/* Form Buttons - Update to handle isSubmitting state */}
+        <div className="flex justify-end gap-3 mt-8">
           <button
             type="button"
             onClick={onCancel}
-            className="px-5 py-2.5 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
+            className={`px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors ${
+              isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+            }`}
+            disabled={isSubmitting}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 rounded-md bg-[#4A2BAF] text-white hover:bg-[#3A1C9F] font-medium transition-colors"
+            className={`px-6 py-2 bg-[#4A2BAF] text-white rounded-md hover:bg-[#3A1C9F] transition-colors flex items-center justify-center gap-2 ${
+              isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+            disabled={isSubmitting}
           >
-            {isEdit ? 'Update Routine' : 'Create Routine'}
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {isEdit ? 'Updating...' : 'Creating...'}
+              </>
+            ) : (
+              <>{isEdit ? 'Update Routine' : 'Create Routine'}</>
+            )}
           </button>
         </div>
       </form>

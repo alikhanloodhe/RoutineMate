@@ -160,6 +160,7 @@ const Routines = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [routineTypeFilter, setRoutineTypeFilter] = useState("all");
+  const [submitting, setSubmitting] = useState(false); // New state variable for tracking form submission
   const { successToast, errorToast, infoToast } = useToastContext();
 
   // Get token for API calls
@@ -596,6 +597,8 @@ const Routines = () => {
     }
     
     try {
+      setSubmitting(true); // Set submitting to true when starting submission
+      
       // Ensure the data is formatted correctly for the backend
       const routineToSend = {
         title: newRoutine.title,
@@ -629,6 +632,8 @@ const Routines = () => {
     } catch (error) {
       console.error('Error creating routine:', error);
       errorToast('Failed to create routine. Please try again.');
+    } finally {
+      setSubmitting(false); // Reset submitting state regardless of outcome
     }
   };
 
@@ -646,6 +651,7 @@ const Routines = () => {
 
   const updateRoutine = async (routineId, updatedFields) => {
     try {
+      setSubmitting(true); // Set submitting to true when starting update
       console.log("Updating routine with ID:", routineId);
       console.log("Updated fields:", updatedFields);
       
@@ -767,6 +773,8 @@ const Routines = () => {
       }
       
       throw error;
+    } finally {
+      setSubmitting(false); // Reset submitting state regardless of outcome
     }
   };
 
@@ -774,7 +782,12 @@ const Routines = () => {
     // Simple confirmation
     if (showConfirmDelete === id) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/${id}`, {
+        // Format the API endpoint - ensure we're using the correct ID format
+        // Some routines might have routine_id instead of id
+        const routineId = id;
+        console.log(`Attempting to delete routine with ID: ${routineId}`);
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/routines/${routineId}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -782,21 +795,52 @@ const Routines = () => {
           },
         });
         
-        const data = await response.json();
+        console.log('Delete response status:', response.status);
         
         if (response.ok) {
           // Remove the deleted routine from state
-          const updatedRoutines = routines.filter(r => r.id !== id && r.routine_id !== id);
+          const updatedRoutines = routines.filter(r => 
+            (r.id !== routineId) && (r.routine_id !== routineId)
+          );
           setRoutines(updatedRoutines);
           setFilteredRoutines(updatedRoutines);
           setShowConfirmDelete(null);
           successToast('Routine deleted successfully');
         } else {
-          errorToast(data.message || 'Failed to delete routine');
+          let errorMessage = 'Failed to delete routine';
+          
+          try {
+            const errorData = await response.json();
+            console.error('Error response:', response.status, errorData);
+            
+            if (errorData.error) {
+              errorMessage = `Error: ${errorData.error}`;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+            
+            errorToast(errorMessage);
+          } catch (jsonError) {
+            // Handle case where response isn't valid JSON
+            console.error('Error parsing error response:', jsonError);
+            errorToast(`Server error (${response.status}): ${errorMessage}`);
+          }
+          
+          // If routine doesn't exist anymore on server but still in our UI
+          if (response.status === 404) {
+            // Remove it from our state anyway since it doesn't exist on server
+            const updatedRoutines = routines.filter(r => 
+              (r.id !== routineId) && (r.routine_id !== routineId)
+            );
+            setRoutines(updatedRoutines);
+            setFilteredRoutines(updatedRoutines);
+            setShowConfirmDelete(null);
+            infoToast('Routine removed from view');
+          }
         }
       } catch (error) {
-        console.error('Error deleting routine:', error);
-        errorToast('Failed to delete routine. Please try again.');
+        console.error('Network error while deleting routine:', error);
+        errorToast('Network error. Please check your connection and try again.');
       }
     } else {
       setShowConfirmDelete(id);
@@ -1477,12 +1521,17 @@ const Routines = () => {
                   </h2>
                   <button
                     onClick={() => {
-                      setShowAddForm(false);
-                      setIsEditMode(false);
-                      setEditingRoutineId(null);
-                      setError(''); // Clear any errors
+                      if (!submitting) { // Only allow closing if not submitting
+                        setShowAddForm(false);
+                        setIsEditMode(false);
+                        setEditingRoutineId(null);
+                        setError(''); // Clear any errors
+                      }
                     }}
-                    className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                    disabled={submitting}
+                    className={`text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 ${
+                      submitting ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1496,6 +1545,7 @@ const Routines = () => {
                     key={`form-${isEditMode ? (editingRoutineId || 'edit') : 'new'}`}
                     isEdit={isEditMode}
                     initialValues={routineToEdit}
+                    isSubmitting={submitting} // Pass submitting state to form
                     onSubmit={(routineData) => {
                       if (isEditMode) {
                         updateRoutine(routineData.id || routineData.routine_id, routineData);
@@ -1504,10 +1554,12 @@ const Routines = () => {
                       }
                     }}
                     onCancel={() => {
-                      setShowAddForm(false);
-                      setIsEditMode(false);
-                      setEditingRoutineId(null);
-                      setError(''); // Clear any errors
+                      if (!submitting) { // Only allow canceling if not submitting
+                        setShowAddForm(false);
+                        setIsEditMode(false);
+                        setEditingRoutineId(null);
+                        setError(''); // Clear any errors
+                      }
                     }}
                   />
                 </div>

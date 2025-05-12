@@ -94,7 +94,7 @@ const Tasks = () => {
 
   const [filteredTasks, setFilteredTasks] = useState([]);
 
-  // Add a fetch tasks function to allow refreshing from anywhere
+  // Add a fetch tasks function to alLOW refreshing from anywhere
   const fetchTasks = async () => {
     try {
       setError(null);
@@ -509,14 +509,14 @@ const Tasks = () => {
       result.sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
     } else if (sortOption === 'oldest') {
       result.sort((a, b) => new Date(a.created_at || a.createdAt) - new Date(b.created_at || b.createdAt));
-    } else if (sortOption === 'priority-high') {
+    } else if (sortOption === 'priority-HIGH') {
       result.sort((a, b) => {
-        const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        const priorityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
-    } else if (sortOption === 'priority-low') {
+    } else if (sortOption === 'priority-LOW') {
       result.sort((a, b) => {
-        const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        const priorityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
         return priorityOrder[b.priority] - priorityOrder[a.priority];
       });
     } else if (sortOption === 'alphabetical') {
@@ -528,7 +528,7 @@ const Tasks = () => {
 
   // Available filter options
   const filterOptions = {
-    priority: ['High', 'Medium', 'Low'],
+    priority: ['HIGH', 'MEDIUM', 'LOW'],
     status: ['Pending', 'Completed'],
     category: ['Physical', 'Mental', 'Spiritual', 'Social']
   };
@@ -537,20 +537,20 @@ const Tasks = () => {
   const sortOptions = [
     { id: 'newest', label: 'Newest First' },
     { id: 'oldest', label: 'Oldest First' },
-    { id: 'priority-high', label: 'Priority (High to Low)' },
-    { id: 'priority-low', label: 'Priority (Low to High)' },
+    { id: 'priority-HIGH', label: 'Priority (HIGH to LOW)' },
+    { id: 'priority-LOW', label: 'Priority (LOW to HIGH)' },
     { id: 'alphabetical', label: 'Alphabetical' }
   ];
   
   const renderFilterDropdown = () => {
     return (
-      <div className="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 overflow-hidden">
+      <div className="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 overfLOW-hidden">
         <div className="p-3 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700">Filter Tasks</h3>
+          <h3 className="text-sm font-MEDIUM text-gray-700">Filter Tasks</h3>
         </div>
         
         <div className="p-3 border-b border-gray-200">
-          <h4 className="text-xs font-medium text-gray-500 mb-2">PRIORITY</h4>
+          <h4 className="text-xs font-MEDIUM text-gray-500 mb-2">PRIORITY</h4>
           <div className="space-y-2">
             {filterOptions.priority.map(priority => (
               <div 
@@ -559,8 +559,8 @@ const Tasks = () => {
                 onClick={() => applyFilter('priority', priority)}
               >
                 <div className={`w-3 h-3 rounded-full mr-2 ${
-                  priority === 'High' ? 'bg-red-500' : 
-                  priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
+                  priority === 'HIGH' ? 'bg-red-500' : 
+                  priority === 'MEDIUM' ? 'bg-yelLOW-500' : 'bg-green-500'
                 }`}></div>
                 <span className="text-sm">{priority}</span>
                 {filters.priority === priority && (
@@ -574,7 +574,7 @@ const Tasks = () => {
         </div>
         
         <div className="p-3 border-b border-gray-200">
-          <h4 className="text-xs font-medium text-gray-500 mb-2">STATUS</h4>
+          <h4 className="text-xs font-MEDIUM text-gray-500 mb-2">STATUS</h4>
           <div className="space-y-2">
             {filterOptions.status.map(status => (
               <div 
@@ -594,8 +594,8 @@ const Tasks = () => {
         </div>
         
         <div className="p-3">
-          <h4 className="text-xs font-medium text-gray-500 mb-2">CATEGORY</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <h4 className="text-xs font-MEDIUM text-gray-500 mb-2">CATEGORY</h4>
+          <div className="space-y-2 max-h-48 overfLOW-y-auto">
             {filterOptions.category.map(category => (
               <div 
                 key={category} 
@@ -618,9 +618,9 @@ const Tasks = () => {
 
   const renderSortDropdown = () => {
     return (
-      <div className="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 overflow-hidden">
+      <div className="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-20 overfLOW-hidden">
         <div className="p-3 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700">Sort Tasks</h3>
+          <h3 className="text-sm font-MEDIUM text-gray-700">Sort Tasks</h3>
         </div>
         <div className="p-3">
           <div className="space-y-2">
@@ -654,7 +654,7 @@ const Tasks = () => {
     // Find the task
     const task = tasks.find(t => t.id === taskId);
     
-    // Don't allow starting timer for completed tasks
+    // Don't alLOW starting timer for completed tasks
     if (task && (task.status === 'completed' || task.completed)) {
       errorToast("Cannot start timer for completed tasks.");
       return;
@@ -675,7 +675,7 @@ const Tasks = () => {
         throw new Error('No valid task ID provided');
       }
       
-      // Don't allow edits on tasks with active timers
+      // Don't alLOW edits on tasks with active timers
       if (activeTimer === taskId) {
         errorToast("Cannot edit task while its timer is active. Please stop the timer first.");
         return;
@@ -911,7 +911,7 @@ const Tasks = () => {
                     <div className="flex items-center gap-2 bg-[#4A2BAF]/5 px-3 py-1.5 rounded-md text-sm">
                       <div className="flex items-center text-[#4A2BAF]">
                         <FiClock className="h-4 w-4 mr-1.5 animate-pulse" />
-                        <span className="font-medium">Active timer!</span>
+                        <span className="font-MEDIUM">Active timer!</span>
                       </div>
                     </div>
                   )}
@@ -939,7 +939,7 @@ const Tasks = () => {
                     <div className="bg-gray-100 rounded-full p-3 mb-4">
                       <FiCheck className="h-6 w-6 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-700 mb-1">No tasks found</h3>
+                    <h3 className="text-lg font-MEDIUM text-gray-700 mb-1">No tasks found</h3>
                     <p className="text-gray-500 mb-4 max-w-md">
                       {tasks.length === 0
                         ? "You haven't created any tasks yet. Get started by creating your first task!"

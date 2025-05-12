@@ -630,11 +630,72 @@ const updateRoutine = async (req, res) => {
   }
 };
 
+// Helper for diagnosing database relationship issues
+const diagnoseRoutineRelationships = async (routineId) => {
+  try {
+    console.log(`Diagnosing relationships for routine ID ${routineId}`);
+    
+    // Check routine_completion_history
+    const historyQuery = `
+      SELECT COUNT(*) as count FROM routine_completion_history
+      WHERE routine_id = $1
+    `;
+    const historyResult = await db.query(historyQuery, [routineId]);
+    console.log(`Found ${historyResult.rows[0].count} history records`);
+    
+    // Check routine_completion_data
+    const dataQuery = `
+      SELECT COUNT(*) as count FROM routine_completion_data
+      WHERE routine_id = $1
+    `;
+    const dataResult = await db.query(dataQuery, [routineId]);
+    console.log(`Found ${dataResult.rows[0].count} completion data records`);
+    
+    // Check routine_days
+    const daysQuery = `
+      SELECT COUNT(*) as count FROM routine_days
+      WHERE routine_id = $1
+    `;
+    const daysResult = await db.query(daysQuery, [routineId]);
+    console.log(`Found ${daysResult.rows[0].count} day relationships`);
+    
+    // Check any other potential relationships
+    const otherRelationshipsQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM pg_constraint 
+         WHERE conrelid = 'routines'::regclass 
+         AND confrelid != 0) as foreign_keys_to_routines,
+        (SELECT array_agg(conname) FROM pg_constraint 
+         WHERE conrelid = 'routines'::regclass 
+         AND confrelid != 0) as constraint_names
+    `;
+    const otherResult = await db.query(otherRelationshipsQuery);
+    console.log(`Found ${otherResult.rows[0].foreign_keys_to_routines} foreign key relationships to routines table`);
+    console.log(`Constraint names: ${JSON.stringify(otherResult.rows[0].constraint_names)}`);
+    
+    return {
+      historyCount: historyResult.rows[0].count,
+      dataCount: dataResult.rows[0].count,
+      daysCount: daysResult.rows[0].count,
+      foreignKeyCount: otherResult.rows[0].foreign_keys_to_routines,
+      constraintNames: otherResult.rows[0].constraint_names
+    };
+  } catch (error) {
+    console.error('Error diagnosing relationships:', error);
+    return null;
+  }
+};
+
 // Delete a routine
 const deleteRoutine = async (req, res) => {
+  // Start a transaction to ensure all delete operations are atomic
+  await db.query('BEGIN');
+  
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    
+    console.log(`Attempting to delete routine ${id} for user ${userId}`);
     
     // Check if the routine exists and belongs to the user
     const routineCheckQuery = `
@@ -645,21 +706,85 @@ const deleteRoutine = async (req, res) => {
     const routineCheckResult = await db.query(routineCheckQuery, [id, userId]);
     
     if (routineCheckResult.rows.length === 0) {
+      console.log(`Routine ${id} not found or not authorized for user ${userId}`);
+      await db.query('ROLLBACK');
       return res.status(404).json({ message: 'Routine not found or not authorized' });
     }
     
-    // Delete the routine (cascade will handle related records)
-    const deleteQuery = `
-      DELETE FROM routines
-      WHERE routine_id = $1
-    `;
+    console.log(`Found routine ${id}, proceeding with deletion`);
     
-    await db.query(deleteQuery, [id]);
+    // Run diagnostics before attempting delete
+    await diagnoseRoutineRelationships(id);
     
-    res.status(200).json({ message: 'Routine deleted successfully' });
+    try {
+      // First delete from routine_completion_history
+      const deleteHistoryQuery = `
+        DELETE FROM routine_completion_history
+        WHERE routine_id = $1
+      `;
+      await db.query(deleteHistoryQuery, [id]);
+      console.log(`Deleted completion history for routine ${id}`);
+    } catch (historyError) {
+      console.error('Error deleting routine completion history:', historyError);
+      // Log but continue with other deletions
+    }
+    
+    try {
+      // Then delete from routine_completion_data
+      const deleteCompletionDataQuery = `
+        DELETE FROM routine_completion_data
+        WHERE routine_id = $1
+      `;
+      await db.query(deleteCompletionDataQuery, [id]);
+      console.log(`Deleted completion data for routine ${id}`);
+    } catch (dataError) {
+      console.error('Error deleting routine completion data:', dataError);
+      // Log but continue with other deletions
+    }
+    
+    try {
+      // Then delete from routine_days
+      const deleteRoutineDaysQuery = `
+        DELETE FROM routine_days
+        WHERE routine_id = $1
+      `;
+      await db.query(deleteRoutineDaysQuery, [id]);
+      console.log(`Deleted days associations for routine ${id}`);
+    } catch (daysError) {
+      console.error('Error deleting routine days:', daysError);
+      // Log but continue with main deletion
+    }
+    
+    // Finally delete the routine itself
+    try {
+      const deleteQuery = `
+        DELETE FROM routines
+        WHERE routine_id = $1 AND user_id = $2
+      `;
+      
+      const deleteResult = await db.query(deleteQuery, [id, userId]);
+      
+      if (deleteResult.rowCount === 0) {
+        throw new Error(`Routine with ID ${id} could not be deleted`);
+      }
+      
+      console.log(`Successfully deleted routine ${id}`);
+      
+      // Commit transaction if everything succeeded
+      await db.query('COMMIT');
+      return res.status(200).json({ message: 'Routine deleted successfully' });
+    } catch (routineError) {
+      console.error('Error deleting the routine itself:', routineError);
+      throw routineError; // Rethrow to trigger rollback
+    }
   } catch (error) {
-    console.error('Error deleting routine:', error);
-    res.status(500).json({ message: 'Server error while deleting routine' });
+    // Rollback transaction on any error
+    await db.query('ROLLBACK');
+    console.error('Error deleting routine, transaction rolled back:', error);
+    res.status(500).json({ 
+      message: 'Server error while deleting routine',
+      error: error.message
+    });
   }
 };
 
