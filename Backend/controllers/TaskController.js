@@ -2,9 +2,9 @@ import pool from '../config/db.js';
 import { getClientAdjustedTime, parseClientDate } from '../utils/timeUtils.js';
 
 export const addTask = async (req, res) => {
-  console.log("Received:", req.body);
+
   const user_id = req.user.id; 
-  console.log(req.body);
+
   const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
   // Get timezone-adjusted timestamp functions
@@ -37,17 +37,16 @@ export const addTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
-    console.log('Using estimated_time:', task_estimated_time);
-    
+
     // 2. Insert task
     const insertTaskResult = await client.query(
       'INSERT INTO tasks(user_id,name, description,category_id, priority_id,status,estimated_time,due_date) VALUES($1, $2, $3,$4, $5, $6, $7,$8) RETURNING task_id',
       [user_id, name, description, category_id, priority_id, status, task_estimated_time, dueDate]
     );
     const task_id = insertTaskResult.rows[0].task_id;
-    console.log('Inserted task with ID:', task_id);
 
-    console.log(subtasks);
+
+
     // 4. Insert subtasks
     if (Array.isArray(subtasks) && subtasks.length > 0) {
       for (let i = 0; i < subtasks.length; i++) {
@@ -221,7 +220,6 @@ export const deleteTask = async (req, res) => {
 export const editTask = async (req, res) => {
   const user_id = req.user.id;
   const { task_id } = req.params;
-  console.log('Received', req.body); 
   const { title, name, description, dueDate, priority, category, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
   // Get timezone-adjusted timestamp functions
@@ -281,8 +279,6 @@ export const editTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
-    console.log('Using estimated_time:', task_estimated_time);
-    
     // Update task - use timezone-adjusted timestamp
     await client.query(
       `UPDATE tasks 
@@ -327,7 +323,6 @@ export const editTask = async (req, res) => {
 export const startSession = async (req, res) => {
   const { taskId } = req.body;
   const userId = req.user.id;
-  console.log('I am in start session')
   
   // Get timezone-adjusted timestamp functions
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
@@ -342,7 +337,6 @@ export const startSession = async (req, res) => {
     
     // If there's already an active session, return it
     if (activeSession.rows.length > 0) {
-      console.log('A session in progress');
       return res.status(200).json({
         message: 'Session already in progress',
         session_id: activeSession.rows[0]
@@ -370,7 +364,6 @@ export const startSession = async (req, res) => {
 export const endSession = async (req, res) => {
   const { sessionId, taskId, duration } = req.body;
   const userId = req.user.id;
-  console.log('Ending session with data:', req.body);
 
   // Get timezone-adjusted timestamp functions
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
@@ -486,9 +479,6 @@ function parseHumanReadableDuration(durationStr) {
     minutes = parseInt(minutesMatch[1], 10);
     totalSeconds += minutes * 60;
   }
-  
-  console.log(`Parsed duration "${durationStr}" to ${hours}h ${minutes}m (${totalSeconds} seconds)`);
-  
   return {
     totalSeconds,
     hours,
@@ -620,14 +610,7 @@ export const fetchTaskHistory = async (req, res) => {
     
     // Process tasks to add performance indicators
     const tasks = tasksResult.rows.map(task => {
-      // Debug logging
-      console.log('Task time data:', {
-        taskId: task.task_id,
-        name: task.name,
-        estimated_time: task.estimated_time,
-        actual_time: task.actual_time
-      });
-      
+  
       // Calculate performance based on estimated vs actual time
       let performance = 'On Track';
       
@@ -743,7 +726,7 @@ export const handleSaveEdit = async (editedTask) => {
   try {
     setIsLoading(true);
     
-    console.log('Saving task:', editedTask);
+
     
     // Make sure estimated_time is properly formatted
     let estimated_time = editedTask.estimated_time;

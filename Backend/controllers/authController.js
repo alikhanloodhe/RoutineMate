@@ -4,9 +4,7 @@ import jwt from 'jsonwebtoken';
 // Excluding verify e-mail everything is same like I have
 export const signUp = async (req, res) => {
     try {
-        // Log request body for debugging
-        console.log('Signup request body:', req.body);
-        
+
         const { name, email, password } = req.body;
         
         // Validate input
