@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiHome, FiCalendar, FiCheckSquare, FiTarget, 
-  FiRepeat, FiUsers, FiLogOut, FiHelpCircle, FiChevronLeft, FiMenu, FiX
+  FiRepeat, FiUsers, FiLogOut, FiChevronLeft, FiMenu, FiX
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,7 +36,6 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
     { name: 'Goals', icon: <FiTarget size={18} />, href: '/goals' },
     { name: 'Habits', icon: <FiRepeat size={18} />, href: '/habits' },
     { name: 'Friends', icon: <FiUsers size={18} />, href: '/friends' },
-    { name: 'Help', icon: <FiHelpCircle size={18} />, href: '/help' },
   ];
 
   return (
@@ -62,16 +61,16 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
         >
           <div className="flex flex-col h-full">
             {/* Header with Logo and Toggle Button */}
-            <div className="px-4 py-4.5 flex items-center border-b border-gray-700">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-700">
               <motion.button 
                 onClick={toggleSidebar} 
-                className="p-2 mr-2 rounded-full hover:bg-gray-800 text-gray-300 focus:outline-none"
+                className="p-2 rounded-full hover:bg-gray-800 text-gray-300 focus:outline-none"
                 whileTap={{ scale: 0.95 }}
               >
                 {sidebarOpen ? (
-                  <FiChevronLeft size={20} />
+                  <FiChevronLeft size={23} />
                 ) : (
-                  <FiMenu size={25} />
+                  <FiMenu size={23}  />
                 )}
               </motion.button>
               
@@ -200,4 +199,4 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
   );
 };
 
-export default Sidebar; 
+export default Sidebar;
