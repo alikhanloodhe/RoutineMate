@@ -4,6 +4,51 @@ import { FiX } from 'react-icons/fi';
 import { fetchCategories } from '../../services/categoryService';
 
 const EditTaskModal = ({ onClose, task, onSave }) => {
+  // Helper functions to extract hours and minutes from estimated time string
+  function getHoursFromEstimated(timeString) {
+    if (!timeString) return '';
+    const match = timeString.match(/(\d+)\s*hours?/i);
+    return match ? match[1] : '';
+  }
+
+  function getMinutesFromEstimated(timeString) {
+    if (!timeString) return '';
+    const match = timeString.match(/(\d+)\s*minutes?/i);
+    return match ? match[1] : '';
+  }
+
+  // Handle estimated time initialization based on format
+  const initializeEstimatedTime = (task) => {
+  
+    
+    // If estimated_time is an object with hours and minutes
+    if (task.estimated_time && typeof task.estimated_time === 'object') {
+      const result = {
+        hours: task.estimated_time.hours || '',
+        minutes: task.estimated_time.minutes || ''
+      };
+      console.log('Using object format, extracted:', result);
+      return result;
+    }
+    
+    // If it's a string format
+    if (task.estimated_time && typeof task.estimated_time === 'string') {
+      const result = {
+        hours: getHoursFromEstimated(task.estimated_time),
+        minutes: getMinutesFromEstimated(task.estimated_time)
+      };
+      console.log('Using string format, extracted:', result);
+      return result;
+    }
+    
+    // If it's empty or undefined
+    console.log('No valid estimated_time found, using defaults');
+    return { hours: '', minutes: '' };
+  };
+
+  // Initialize estimated time from task
+  const estimatedTime = initializeEstimatedTime(task);
+
   const [editedTask, setEditedTask] = useState({
     id: task.id,
     title: task.name || task.title || '',
@@ -13,8 +58,8 @@ const EditTaskModal = ({ onClose, task, onSave }) => {
     category_id: task.category_id || '',
     dueDate: task.due_date || task.dueDate || '',
     status: task.status || 'pending',
-    estimatedHours: task.estimated_hours ? getHoursFromEstimated(task.estimated_hours) : '',
-    estimatedMinutes: task.estimated_hours ? getMinutesFromEstimated(task.estimated_hours) : '',
+    estimatedHours: estimatedTime.hours,
+    estimatedMinutes: estimatedTime.minutes,
     subtasks: task.subtasks || []
   });
 
@@ -56,19 +101,6 @@ const EditTaskModal = ({ onClose, task, onSave }) => {
 
     getCategories();
   }, [editedTask.category]);
-
-  // Helper functions to extract hours and minutes from estimated time string
-  function getHoursFromEstimated(timeString) {
-    if (!timeString) return '';
-    const match = timeString.match(/(\d+)\s*hours?/i);
-    return match ? match[1] : '';
-  }
-
-  function getMinutesFromEstimated(timeString) {
-    if (!timeString) return '';
-    const match = timeString.match(/(\d+)\s*minutes?/i);
-    return match ? match[1] : '';
-  }
 
   // Format date for input fields
   const formatDateForInput = (dateStr) => {

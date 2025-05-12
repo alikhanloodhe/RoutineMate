@@ -15,6 +15,7 @@ import HabitPage from './pages/HabitPage';
 import Friends from './pages/Friends';
 import Help from './pages/Help';
 import ProfileSettings from './pages/ProfileSettings';
+import Notifications from './pages/Notifications';
 import Layout from './components/layout/Layout';
 import { TimerProvider } from './context/TimerContext';
 import PersistentTimer from './components/tasks/PersistentTimer';
@@ -219,6 +220,7 @@ function App() {
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/profile-settings" element={<ProfileSettings />} />
+                <Route path="/notifications" element={<Notifications />} />
               </Route>
               
               {/* Fallback routes */}

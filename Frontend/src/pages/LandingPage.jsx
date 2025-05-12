@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Menu, X, Calendar, CheckCircle, Clock, BarChart3, Target, User, ChevronRight, Users, Bookmark, Star } from "lucide-react";
 // Import dashboard and activity images
 import dashboardImg from '../assets/ourdashboard.jpg';
@@ -83,38 +83,36 @@ const Navbar = () => {
         </div>
 
         {mobileDrawerOpen && (
-          <div className="fixed top-0 right-0 z-40 w-full h-full bg-white p-12 flex flex-col items-center space-y-6 lg:hidden">
-            <button onClick={toggleNavbar} className="absolute top-4 right-4">
+          <div className="fixed top-0 left-0 w-full h-full bg-white z-50 pt-20 pb-10 px-6 overflow-y-auto">
+            <button onClick={toggleNavbar} className="absolute top-5 right-5">
               <X size={24} />
             </button>
-            <div className="flex items-center mb-8">
-              <div className="h-10 w-10 mr-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] rounded-md flex items-center justify-center">
-                <Calendar className="text-white" size={24} />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">
-                RoutineMate
-              </span>
-            </div>
-            <ul className="text-xl font-medium space-y-6 text-center">
+            
+            <ul className="flex flex-col space-y-6 text-center mb-8">
               {navItems.map((item, index) => (
                 <li key={index}>
-                  <a href={item.href} className="hover:text-[#4A2BAF]" onClick={toggleNavbar}>
+                  <a 
+                    href={item.href} 
+                    className="block text-xl font-medium py-2 hover:text-[#4A2BAF]" 
+                    onClick={toggleNavbar}
+                  >
                     {item.label}
                   </a>
                 </li>
               ))}
             </ul>
-            <div className="flex flex-col space-y-4 w-full mt-6">
+            
+            <div className="flex flex-col space-y-4 w-full">
               <Link
                 to="/login"
-                className="py-2 px-4 border border-[#4A2BAF] text-[#4A2BAF] rounded-md text-center"
+                className="py-3 px-4 border border-[#4A2BAF] text-[#4A2BAF] rounded-md text-center"
               >
                 Sign In
               </Link>
 
               <Link
                 to="/signup"
-                className="py-2 px-4 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-md text-center"
+                className="py-3 px-4 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-md text-center"
               >
                 Get Started
               </Link>

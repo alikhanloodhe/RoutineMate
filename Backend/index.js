@@ -22,6 +22,7 @@ import routineRoutes from './routes/routineRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 // Get directory name using ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -67,6 +68,7 @@ app.use('/api/routines', routineRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Simple health check route
 app.get('/health', (req, res) => {

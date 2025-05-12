@@ -530,7 +530,7 @@ const ProductivityTrend = () => {
           {error}
         </div>
       ) : (
-        <div className="h-[200px]">
+        <div className="h-[220px] pt-3 pb-2">
           <Line data={data} options={options} />
         </div>
       )}

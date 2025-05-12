@@ -4,16 +4,67 @@ import { getClientAdjustedTime } from '../utils/timeUtils.js';
 export const searchAddFriend = async (req, res) => {
   const { query } = req.query; // GET params
   const user_id = req.user.id;
+  const client = await pool.connect();
+  
   try {
-    const result = await pool.query(
-      'SELECT id, name, email FROM users WHERE email ILIKE $1 and id != $2', 
-      [`%${query}%`,user_id]
+    // First, get all users matching the search query
+    const result = await client.query(
+      'SELECT id, name, email FROM users WHERE (email ILIKE $1 OR name ILIKE $1) AND id != $2', 
+      [`%${query}%`, user_id]
     );
-
-    res.status(200).json({ users: result.rows }); // Return array of users
+    
+    console.log(`Search query "${query}" matched ${result.rows.length} users`);
+    
+    // For each user, fetch their friendship status with the current user
+    const usersWithStatus = await Promise.all(
+      result.rows.map(async (user) => {
+        // Check for existing friend requests or friendships
+        const requestCheck = await client.query(
+          `SELECT status FROM friend_requests 
+           WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+           ORDER BY created_at DESC LIMIT 1`,
+          [user_id, user.id]
+        );
+        
+        // Check if they're already friends
+        const friendCheck = await client.query(
+          'SELECT 1 FROM friends WHERE user_id = $1 AND friend_id = $2',
+          [user_id, user.id]
+        );
+        
+        const isFriend = friendCheck.rows.length > 0;
+        const requestStatus = requestCheck.rows.length > 0 ? requestCheck.rows[0].status : null;
+        
+        // Debug log for each user's status
+        console.log(`User ${user.id} (${user.name}): Friend=${isFriend}, Request=${requestStatus}`);
+        
+        return {
+          ...user,
+          isFriend,
+          requestStatus
+        };
+      })
+    );
+    
+    // Filter out users that can't be added (already friends or have pending requests)
+    const availableUsers = usersWithStatus.filter(user => {
+      // Don't filter out users with 'removed' status - allow re-adding them
+      if (user.requestStatus === 'removed') return true;
+      
+      // Filter out users that are friends or have pending/accepted requests
+      return !user.isFriend && user.requestStatus !== 'pending' && user.requestStatus !== 'accepted';
+    });
+    
+    res.status(200).json({ 
+      users: availableUsers,
+      totalMatches: result.rows.length,
+      filtered: result.rows.length - availableUsers.length
+    });
   } catch (error) {
     console.error('Error searching users:', error);
     res.status(500).json({ message: 'Error fetching users', error: error.message });
+  } finally {
+    client.release();
   }
 };
 
@@ -27,12 +78,31 @@ export const AddFriend = async (req, res) => {
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
   
   try {
-    const checkResult = await client.query('SELECT * FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) ', [user_id, friend_id]);
+    // Check if friend request already exists
+    const checkResult = await client.query(
+      'SELECT * FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
+      [user_id, friend_id]
+    );
 
+    // If a request exists but was marked as 'removed', we can allow a new request
     if (checkResult.rows.length > 0) {
+      const existingRequest = checkResult.rows[0];
+      
+      if (existingRequest.status === 'removed') {
+        // If the request was previously removed, update it to pending
+        await client.query(
+          'UPDATE friend_requests SET status = $1, sender_id = $2, receiver_id = $3, created_at = ' + now + ' WHERE id = $4',
+          [status, user_id, friend_id, existingRequest.id]
+        );
+        
+        return res.status(201).json({ msg: 'Friend request successfully sent' });
+      }
+      
+      // If it's pending or accepted, don't allow another request
       return res.status(400).json({ msg: 'Friend request already sent or already friends' });
     }
     
+    // If no existing request, create a new one
     await client.query(
       `INSERT INTO friend_requests(sender_id, receiver_id, status, created_at) 
        VALUES ($1, $2, $3, ${now})`,
@@ -43,7 +113,7 @@ export const AddFriend = async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ msg: 'An error occurred' });
-  }finally{
+  } finally {
     client.release();
   }
 };
@@ -250,13 +320,30 @@ export const removeFriend = async (req, res) => {
       [user_id, friendId]
     );
     
-    // Also set any friend requests between these users to 'removed'
-    await client.query(
-      `UPDATE friend_requests 
-       SET status = 'removed'
-       WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)`,
+    // Check if there's an existing friend request
+    const requestCheck = await client.query(
+      'SELECT id FROM friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
       [user_id, friendId]
     );
+    
+    if (requestCheck.rows.length > 0) {
+      // If friend request exists, update it to 'removed' status
+      await client.query(
+        `UPDATE friend_requests 
+         SET status = 'removed'
+         WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)`,
+        [user_id, friendId]
+      );
+    } else {
+      // If no friend request exists (rare case), create one with 'removed' status
+      // This ensures there's a record to prevent immediate re-adding
+      const { now } = getClientAdjustedTime(req.clientTimezone?.name);
+      await client.query(
+        `INSERT INTO friend_requests(sender_id, receiver_id, status, created_at)
+         VALUES ($1, $2, 'removed', ${now})`,
+        [user_id, friendId]
+      );
+    }
     
     // Commit the transaction
     await client.query('COMMIT');

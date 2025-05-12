@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  FiBell, FiUser, FiSettings, FiLogOut, FiMenu
+  FiBell, FiUser, FiSettings, FiLogOut, FiMenu, FiCheck
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
+import { getUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../services/notificationService';
 
 const Header = ({ toggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
@@ -13,18 +14,39 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const { logout, user } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Get user data safely
   const userName = user?.name || user?.username || 'User';
   const userEmail = user?.email || 'user@example.com';
   const userImage = user?.image;
   
-  // Mock notifications
-  const notifications = [
-    { id: 1, text: 'You completed your morning routine!', time: '2 hours ago', read: false },
-    { id: 2, text: 'Goal "Read 10 books" is 70% complete', time: '5 hours ago', read: false },
-    { id: 3, text: 'Daily step goal achieved', time: 'Yesterday', read: true },
-  ];
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getUnreadNotifications();
+      setNotifications(data || []);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+      setError('Failed to load notifications');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Initial fetch of notifications when component mounts
+  useEffect(() => {
+    fetchNotifications();
+    
+    // Set up interval to fetch notifications every minute
+    const intervalId = setInterval(fetchNotifications, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Handle screen resize
   useEffect(() => {
@@ -69,6 +91,33 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
     logout();
     navigate('/login');
   };
+  
+  // Handle marking a notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      // Update local state after marking as read
+      setNotifications(notifications.filter(n => n.id !== notificationId));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+  
+  // Handle marking all notifications as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications([]);
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
+  
+  // Handle "View all notifications" click
+  const handleViewAllNotifications = () => {
+    navigate('/notifications');
+    setNotificationsOpen(false);
+  };
 
   return (
     <motion.div 
@@ -101,7 +150,7 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
             whileTap={{ scale: 0.95 }}
           >
             <FiBell size={20} />
-            {notifications.some(n => !n.read) && (
+            {notifications.length > 0 && (
               <motion.span 
                 className="absolute top-1 right-1 w-2 h-2 bg-[#4A2BAF] rounded-full"
                 initial={{ scale: 0 }}
@@ -123,27 +172,46 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
               >
                 <div className="px-4 py-2 font-medium text-[#1C1C1C] border-b flex justify-between items-center">
                   <span>Notifications</span>
-                  <span className="text-xs font-normal text-[#4A2BAF] cursor-pointer hover:underline">
-                    Mark all as read
-                  </span>
+                  {notifications.length > 0 && (
+                    <button
+                      className="text-xs font-normal text-[#4A2BAF] cursor-pointer hover:underline flex items-center"
+                      onClick={handleMarkAllAsRead}
+                    >
+                      <FiCheck className="mr-1" size={12} />
+                      Mark all as read
+                    </button>
+                  )}
                 </div>
-                {notifications.length > 0 ? (
+                {isLoading ? (
+                  <div className="px-4 py-3 text-sm text-gray-500 flex justify-center">
+                    <div className="w-5 h-5 border-2 border-gray-200 border-t-[#4A2BAF] rounded-full animate-spin"></div>
+                  </div>
+                ) : error ? (
+                  <div className="px-4 py-3 text-sm text-red-500">
+                    {error}
+                  </div>
+                ) : notifications.length > 0 ? (
                   <div className="max-h-60 overflow-y-auto">
                     {notifications.map(notification => (
                       <motion.div 
                         key={notification.id} 
-                        className={`px-4 py-3 hover:bg-[#f8f8f8] border-b border-gray-50 ${
-                          notification.read ? 'opacity-60' : ''
-                        }`}
+                        className="px-4 py-3 hover:bg-[#f8f8f8] border-b border-gray-50 cursor-pointer bg-[#f9f7ff]"
                         whileHover={{ backgroundColor: '#f0f0f0' }}
+                        onClick={() => handleMarkAsRead(notification.id)}
                       >
                         <div className="flex justify-between">
-                          <p className="text-sm font-medium text-[#1C1C1C]">{notification.text}</p>
-                          {!notification.read && (
-                            <span className="h-2 w-2 bg-[#4A2BAF] rounded-full mt-1.5"></span>
-                          )}
+                          <p className="text-sm font-semibold text-[#1C1C1C]">{notification.title}</p>
+                          <span className="h-2 w-2 bg-[#4A2BAF] rounded-full mt-1.5 flex-shrink-0 ring-2 ring-purple-100"></span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                        <p className="text-xs text-gray-700 mt-1">{notification.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(notification.created_at).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
                       </motion.div>
                     ))}
                   </div>
@@ -153,9 +221,12 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
                   </div>
                 )}
                 <div className="px-4 py-2 border-t border-gray-100">
-                  <a href="#" className="text-xs text-[#4A2BAF] hover:text-[#5D4EFF] font-medium">
+                  <button
+                    onClick={handleViewAllNotifications}
+                    className="text-xs text-[#4A2BAF] hover:text-[#5D4EFF] font-medium"
+                  >
                     View all notifications
-                  </a>
+                  </button>
                 </div>
               </motion.div>
             )}

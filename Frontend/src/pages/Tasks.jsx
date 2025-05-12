@@ -131,6 +131,9 @@ const Tasks = () => {
   const sanitizeTaskForUpdate = (task) => {
     const sanitizedTask = { ...task };
     
+    console.log('Original task before sanitization:', task);
+    console.log('Due date before sanitization:', task.dueDate);
+    
     // Handle estimated_time object to convert to string format
     if (sanitizedTask.estimated_time && typeof sanitizedTask.estimated_time === 'object') {
       const hours = sanitizedTask.estimated_time.hours || 0;
@@ -148,6 +151,9 @@ const Tasks = () => {
       const minutes = sanitizedTask.timeSpent.minutes || 0;
       sanitizedTask.timeSpent = `${hours} hours ${minutes} minutes`;
     }
+    
+    console.log('Sanitized task returning:', sanitizedTask);
+    console.log('Due date after sanitization:', sanitizedTask.dueDate);
     
     return sanitizedTask;
   };

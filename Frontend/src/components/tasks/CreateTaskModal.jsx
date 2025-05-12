@@ -121,6 +121,9 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
       const selectedCategory = categories.find(c => c.id.toString() === taskData.category_id.toString());
       const categoryName = selectedCategory ? selectedCategory.name : '';
       
+      // Debug log for dueDate value
+      console.log('Due date from form:', taskData.dueDate);
+      
       // Create task object
       const newTask = {
         name: taskData.name,
@@ -134,6 +137,9 @@ const CreateTaskModal = ({ onClose, onCreateTask }) => {
         estimated_time: estimatedTime,
         subtasks: taskData.subtasks
       };
+      
+      // Debug log for the task object
+      console.log('Task object with dueDate:', newTask);
       
       await onCreateTask(newTask);
       resetForm();

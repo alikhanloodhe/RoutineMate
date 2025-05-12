@@ -168,8 +168,8 @@ const TaskHistory = ({ goBack }) => {
   };
 
   return (
-    <div className="bg-gray-50" id="task-history-container">
-      <div className="px-6 py-6">
+    <div className="bg-gray-50 min-h-screen w-full" id="task-history-container">
+      <div className="px-4 sm:px-6 py-6">
         {/* Header with back button */}
         <div className="flex items-center mb-6">
           <button 
@@ -190,9 +190,9 @@ const TaskHistory = ({ goBack }) => {
           transition={{ duration: 0.5 }}
         >
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 overflow-x-auto">
             <motion.div 
-              className="bg-white p-4 rounded-xl shadow-sm"
+              className="bg-white p-4 rounded-xl shadow-sm min-w-[200px]"
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
             >
               <div className="flex flex-col">
@@ -211,7 +211,7 @@ const TaskHistory = ({ goBack }) => {
             </motion.div>
 
             <motion.div 
-              className="bg-white p-4 rounded-xl shadow-sm"
+              className="bg-white p-4 rounded-xl shadow-sm min-w-[200px]"
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
             >
               <div className="flex flex-col">
@@ -230,7 +230,7 @@ const TaskHistory = ({ goBack }) => {
             </motion.div>
 
             <motion.div 
-              className="bg-white p-4 rounded-xl shadow-sm"
+              className="bg-white p-4 rounded-xl shadow-sm min-w-[200px] sm:col-span-2 lg:col-span-1"
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
             >
               <div className="flex flex-col">
@@ -248,8 +248,8 @@ const TaskHistory = ({ goBack }) => {
           </div>
 
           {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-            <div className="relative mb-4 md:mb-0 max-w-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <div className="relative w-full md:max-w-md">
               <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
               <input 
                 type="text" 
@@ -259,9 +259,9 @@ const TaskHistory = ({ goBack }) => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center">
+            <div className="flex-shrink-0">
               <select 
-                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5D4EFF] focus:border-transparent w-full"
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value)}
               >
@@ -297,62 +297,64 @@ const TaskHistory = ({ goBack }) => {
           {!isLoading && (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
               {filteredHistory.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Task Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estimated Time
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actual Time
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredHistory.map((task) => (
-                      <motion.tr 
-                        key={task.id}
-                        whileHover={{ backgroundColor: '#f9fafb' }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="bg-blue-100 w-8 h-8 rounded-lg flex items-center justify-center mr-3">
-                              <code className="text-blue-600">&lt;/&gt;</code>
+                <div className="overflow-x-auto w-full">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Task Name
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estimated Time
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actual Time
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredHistory.map((task) => (
+                        <motion.tr 
+                          key={task.id}
+                          whileHover={{ backgroundColor: '#f9fafb' }}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="bg-blue-100 w-8 h-8 rounded-lg flex items-center justify-center mr-3">
+                                <code className="text-blue-600">&lt;/&gt;</code>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{task.name}</div>
+                                <div className="text-xs text-gray-500">Completed on {task.completionDate}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{task.name}</div>
-                              <div className="text-xs text-gray-500">Completed on {task.completionDate}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                          <span className="text-sm">
-                            {formatTimeString(task.estimatedTime)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                          <span className="text-sm font-medium">
-                            {formatTimeString(task.actualTime)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end">
-                            {getPerformanceIcon(task.performance)}
-                            <span className={`text-sm font-medium ${getPerformanceColor(task.performance)}`}>
-                              {task.performance}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                            <span className="text-sm">
+                              {formatTimeString(task.estimatedTime)}
                             </span>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                            <span className="text-sm font-medium">
+                              {formatTimeString(task.actualTime)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end">
+                              {getPerformanceIcon(task.performance)}
+                              <span className={`text-sm font-medium ${getPerformanceColor(task.performance)}`}>
+                                {task.performance}
+                              </span>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FiClock className="h-12 w-12 text-gray-300 mb-4" />
@@ -367,34 +369,61 @@ const TaskHistory = ({ goBack }) => {
 
           {/* Pagination */}
           {!isLoading && pagination.totalPages > 1 && (
-            <div className="flex justify-center space-x-1">
+            <div className="flex justify-center items-center space-x-1 flex-wrap my-6">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 <FiChevronLeft />
               </button>
               
-              {/* Page numbers */}
-              {[...Array(pagination.totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-2 rounded-md ${
-                    currentPage === i + 1
-                      ? 'bg-[#5D4EFF] text-white'
-                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              {/* Page numbers - show limited on mobile */}
+              <div className="hidden sm:flex space-x-1">
+                {[...Array(pagination.totalPages)].map((_, i) => {
+                  // On mobile, only show current +/- 1 and first/last pages
+                  const pageNum = i + 1;
+                  
+                  // Always show current page, first and last page, and +/- 1 from current
+                  const showPage = pageNum === 1 || 
+                                  pageNum === pagination.totalPages || 
+                                  Math.abs(pageNum - currentPage) <= 1;
+                  
+                  // Insert ellipsis where needed
+                  if (!showPage) {
+                    if (pageNum === 2 || pageNum === pagination.totalPages - 1) {
+                      return (
+                        <span key={`ellipsis-${i}`} className="px-3 py-2">...</span>
+                      );
+                    }
+                    return null;
+                  }
+                  
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`px-3 py-2 rounded-md ${
+                        currentPage === i + 1
+                          ? 'bg-[#5D4EFF] text-white'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Mobile-friendly current page indicator */}
+              <span className="flex sm:hidden items-center px-3 py-2 text-gray-600">
+                Page {currentPage} of {pagination.totalPages}
+              </span>
               
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
                 disabled={currentPage === pagination.totalPages}
-                className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 <FiChevronRight />
               </button>
