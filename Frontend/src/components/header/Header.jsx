@@ -72,8 +72,8 @@ const Header = ({ toggleSidebar, sidebarOpen }) => {
 
   return (
     <motion.div 
-      className={`bg-white px-4 py-3 flex justify-between items-center z-30 sticky top-0 transition-all duration-300 ${
-        scrolled ? 'shadow-md' : ''
+      className={`bg-white px-4 py-3 flex justify-between items-center z-30 sticky top-0 transition-all duration-300 border-b border-gray-200 ${
+        scrolled ? 'shadow-sm' : ''
       }`}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}

@@ -12,6 +12,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const [visibility, setVisibility] = useState('private');
   const [status, setStatus] = useState('pending');
   const [milestones, setMilestones] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Milestone temp state
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
@@ -98,12 +99,14 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
 
   // Open milestone form for new milestone
   const handleAddMilestone = () => {
+    if (isSubmitting) return; // Don't allow adding if submitting
     resetMilestoneForm();
     setShowMilestoneForm(true);
   };
 
   // Open milestone form for editing
   const handleEditMilestone = (index) => {
+    if (isSubmitting) return; // Don't allow editing if submitting
     const milestone = milestones[index];
     setMilestoneTitle(milestone.title);
     setMilestoneDescription(milestone.description);
@@ -114,6 +117,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
 
   // Delete milestone
   const handleDeleteMilestone = (index) => {
+    if (isSubmitting) return; // Don't allow deleting if submitting
     setMilestones(prevMilestones => 
       prevMilestones.filter((_, i) => i !== index)
     );
@@ -202,6 +206,8 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
 
   // Save milestone
   const handleSaveMilestone = () => {
+    if (isSubmitting) return; // Don't allow saving if submitting
+    
     if (!milestoneTitle.trim()) {
       alert('Please enter a milestone title');
       return;
@@ -243,6 +249,8 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Don't allow submitting if already submitting
+    
     if (!title.trim()) {
       alert('Please enter a goal title');
       return;
@@ -257,6 +265,8 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
     if (!validateGoalDates()) {
       return; // Stop if validation fails
     }
+    
+    setIsSubmitting(true);
 
     const goalData = {
       goal_id: goal?.goal_id, // Only included when editing
@@ -273,15 +283,26 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       created_at: goal?.created_at || new Date().toISOString()
     };
 
-    onSubmit(goalData);
-    resetForm();
+    // Use promise to ensure completion before we reset
+    Promise.resolve(onSubmit(goalData))
+      .then(() => {
+        resetForm();
+      })
+      .catch(error => {
+        console.error('Error submitting goal:', error);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   // Handle close modal
   const handleClose = () => {
+    if (isSubmitting) return; // Don't close if submitting
     resetForm();
     onClose();
   };
+  
   const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -322,7 +343,10 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                 </h3>
                 <button
                   onClick={handleClose}
-                  className="text-gray-500 hover:text-gray-700"
+                  className={`text-gray-500 hover:text-gray-700 ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSubmitting}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -356,6 +380,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       placeholder="Enter goal title"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -369,6 +394,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       onChange={(e) => setDescription(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent min-h-[100px]"
                       placeholder="Describe your goal..."
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -382,7 +408,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
-                        disabled={loadingCategories}
+                        disabled={loadingCategories || isSubmitting}
                       >
                         {loadingCategories ? (
                           <option>Loading categories...</option>
@@ -410,6 +436,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         onChange={handleStartDateChange}
                         className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     
@@ -424,6 +451,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                         onChange={handleEndDateChange}
                         className={`w-full px-3 py-2 border ${dateErrors.goal ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent`}
                         required
+                        disabled={isSubmitting}
                       />
                       
                       {dateErrors.goal && (
@@ -439,7 +467,10 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                       <button
                         type="button"
                         onClick={handleAddMilestone}
-                        className="text-[#4A2BAF] hover:text-[#3D2291] text-sm flex items-center gap-1"
+                        className={`text-[#4A2BAF] hover:text-[#3D2291] text-sm flex items-center gap-1 ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -476,6 +507,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             onChange={(e) => setMilestoneTitle(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
                             placeholder="Enter milestone title"
+                            disabled={isSubmitting}
                           />
                         </div>
                         
@@ -489,6 +521,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             onChange={(e) => setMilestoneDescription(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm"
                             placeholder="Describe this milestone"
+                            disabled={isSubmitting}
                           />
                         </div>
                         
@@ -501,6 +534,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             value={milestoneDueDate}
                             onChange={handleMilestoneDateChange}
                             className={`w-full px-3 py-2 border ${dateErrors.milestone ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent text-sm`}
+                            disabled={isSubmitting}
                           />
                           {dateErrors.milestone && (
                             <p className="text-red-500 text-xs mt-1">{dateErrors.milestone}</p>
@@ -517,6 +551,7 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                             value={reminderAt}
                             onChange={(e) => setReminderAt(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                            disabled={isSubmitting}
                           />
                         </div>
                         
@@ -524,14 +559,20 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                           <button
                             type="button"
                             onClick={resetMilestoneForm}
-                            className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-100"
+                            className={`px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-100 ${
+                              isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            disabled={isSubmitting}
                           >
                             Cancel
                           </button>
                           <button
                             type="button"
                             onClick={handleSaveMilestone}
-                            className="px-3 py-1.5 bg-[#4A2BAF] text-white text-sm rounded-lg hover:bg-[#3D2291]"
+                            className={`px-3 py-1.5 bg-[#4A2BAF] text-white text-sm rounded-lg hover:bg-[#3D2291] ${
+                              isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            disabled={isSubmitting}
                           >
                             {currentMilestoneIndex !== null ? 'Save Changes' : 'Add Milestone'}
                           </button>
@@ -559,7 +600,10 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                               <button
                                 type="button"
                                 onClick={() => handleEditMilestone(index)}
-                                className="text-[#4A2BAF] p-1 hover:bg-[#4A2BAF]/5 rounded"
+                                className={`text-[#4A2BAF] p-1 hover:bg-[#4A2BAF]/5 rounded ${
+                                  isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                disabled={isSubmitting}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -579,7 +623,10 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteMilestone(index)}
-                                className="text-red-500 p-1 hover:bg-red-50 rounded"
+                                className={`text-red-500 p-1 hover:bg-red-50 rounded ${
+                                  isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                disabled={isSubmitting}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -614,16 +661,32 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                  className={`px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className="px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90"
+                  className={`px-4 py-2 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-lg hover:opacity-90 flex items-center gap-2 ${
+                    isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSubmitting}
                 >
-                  {goal ? 'Save Changes' : 'Create Goal'}
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {goal ? 'Saving...' : 'Creating...'}
+                    </>
+                  ) : (
+                    goal ? 'Save Changes' : 'Create Goal'
+                  )}
                 </button>
               </div>
             </div>

@@ -51,18 +51,18 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
       
       <AnimatePresence>
         <motion.div
-          className={`bg-[#111827] h-screen fixed top-0 left-0 z-20 overflow-hidden 
+          className={`bg-[#111827] h-screen fixed top-0 left-0 z-20 overflow-hidden border-r border-gray-700
             ${sidebarOpen ? 'w-64' : 'w-0 lg:w-16'}`}
           initial={false}
           animate={{ 
             width: sidebarOpen ? 256 : (window.innerWidth >= 1024 ? 64 : 0),
-            boxShadow: sidebarOpen ? '4px 0 15px rgba(0, 0, 0, 0.1)' : 'none'
+            boxShadow: sidebarOpen && !isMobile ? '2px 0 10px rgba(0, 0, 0, 0.05)' : 'none'
           }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
           <div className="flex flex-col h-full">
             {/* Header with Logo and Toggle Button */}
-            <div className="px-4 py-6 flex items-center border-b border-gray-700">
+            <div className="px-4 py-4.5 flex items-center border-b border-gray-700">
               <motion.button 
                 onClick={toggleSidebar} 
                 className="p-2 mr-2 rounded-full hover:bg-gray-800 text-gray-300 focus:outline-none"

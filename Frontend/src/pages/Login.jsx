@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiCalendar } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useToastContext } from '../context/ToastContext';
 
@@ -50,9 +50,9 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
-      {/* Left Section (Illustration/Quote) */}
+      {/* Left Section (App Introduction) */}
       <motion.div 
-        className="hidden md:flex md:w-1/2 bg-[#111827] items-center justify-center p-10"
+        className="hidden md:flex md:w-1/2 bg-gray-50 shadow-md items-center justify-center p-10"
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -63,18 +63,26 @@ const Login = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            <h2 className="text-3xl font-bold text-white mb-4">Build Better Days with RoutineMate</h2>
-            <p className="text-gray-300 text-lg mb-6">
+            <div className="mb-10 flex justify-center">
+              <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
+                <FiCalendar className="text-white" size={32} />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">Welcome to RoutineMate</h2>
+            <p className="text-gray-600 text-lg mb-6">
               Organize your routines, track your progress, and achieve your goals one day at a time.
             </p>
             <motion.div 
-              className="w-full h-64 bg-[#4A2BAF]/20 rounded-xl flex items-center justify-center"
+              className="w-full h-64 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden shadow-sm"
               whileHover={{ scale: 1.03 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="text-xl italic text-[#5D4EFF] px-6">
-                "The secret of your future is hidden in your daily routine."
-              </p>
+              <div className="px-6 text-center">
+                <blockquote className="text-xl italic text-indigo-700">
+                  "The secret of your future is hidden in your daily routine."
+                </blockquote>
+                <p className="mt-4 text-gray-500">— Mike Murdock</p>
+              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -88,8 +96,14 @@ const Login = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+          <div className="flex justify-center md:hidden mb-8">
+            <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
+              <FiCalendar className="text-white" size={32} />
+            </div>
+          </div>
+          
           <motion.div 
-            className="bg-white p-8 rounded-xl shadow-lg"
+            className="bg-white p-8 rounded-xl shadow-md"
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.3, delay: 0.2 }}
@@ -99,7 +113,7 @@ const Login = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.6 }}
             >
-              <h2 className="text-2xl font-bold mb-1 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">Welcome Back to RoutineMate</h2>
+              <h2 className="text-2xl font-bold mb-1 text-indigo-700">Welcome Back</h2>
               <p className="text-gray-600 mb-6">Sign in to continue your journey</p>
             </motion.div>
             
@@ -127,7 +141,7 @@ const Login = () => {
                     <FiMail className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type="email"
                     id="email"
@@ -136,7 +150,7 @@ const Login = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -146,7 +160,7 @@ const Login = () => {
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                     Password
                   </label>
-                  <a href="#" className="text-xs text-[#4A2BAF] hover:text-[#5D4EFF]">
+                  <a href="#" className="text-xs text-indigo-600 hover:text-indigo-500">
                     Forgot Password?
                   </a>
                 </div>
@@ -155,7 +169,7 @@ const Login = () => {
                     <FiLock className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -164,7 +178,7 @@ const Login = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -185,7 +199,7 @@ const Login = () => {
               
               <motion.button 
                 type="submit" 
-                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] hover:from-[#3D249A] hover:to-[#4D3FE0] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A2BAF] transition-all duration-200"
+                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 disabled={loading}
                 whileHover={{ translateY: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -206,7 +220,7 @@ const Login = () => {
               <p className="text-gray-600">
                 Don't have an account?{' '}
                 <motion.span whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link to="/signup" className="text-[#4A2BAF] hover:text-[#5D4EFF] font-medium">
+                  <Link to="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
                     Sign up
                   </Link>
                 </motion.span>

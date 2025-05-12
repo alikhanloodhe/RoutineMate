@@ -507,7 +507,7 @@ const ProductivityTrend = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.3 }}
     >
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-1">
         <h2 className="text-lg font-medium">Productivity Trend</h2>
         <div className="flex items-center space-x-4">
           {currentScore !== null && (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiCheck } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiCheck, FiCalendar } from 'react-icons/fi';
 import PasswordStrengthBar from 'react-password-strength-bar';
 import { useAuth } from '../context/AuthContext';
 import { useToastContext } from '../context/ToastContext';
@@ -89,7 +89,7 @@ const Signup = () => {
     <div className="min-h-screen flex flex-col md:flex-row-reverse bg-gray-50">
       {/* Left Section (Illustration - now on right on desktop) */}
       <motion.div 
-        className="hidden md:flex md:w-1/2 bg-[#111827] items-center justify-center p-10"
+        className="hidden md:flex md:w-1/2 bg-white shadow-md items-center justify-center p-10"
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -100,18 +100,26 @@ const Signup = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            <h2 className="text-3xl font-bold text-white mb-4">Start Your Journey with RoutineMate</h2>
-            <p className="text-gray-300 text-lg mb-6">
+            <div className="mb-10 flex justify-center">
+              <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
+                <FiCalendar className="text-white" size={32} />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">Start Your Journey with RoutineMate</h2>
+            <p className="text-gray-600 text-lg mb-6">
               Take the first step towards building better habits and achieving your goals.
             </p>
             <motion.div 
-              className="w-full h-64 bg-[#4A2BAF]/20 rounded-xl flex items-center justify-center"
+              className="w-full h-64 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden shadow-sm"
               whileHover={{ scale: 1.03 }}
               transition={{ duration: 0.2 }}
             >
-              <p className="text-xl italic text-[#5D4EFF] px-6">
-                "The journey of a thousand miles begins with a single step."
-              </p>
+              <div className="px-6 text-center">
+                <blockquote className="text-xl italic text-indigo-700">
+                  "The journey of a thousand miles begins with a single step."
+                </blockquote>
+                <p className="mt-4 text-gray-500">— Lao Tzu</p>
+              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -125,8 +133,14 @@ const Signup = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+          <div className="flex justify-center md:hidden mb-8">
+            <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
+              <FiCalendar className="text-white" size={32} />
+            </div>
+          </div>
+          
           <motion.div 
-            className="bg-white p-8 rounded-xl shadow-lg"
+            className="bg-white p-8 rounded-xl shadow-md"
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.3, delay: 0.2 }}
@@ -136,7 +150,7 @@ const Signup = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.6 }}
             >
-              <h2 className="text-2xl font-bold mb-1 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">Join RoutineMate</h2>
+              <h2 className="text-2xl font-bold mb-1 text-indigo-700">Create Your Account</h2>
               <p className="text-gray-600 mb-6">Start Building Better Days</p>
             </motion.div>
             
@@ -164,7 +178,7 @@ const Signup = () => {
                     <FiUser className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type="text"
                     id="name"
@@ -173,7 +187,7 @@ const Signup = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -187,7 +201,7 @@ const Signup = () => {
                     <FiMail className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type="email"
                     id="email"
@@ -196,7 +210,7 @@ const Signup = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -210,7 +224,7 @@ const Signup = () => {
                     <FiLock className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -219,7 +233,7 @@ const Signup = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -240,7 +254,7 @@ const Signup = () => {
                   <PasswordStrengthBar 
                     password={formData.password} 
                     scoreWords={['Weak', 'Weak', 'Okay', 'Good', 'Strong']}
-                    scoreColors={['#ff4d4f', '#ff7875', '#ffa940', '#4A2BAF', '#5D4EFF']}
+                    scoreColors={['#f87171', '#fbbf24', '#38bdf8', '#4f46e5', '#6366f1']}
                     className="mt-1"
                   />
                 )}
@@ -258,16 +272,20 @@ const Signup = () => {
                     <FiLock className="text-gray-400" />
                   </div>
                   <motion.input
-                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(74, 43, 175, 0.2)" }}
+                    whileFocus={{ scale: 1.01, boxShadow: "0 0 0 2px rgba(79, 70, 229, 0.2)" }}
                     transition={{ duration: 0.2 }}
                     type={showConfirmPassword ? "text" : "password"}
                     id="confirmPassword"
                     name="confirmPassword"
-                    placeholder="Re-enter your password"
+                    placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className={`w-full pl-10 pr-10 py-2 border ${
+                      formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300 focus:ring-indigo-500'
+                    } rounded-md focus:outline-none focus:ring-2 focus:border-transparent bg-gray-50 placeholder-gray-400`}
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -284,43 +302,59 @@ const Signup = () => {
                     </motion.div>
                   </div>
                 </div>
+                {formData.password && formData.confirmPassword && (
+                  <div className="mt-1 text-xs">
+                    {formData.password === formData.confirmPassword ? (
+                      <span className="text-green-600 flex items-center">
+                        <FiCheck className="mr-1" /> Passwords match
+                      </span>
+                    ) : (
+                      <span className="text-red-600">
+                        Passwords do not match
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-
+              
               <div className="mb-6">
-                <motion.div 
-                  className="flex items-center"
-                  whileHover={{ x: 2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
+                <div className="flex items-center">
                   <input
                     id="terms"
                     name="terms"
                     type="checkbox"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     checked={agreeToTerms}
                     onChange={() => setAgreeToTerms(!agreeToTerms)}
-                    className="h-4 w-4 text-[#4A2BAF] focus:ring-[#4A2BAF] border-gray-300 rounded cursor-pointer"
                   />
-                  <label htmlFor="terms" className="ml-2 block text-sm text-gray-600 cursor-pointer">
-                    I agree to the <a href="#" className="text-[#4A2BAF] hover:text-[#5D4EFF]">Terms of Service</a>
+                  <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">
+                    I agree to the{" "}
+                    <a href="#" className="text-indigo-600 hover:text-indigo-500">
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a href="#" className="text-indigo-600 hover:text-indigo-500">
+                      Privacy Policy
+                    </a>
                   </label>
-                </motion.div>
+                </div>
               </div>
               
               <motion.button 
                 type="submit" 
-                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] hover:from-[#3D249A] hover:to-[#4D3FE0] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A2BAF] transition-all duration-200"
+                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 disabled={loading}
                 whileHover={{ translateY: -2 }}
                 whileTap={{ scale: 0.98 }}
               >
                 {loading ? (
-                  <span className="flex items-center justify-center">
+                  <div className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Creating Account...
-                  </span>
+                    Creating account...
+                  </div>
                 ) : 'Create Account'}
               </motion.button>
             </form>
@@ -329,8 +363,8 @@ const Signup = () => {
               <p className="text-gray-600">
                 Already have an account?{' '}
                 <motion.span whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link to="/login" className="text-[#4A2BAF] hover:text-[#5D4EFF] font-medium">
-                    Login
+                  <Link to="/login" className="text-indigo-600 hover:text-indigo-500 font-medium">
+                    Sign in
                   </Link>
                 </motion.span>
               </p>

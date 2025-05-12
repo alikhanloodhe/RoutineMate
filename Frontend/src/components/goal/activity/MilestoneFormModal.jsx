@@ -9,6 +9,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState('pending');
   const [reminderAt, setReminderAt] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Set form values when editing an existing milestone
   useEffect(() => {
@@ -35,6 +36,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
 
   // Handle close modal
   const handleClose = () => {
+    if (isSubmitting) return; // Don't close if submitting
     resetForm();
     onClose();
   };
@@ -43,10 +45,14 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Don't submit if already submitting
+    
     if (!title.trim()) {
       alert('Please enter a milestone title');
       return;
     }
+
+    setIsSubmitting(true);
 
     const milestoneData = {
       milestone_id: milestone?.milestone_id, // Only included when editing
@@ -58,9 +64,19 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
       completion_date: status === 'completed' ? new Date().toISOString() : null
     };
 
-    onSubmit(milestoneData);
-    resetForm();
+    // Use Promise to handle completion
+    Promise.resolve(onSubmit(milestoneData))
+      .then(() => {
+        resetForm();
+      })
+      .catch(error => {
+        console.error('Error submitting milestone:', error);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
+  
   const formatDateForInput = (dateStr) => {
     if (!dateStr) return ''; // Return empty string for null/undefined/empty values
     
@@ -74,6 +90,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`; // this is what <input type="date"> expects
   };
+  
   return (
     <AnimatePresence>
       {isOpen && (
@@ -103,7 +120,10 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                 </h3>
                 <button
                   onClick={handleClose}
-                  className="text-gray-500 hover:text-gray-700"
+                  className={`text-gray-500 hover:text-gray-700 ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSubmitting}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -137,6 +157,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       placeholder="Enter milestone title"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -151,6 +172,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       placeholder="Describe this milestone..."
                       rows="3"
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -167,6 +189,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                       value={formatDateForInput(dueDate)}
                       onChange={(e) => setDueDate(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -180,6 +203,7 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                       value={reminderAt}
                       onChange={(e) => setReminderAt(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
+                      disabled={isSubmitting}
                     />
                   </div>
                   
@@ -188,15 +212,31 @@ const MilestoneFormModal = ({ isOpen, onClose, onSubmit, milestone = null }) => 
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      className={`px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      disabled={isSubmitting}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors"
+                      className={`px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center gap-2 ${
+                        isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
+                      disabled={isSubmitting}
                     >
-                      {milestone ? 'Save Changes' : 'Add Milestone'}
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {milestone ? 'Saving...' : 'Adding...'}
+                        </>
+                      ) : (
+                        milestone ? 'Save Changes' : 'Add Milestone'
+                      )}
                     </button>
                   </div>
                 </form>

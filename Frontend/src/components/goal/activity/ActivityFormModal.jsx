@@ -10,6 +10,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
   const [previewPhotos, setPreviewPhotos] = useState([]);
   const [existingPhotos, setExistingPhotos] = useState([]);
   const [removedPhotoIds, setRemovedPhotoIds] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Set form values when editing an existing activity
   useEffect(() => {
@@ -60,12 +61,15 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
 
   // Handle close modal
   const handleClose = () => {
+    if (isSubmitting) return; // Don't close if submitting
     resetForm();
     onClose();
   };
 
   // Handle photo upload
   const handlePhotoUpload = (e) => {
+    if (isSubmitting) return; // Don't process if submitting
+    
     const files = Array.from(e.target.files);
     
     // Check for combined total (existing + new) to not exceed 5
@@ -87,6 +91,8 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
 
   // Handle removing a preview photo
   const handleRemovePhoto = (indexToRemove) => {
+    if (isSubmitting) return; // Don't process if submitting
+    
     // Check if this is an existing photo from the database
     const removedPhotoUrl = previewPhotos[indexToRemove];
     const existingPhotoIndex = existingPhotos.findIndex(photo => photo.url === removedPhotoUrl);
@@ -117,17 +123,22 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
 
   // Handle mood selection
   const handleMoodSelect = (selectedMood) => {
+    if (isSubmitting) return; // Don't process if submitting
     setMood(selectedMood);
   };
 
   // Submit form
-  const handleSubmit =  (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return; // Don't submit if already submitting
+    
     if (!title.trim()) {
       alert('Please enter an activity title');
       return;
     }
+    
+    setIsSubmitting(true);
     
     const activityData = new FormData();
     
@@ -160,8 +171,17 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
       console.log(pair[0], pair[1]);
     }
 
-    onSubmit(activityData);
-    resetForm();
+    // Use Promise.resolve to handle both promise and non-promise returns
+    Promise.resolve(onSubmit(activityData))
+      .then(() => {
+        resetForm();
+      })
+      .catch(error => {
+        console.error('Error submitting activity:', error);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
@@ -176,7 +196,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={handleClose}
           />
-
+          
           {/* Modal */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -193,7 +213,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                 </h3>
                 <button
                   onClick={handleClose}
-                  className="text-gray-500 hover:text-gray-700"
+                  className={`text-gray-500 hover:text-gray-700 ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSubmitting}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -211,7 +234,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                   </svg>
                 </button>
               </div>
-
+              
               {/* Body - scrollable */}
               <div className="p-6 overflow-y-auto">
                 <form onSubmit={handleSubmit}>
@@ -228,9 +251,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
-
+                  
                   {/* Description */}
                   <div className="mb-4">
                     <label htmlFor="activity-description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -243,45 +267,66 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF]/20 focus:border-[#4A2BAF]"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
+                      disabled={isSubmitting}
                     ></textarea>
                   </div>
-
+                  
                   {/* Photo Upload Section */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Photos (Optional) {previewPhotos.length > 0 && `(${previewPhotos.length}/5)`}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Add Photos (Optional)
                     </label>
-                    <div className="grid grid-cols-5 gap-2 mb-2 relative">
-                      {previewPhotos.map((photoSrc, index) => (
-                        <div key={index} className="aspect-square bg-gray-100 rounded-md overflow-hidden relative group">
-                          <img
-                            src={typeof photoSrc === 'string' ? photoSrc : URL.createObjectURL(photoSrc)}
-                            alt={`Preview ${index + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePhoto(index)}
-                            className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                      {previewPhotos.length < 5 && (
-                        <label htmlFor="file-upload" className="aspect-square bg-gray-100 rounded-md flex items-center justify-center border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                          <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" multiple onChange={handlePhotoUpload} />
-                        </label>
-                      )}
+                    
+                    {/* Photo upload button */}
+                    <div className="mb-3">
+                      <label className={`cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 text-sm hover:bg-gray-50 transition-colors ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {previewPhotos.length > 0 ? 'Add More Photos' : 'Add Photos'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                          multiple
+                          disabled={isSubmitting}
+                        />
+                      </label>
+                      <span className="text-xs text-gray-500 ml-2">(Max 5 photos)</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Upload up to 5 images</p>
+                    
+                    {/* Preview photos */}
+                    {previewPhotos.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {previewPhotos.map((photoUrl, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={photoUrl}
+                              alt={`Preview ${index}`}
+                              className="h-20 w-20 object-cover rounded-md"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(index)}
+                              className={`absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 ${
+                                isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                              disabled={isSubmitting}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {/* Mood Selector */}
+                  
+                  {/* Mood Selection */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       How are you feeling about this goal? (Optional)
@@ -290,7 +335,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       <button
                         type="button"
                         onClick={() => handleMoodSelect('happy')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'happy' ? 'bg-green-50 text-green-600' : 'hover:bg-gray-100'}`}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'happy' ? 'bg-green-50 text-green-600' : 'hover:bg-gray-100'} ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <span className="text-2xl mb-1">😊</span>
                         <span className="text-xs">Happy</span>
@@ -298,7 +346,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       <button
                         type="button"
                         onClick={() => handleMoodSelect('motivated')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'motivated' ? 'bg-purple-50 text-purple-600' : 'hover:bg-gray-100'}`}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'motivated' ? 'bg-purple-50 text-purple-600' : 'hover:bg-gray-100'} ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <span className="text-2xl mb-1">💪</span>
                         <span className="text-xs">Motivated</span>
@@ -306,7 +357,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       <button
                         type="button"
                         onClick={() => handleMoodSelect('tired')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'tired' ? 'bg-yellow-50 text-yellow-600' : 'hover:bg-gray-100'}`}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'tired' ? 'bg-yellow-50 text-yellow-600' : 'hover:bg-gray-100'} ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <span className="text-2xl mb-1">😴</span>
                         <span className="text-xs">Tired</span>
@@ -314,7 +368,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       <button
                         type="button"
                         onClick={() => handleMoodSelect('stressed')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'stressed' ? 'bg-red-50 text-red-600' : 'hover:bg-gray-100'}`}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'stressed' ? 'bg-red-50 text-red-600' : 'hover:bg-gray-100'} ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <span className="text-2xl mb-1">😣</span>
                         <span className="text-xs">Stressed</span>
@@ -322,7 +379,10 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                       <button
                         type="button"
                         onClick={() => handleMoodSelect('neutral')}
-                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'neutral' ? 'bg-gray-100 text-gray-600' : 'hover:bg-gray-100'}`}
+                        className={`flex flex-col items-center p-2 rounded-lg ${mood === 'neutral' ? 'bg-gray-100 text-gray-600' : 'hover:bg-gray-100'} ${
+                          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={isSubmitting}
                       >
                         <span className="text-2xl mb-1">😐</span>
                         <span className="text-xs">Neutral</span>
@@ -336,15 +396,31 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      className={`px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      disabled={isSubmitting}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors"
+                      className={`px-4 py-2 bg-[#4A2BAF] text-white rounded-lg hover:bg-[#3D2291] transition-colors flex items-center gap-2 ${
+                        isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
+                      disabled={isSubmitting}
                     >
-                      {activity ? 'Save Changes' : 'Add Entry'}
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {activity ? 'Saving...' : 'Submitting...'}
+                        </>
+                      ) : (
+                        activity ? 'Save Changes' : 'Add Entry'
+                      )}
                     </button>
                   </div>
                 </form>
