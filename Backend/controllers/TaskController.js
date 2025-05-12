@@ -41,15 +41,7 @@ export const addTask = async (req, res) => {
       task_estimated_time = `${hours} hours ${minutes} minutes`;
     }
     
-    // Debug log right before database insert
-    console.log('Values before DB insert:');
-    console.log('- name:', name);
-    console.log('- description:', description);
-    console.log('- category_id:', category_id);
-    console.log('- priority_id:', priority_id);
-    console.log('- status:', status);
-    console.log('- estimated_time:', task_estimated_time);
-    console.log('- dueDate:', dueDate);
+
 
     // 2. Insert task
     const insertTaskResult = await client.query(
@@ -281,18 +273,7 @@ export const editTask = async (req, res) => {
       const hours = Number(estimatedHours || 0);
       const minutes = Number(estimatedMinutes || 0);
       task_estimated_time = `${hours} hours ${minutes} minutes`;
-    }
-    
-    // Debug log before database update
-    console.log('Values before DB update:');
-    console.log('- task_id:', task_id);
-    console.log('- name:', taskName);
-    console.log('- description:', description);
-    console.log('- due_date:', dueDate);
-    console.log('- priority_id:', priority_id);
-    console.log('- category_id:', category_id);
-    console.log('- status:', status);
-    console.log('- estimated_time:', task_estimated_time);
+    } 
     
     // Update task - use timezone-adjusted timestamp
     await client.query(
