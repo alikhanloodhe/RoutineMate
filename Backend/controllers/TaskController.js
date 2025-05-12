@@ -5,7 +5,6 @@ export const addTask = async (req, res) => {
   console.log("Received:", req.body);
   const user_id = req.user.id; 
   console.log(req.body);
-  // const { title, description, type, user_id, dueDate, priority_id, tags, subTasks } = req.body;
   const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
   // Get timezone-adjusted timestamp functions
@@ -54,7 +53,7 @@ export const addTask = async (req, res) => {
       for (let i = 0; i < subtasks.length; i++) {
         await client.query(
           'INSERT INTO subtasks(task_id, name, status) VALUES($1, $2, $3)',
-          [task_id, subtasks[i].name, subtasks[i].status]
+          [task_id, subtasks[i].title || subtasks[i].name, subtasks[i].status || (subtasks[i].completed ? 'completed' : 'pending')]
         );
       }
     }
@@ -375,25 +374,27 @@ export const endSession = async (req, res) => {
 
   // Get timezone-adjusted timestamp functions
   const { now } = getClientAdjustedTime(req.clientTimezone?.name);
-
+ 
+  const client =  await pool.connect();
   try {
     let result;
-    
+     await client.query('BEGIN')
     // If sessionId is provided, end that specific session
     if (sessionId) {
       // Calculate duration based on start and end times
-      const sessionData = await pool.query(
+      const sessionData = await client.query(
         `SELECT start_time FROM task_sessions 
          WHERE session_id = $1 AND user_id = $2 AND end_time IS NULL`,
         [sessionId, userId]
       );
       
       if (sessionData.rows.length === 0) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Session not found or already ended' });
       }
       
       // Set end_time to now with timezone adjustment
-      result = await pool.query(
+      result = await client.query(
         `UPDATE task_sessions
          SET end_time = ${now}
          WHERE session_id = $1 AND user_id = $2 AND end_time IS NULL
@@ -404,7 +405,7 @@ export const endSession = async (req, res) => {
     // If taskId is provided, end the latest active session for that task
     else if (taskId && !duration) {
       // Calculate duration based on start and end times for the latest session
-      const sessionData = await pool.query(
+      const sessionData = await client.query(
         `SELECT session_id, start_time FROM task_sessions 
          WHERE task_id = $1 AND user_id = $2 AND end_time IS NULL
          ORDER BY start_time DESC LIMIT 1`,
@@ -412,10 +413,11 @@ export const endSession = async (req, res) => {
       );
       
       if (sessionData.rows.length === 0) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'No active session found for this task' });
       }
       
-      result = await pool.query(
+      result = await client.query(
         `UPDATE task_sessions
          SET end_time = ${now}
          WHERE session_id = $1 AND end_time IS NULL
@@ -429,7 +431,7 @@ export const endSession = async (req, res) => {
       const durationInSeconds = durationObj.totalSeconds;
       
       // Calculate start time by subtracting duration from current time
-      result = await pool.query(
+      result = await client.query(
         `INSERT INTO task_sessions (task_id, user_id, start_time, end_time)
          VALUES ($1, $2, ${now} - INTERVAL '${durationInSeconds} seconds', ${now})
          RETURNING session_id, start_time, end_time, duration`,
@@ -437,20 +439,26 @@ export const endSession = async (req, res) => {
       );
     }
     else {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Missing required parameters: either sessionId, taskId, or both taskId and duration are required' });
     }
 
     if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Session not found or already ended' });
     }
 
+    await client.query('COMMIT'); // Commiting  the transcation if all operations are performed successfully
     res.status(200).json({
       message: 'Session ended successfully',
       sessionData: result.rows[0]
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error ending session:', error);
     res.status(500).json({ error: 'Failed to end session', details: error.message });
+  }finally{
+    client.release();
   }
 };
 

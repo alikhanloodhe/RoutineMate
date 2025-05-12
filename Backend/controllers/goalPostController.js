@@ -10,15 +10,7 @@ export const addPost = async (req, res) => {
   const user_id = req.user.id;
   const goal_id = req.params.goalId;
   
-  console.log('------ POST REQUEST DEBUG ------');
-  console.log(`Processing post request for goal ${goal_id}`);
-  console.log('Request headers:', req.headers);
-  console.log('Request file:', req.file);
-  console.log('Request files array:', req.files);
-  console.log('Request body:', req.body);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('--------------------------------');
-  
+
   // Validate required fields
   if (!goal_id || !content) {
     return res.status(400).json({ error: 'Goal ID and content are required' });
