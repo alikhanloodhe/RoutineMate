@@ -100,7 +100,7 @@ const Navbar = () => {
 
   return (
     <nav 
-      className={`sticky top-0 z-50 py-3 backdrop-blur-lg transition-all duration-300 border-b ${
+      className={`sticky top-0 z-[100] py-3 backdrop-blur-lg transition-all duration-300 border-b ${
         scrolled ? "border-gray-200 bg-white/95 shadow-sm" : "border-transparent bg-white/80"
       }`}
     >
@@ -164,29 +164,26 @@ const Navbar = () => {
             </Link>
           </motion.div>
           
-          <div className="lg:hidden z-50">
+          <div className="lg:hidden relative z-[110]">
             <button 
               onClick={toggleNavbar}
-              className="w-10 h-10 relative focus:outline-none rounded-md bg-white/80 hover:bg-white flex items-center justify-center"
+              className="w-10 h-10 relative focus:outline-none rounded-md flex items-center justify-center"
               aria-label="Toggle menu"
             >
-              <div className="block w-5 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div className="w-5 flex flex-col justify-between items-center">
                 <span
-                  aria-hidden="true"
-                  className={`block absolute h-0.5 w-5 bg-gray-700 transform transition duration-300 ease-in-out ${
-                    mobileDrawerOpen ? "rotate-45" : "-translate-y-1.5"
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${
+                    mobileDrawerOpen ? 'rotate-45 translate-y-1' : '-translate-y-0.5'
                   }`}
                 ></span>
                 <span
-                  aria-hidden="true"
-                  className={`block absolute h-0.5 bg-gray-700 transform transition duration-300 ease-in-out ${
-                    mobileDrawerOpen ? "opacity-0" : "w-5"
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm my-0.5 ${
+                    mobileDrawerOpen ? 'opacity-0' : 'opacity-100'
                   }`}
                 ></span>
                 <span
-                  aria-hidden="true"
-                  className={`block absolute h-0.5 w-5 bg-gray-700 transform transition duration-300 ease-in-out ${
-                    mobileDrawerOpen ? "-rotate-45" : "translate-y-1.5"
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${
+                    mobileDrawerOpen ? '-rotate-45 -translate-y-1' : 'translate-y-0.5'
                   }`}
                 ></span>
               </div>
@@ -194,107 +191,84 @@ const Navbar = () => {
           </div>
         </div>
 
-        <AnimatePresence>
-          {mobileDrawerOpen && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-gray-800/30 backdrop-blur-sm z-40"
-              onClick={toggleNavbar}
-            />
-          )}
-        </AnimatePresence>
+        {/* Backdrop Overlay */}
+        {mobileDrawerOpen && (
+          <div 
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[101]"
+            onClick={toggleNavbar}
+          ></div>
+        )}
 
-        <AnimatePresence>
-          {mobileDrawerOpen && (
-            <motion.div 
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed top-0 right-0 w-[80%] max-w-sm h-full bg-white z-50 shadow-xl overflow-y-auto"
-            >
-              <div className="flex flex-col h-full">
-                <div className="flex justify-end p-4">
-                  <button 
-                    onClick={toggleNavbar} 
-                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-center mb-8 mt-6">
-                  <div className="h-12 w-12 mr-3 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] rounded-md flex items-center justify-center shadow-md">
-                    <Calendar className="text-white" size={26} />
-                  </div>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">
-                    RoutineMate
-                  </span>
-                </div>
-                
-                <div className="px-6 flex-1">
-                  <ul className="flex flex-col space-y-6">
-                    {navItems.map((item, index) => (
-                      <motion.li 
-                        key={index}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-gray-100 pb-4"
-                      >
-                        <a 
-                          href={item.href} 
-                          className="flex items-center text-lg font-medium py-2 text-gray-800 hover:text-[#4A2BAF] transition-colors" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            document.querySelector(item.href).scrollIntoView({ behavior: 'smooth' });
-                            toggleNavbar();
-                          }}
-                        >
-                          {item.label}
-                          <ChevronRight className="ml-auto" size={18} />
-                        </a>
-                      </motion.li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="mt-auto p-6 border-t border-gray-100">
-                  <div className="flex flex-col space-y-4 w-full">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.3 }}
-                    >
-                      <Link
-                        to="/login"
-                        className="py-3 px-4 border border-[#4A2BAF] text-[#4A2BAF] rounded-md text-center block font-medium"
-                      >
-                        Sign In
-                      </Link>
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.4 }}
-                    >
-                      <Link
-                        to="/signup"
-                        className="py-3 px-4 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-md text-center block font-medium"
-                      >
-                        Get Started
-                      </Link>
-                    </motion.div>
-                  </div>
-                </div>
+        {/* Mobile Menu */}
+        <div 
+          className={`fixed top-0 right-0 w-[75%] max-w-xs h-screen bg-white z-[102] shadow-xl transition-transform duration-300 ease-in-out transform ${
+            mobileDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+          } overflow-y-auto`}
+        >
+          <div className="flex flex-col h-full">
+            <div className="flex justify-end p-4">
+              <button 
+                onClick={toggleNavbar} 
+                className="p-2 rounded-full text-[#4A2BAF] hover:bg-[#4A2BAF]/5 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-center mb-8 mt-2">
+              <div className="h-12 w-12 mr-3 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] rounded-md flex items-center justify-center shadow-md">
+                <Calendar className="text-white" size={26} />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <span className="text-2xl font-bold bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">
+                RoutineMate
+              </span>
+            </div>
+            
+            <div className="px-6 flex-1">
+              <ul className="flex flex-col space-y-4">
+                {navItems.map((item, index) => (
+                  <li
+                    key={index}
+                    className="border-b border-gray-100 pb-3"
+                  >
+                    <a 
+                      href={item.href} 
+                      className="flex items-center text-lg font-medium py-2 text-gray-800 hover:text-[#4A2BAF] transition-colors" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.querySelector(item.href).scrollIntoView({ behavior: 'smooth' });
+                        toggleNavbar();
+                      }}
+                    >
+                      {item.label}
+                      <ChevronRight className="ml-auto" size={18} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="mt-auto p-6 border-t border-gray-100">
+              <div className="flex flex-col space-y-4 w-full">
+                <Link
+                  to="/login"
+                  className="py-3 px-4 border border-[#4A2BAF] text-[#4A2BAF] rounded-md text-center block font-medium transition-colors hover:bg-[#4A2BAF]/5"
+                  onClick={toggleNavbar}
+                >
+                  Sign In
+                </Link>
+
+                <Link
+                  to="/signup"
+                  className="py-3 px-4 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-white rounded-md text-center block font-medium transition-all hover:opacity-90"
+                  onClick={toggleNavbar}
+                >
+                  Get Started
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </nav>
   );

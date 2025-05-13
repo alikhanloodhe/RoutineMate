@@ -437,7 +437,7 @@ const HabitPage = () => {
       }
       
       // Show success toast
-      successToast(`Habit "${habit.title}" ${completed ? 'completed! 🎉' : 'marked as incomplete.'}`);
+      successToast(`Habit "${habit.title}" ${completed ? 'completed! ' : 'marked as incomplete.'}`);
     } catch (err) {
       console.error("Error toggling habit completion:", err);
       
