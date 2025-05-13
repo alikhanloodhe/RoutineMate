@@ -64,12 +64,23 @@ const PersonalGoalsTab = ({ goals, onViewGoal, refreshGoals }) => {
   };
 
   // Handle goal form submission
-  // here fetch api to create personal goal
   const handleSubmitGoal = async (goalData) => {
     try {
       if (goalData.goal_id) {
         // Update existing goal
         updateGoal(goalData.goal_id, goalData);
+        
+        // Create a copy of data to send, excluding milestones
+        const dataToSend = {
+          ...goalData,
+          // Make sure the category is sent correctly
+          category: goalData.category || 'Personal',
+        };
+        
+        // Remove milestones from the payload - milestones should be managed separately
+        // to prevent duplications
+        delete dataToSend.milestones;
+        
         try {
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalData.goal_id}`, {
             method: 'PUT',
@@ -77,7 +88,7 @@ const PersonalGoalsTab = ({ goals, onViewGoal, refreshGoals }) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${localStorage.getItem('token')}`,
             },
-            body: JSON.stringify(goalData),
+            body: JSON.stringify(dataToSend),
           });
           if (!response.ok) {
             throw new Error('Network response was not ok');

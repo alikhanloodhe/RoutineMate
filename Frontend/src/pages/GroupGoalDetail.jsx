@@ -208,15 +208,51 @@ const GroupGoalDetail = () => {
   }, [goal]);
   
   const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
     const d = new Date(dateStr);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`; // this is what <input type="date"> expects
   };
+  
+  // Format datetime for datetime-local input
+  const formatDateTimeForInput = (dateTimeStr) => {
+    if (!dateTimeStr) return '';
+    // Check if the string is valid
+    if (isNaN(new Date(dateTimeStr).getTime())) return '';
+    
+    const d = new Date(dateTimeStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    
+    // Return in the format required by datetime-local input
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   // Handle personal completion of a milestone
   const handlePersonalMilestoneCompletion = async (milestoneId, isComplete) => {
     try {
+      // Progress calculation explanation:
+      // 1. Individual progress: Tracks whether each user has completed each milestone (member_progress)
+      // 2. Group milestone status: A milestone is considered "completed" at the group level when
+      //    at least 50% of members have completed it (milestone.status = 'completed')
+      // 3. Overall goal progress: Based on how many milestones are marked "completed" at the group level
+      // 4. Personal progress: Tracked separately - how many milestones the current user has completed
+      
+      // Ensure we have valid milestoneId and currentUser before proceeding
+      if (!milestoneId || !currentUser || !currentUser.id) {
+        console.error("Missing required data:", { 
+          milestoneId, 
+          currentUserId: currentUser?.id 
+        });
+        errorToast("Cannot update milestone: Missing required data");
+        return;
+      }
+
       // Update local state immediately for better UX
       setPersonalMilestoneProgress(prev => ({
         ...prev,
@@ -231,34 +267,69 @@ const GroupGoalDetail = () => {
         // Update member_progress for the current user
         const updatedMilestones = prevGoal.milestones.map(m => {
           if (m.milestone_id === milestoneId) {
+            const updatedMemberProgress = {
+              ...m.member_progress,
+              [currentUser.id]: isComplete
+            };
+            
+            // Count how many members have completed this milestone
+            const totalMembers = prevGoal.members.length;
+            const completedMembers = Object.values(updatedMemberProgress).filter(status => status === true).length;
+            
+            // Calculate completion percentage
+            const completionPercentage = totalMembers > 0 ? (completedMembers / totalMembers) * 100 : 0;
+            
+            // If all members (or majority, e.g., > 50%) have completed it, mark milestone as completed
+            const isGroupCompleted = completionPercentage >= 50;
+            
+            console.log(`Milestone ${m.title}: ${completedMembers}/${totalMembers} members completed (${completionPercentage}%)`);
+            console.log(`Current status: ${m.status}, updating to ${isGroupCompleted ? 'completed' : m.status}`);
+            
             return {
               ...m,
-              member_progress: {
-                ...m.member_progress,
-                [currentUser.id]: isComplete
-              }
+              member_progress: updatedMemberProgress,
+              // Update overall milestone status if enough members have completed it
+              status: isGroupCompleted ? 'completed' : m.status
             };
           }
           return m;
         });
         
-        // Recalculate the goal's progress
-        let completedCount = 0;
+        // Recalculate the goal's progress - count milestones that are officially completed
+        let completedGroupMilestones = 0;
+        let totalMilestoneCount = updatedMilestones.length;
+        
         updatedMilestones.forEach(m => {
-          if (m.status === 'completed' || (m.member_progress && m.member_progress[currentUser.id])) {
-            completedCount++;
+          if (m.status === 'completed') {
+            completedGroupMilestones++;
           }
         });
         
-        const newProgress = updatedMilestones.length > 0 
-          ? Math.round((completedCount / updatedMilestones.length) * 100) 
+        // Calculate personal progress - count milestones that the current user has completed
+        let personalCompletedCount = 0;
+        updatedMilestones.forEach(m => {
+          if (m.member_progress && m.member_progress[currentUser.id]) {
+            personalCompletedCount++;
+          }
+        });
+        
+        const personalProgress = totalMilestoneCount > 0
+          ? Math.round((personalCompletedCount / totalMilestoneCount) * 100)
           : 0;
+          
+        const groupProgress = totalMilestoneCount > 0 
+          ? Math.round((completedGroupMilestones / totalMilestoneCount) * 100) 
+          : 0;
+        
+        console.log(`Updated group goal progress: ${completedGroupMilestones}/${totalMilestoneCount} milestones completed (${groupProgress}%)`);
+        console.log(`Personal goal progress: ${personalCompletedCount}/${totalMilestoneCount} milestones completed (${personalProgress}%)`);
         
         return {
           ...prevGoal,
           milestones: updatedMilestones,
-          completedMilestones: completedCount,
-          progress: newProgress
+          completedMilestones: completedGroupMilestones,
+          totalMilestones: totalMilestoneCount,
+          progress: groupProgress  // We maintain the original behavior for backward compatibility
         };
       });
       
@@ -266,13 +337,28 @@ const GroupGoalDetail = () => {
       const milestone = goal.milestones.find(m => m.milestone_id === milestoneId);
 
       if (milestone) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${milestoneId}`, {
+        // Convert milestone ID to a number if it's a string to prevent bigint errors
+        const numericMilestoneId = Number(milestoneId) || milestoneId;
+        
+        console.log("Updating milestone with data:", {
+          milestoneId: numericMilestoneId,
+          goalId,
+          status: isComplete ? 'completed' : 'in_progress',
+          userId: currentUser.id
+        });
+        
+        // Update the milestone status via the appropriate API endpoint
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${numericMilestoneId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
           body: JSON.stringify({
+            // Include user_id to identify which user is marking the milestone
+            user_id: currentUser.id,
+            // Add goal_id to satisfy the database trigger
+            goal_id: goalId,
             status: isComplete ? 'completed' : 'in_progress',
             completion_date: isComplete ? new Date().toISOString() : null
           }),
@@ -281,6 +367,13 @@ const GroupGoalDetail = () => {
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to update milestone status');
+        }
+        
+        // Show appropriate toast based on completion status
+        if (isComplete) {
+          successToast(`Milestone "${milestone.title}" marked as complete`);
+        } else {
+          infoToast(`Milestone "${milestone.title}" marked as incomplete`);
         }
         
         // Refresh goal data to ensure state is in sync with server
@@ -379,7 +472,7 @@ const GroupGoalDetail = () => {
         members: updatedMembers
       }));
       
-      successToast('Members added successfully');
+      successToast(`Successfully added ${newMembers.length} ${newMembers.length === 1 ? 'member' : 'members'}`);
       
       // Reset form
       setShowFriendSelector(false);
@@ -395,7 +488,17 @@ const GroupGoalDetail = () => {
     setMilestoneTitle(milestone.title);
     setMilestoneDescription(milestone.description);
     setMilestoneDueDate(milestone.due_date);
-    setMilestoneReminderDate(milestone.reminder_date || '');
+    
+    console.log("Editing milestone with reminder data:", {
+      reminder_date: milestone.reminder_date,
+      reminder_at: milestone.reminder_at
+    });
+    
+    // Ensure we correctly handle and preserve the reminder date
+    // Use either reminder_date or reminder_at field from the milestone
+    setMilestoneReminderDate(formatDateTimeForInput(milestone.reminder_date || milestone.reminder_at || ''));
+    
+    // Ensure we're using the milestone_id consistently
     setCurrentMilestoneId(milestone.milestone_id);
     setIsEditingMilestone(true);
     setShowMilestoneForm(true);
@@ -414,6 +517,14 @@ const GroupGoalDetail = () => {
     const milestoneId = showConfirmDeleteMilestone;
     
     try {
+      // Convert milestone ID to a number if it's a string to prevent bigint errors
+      const numericMilestoneId = Number(milestoneId) || milestoneId;
+      
+      console.log("Deleting milestone:", {
+        milestoneId: numericMilestoneId,
+        goalId
+      });
+      
       // First update state (optimistically)
       setGoal(prevGoal => {
         const updatedMilestones = prevGoal.milestones.filter(m => m.milestone_id !== milestoneId);
@@ -440,7 +551,7 @@ const GroupGoalDetail = () => {
       });
       
       // Then call API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${milestoneId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/deleteMilestone/${goalId}/${numericMilestoneId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -454,6 +565,11 @@ const GroupGoalDetail = () => {
       
       // Show success toast
       successToast('Milestone deleted successfully');
+      
+      // Refresh goal data
+      setTimeout(() => {
+        fetchGoalData();
+      }, 500);
     } catch (error) {
       console.error('Error deleting milestone:', error);
       errorToast('Failed to delete milestone. Please try again.');
@@ -477,22 +593,45 @@ const GroupGoalDetail = () => {
       errorToast('Please select a due date');
       return;
     }
+    
+    // Log the current form data before submitting
+    console.log("Milestone form data before submission:", {
+      title: milestoneTitle,
+      description: milestoneDescription,
+      dueDate: milestoneDueDate,
+      reminderDate: milestoneReminderDate
+    });
+    
     try {
       if (isEditingMilestone && currentMilestoneId) {
+        // Convert milestone ID to a number if it's a string to prevent bigint errors
+        const numericMilestoneId = Number(currentMilestoneId) || currentMilestoneId;
+        
+        console.log("Editing milestone:", {
+          milestoneId: numericMilestoneId,
+          goalId,
+          title: milestoneTitle,
+          description: milestoneDescription,
+          reminderDate: milestoneReminderDate
+        });
+        
         // Update existing milestone
         const updatedMilestone = {
-          id: currentMilestoneId,
+          milestone_id: numericMilestoneId, // Use consistent milestone_id
           title: milestoneTitle,
           description: milestoneDescription,
           due_date: milestoneDueDate,
           reminder_date: milestoneReminderDate || null,
-          status: goal.milestones.find(m => m.id === currentMilestoneId)?.status || 'in_progress',
+          // Find the milestone's current status - use milestone_id for consistent lookup
+          status: goal.milestones.find(m => m.milestone_id === numericMilestoneId)?.status || 'in_progress',
+          // Preserve member_progress data
+          member_progress: goal.milestones.find(m => m.milestone_id === numericMilestoneId)?.member_progress || {}
         };
         
         // Update milestone in state
         setGoal(prevGoal => {
           const updatedMilestones = prevGoal.milestones.map(milestone => 
-            milestone.milestone_id === currentMilestoneId ? updatedMilestone : milestone
+            milestone.milestone_id === numericMilestoneId ? updatedMilestone : milestone
           );
           
           return {
@@ -501,35 +640,48 @@ const GroupGoalDetail = () => {
           };
         });
         
+        // Prepare the request payload
+        const requestPayload = {
+          title: milestoneTitle,
+          description: milestoneDescription,
+          due_date: milestoneDueDate,
+          // Send the reminder date as reminder_at for API consistency
+          reminder_at: milestoneReminderDate,
+          // Add goal_id to satisfy the database trigger
+          goal_id: goalId
+        };
+        
+        console.log("Sending update payload to API:", requestPayload);
+        
         // Make API call to update milestone
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${currentMilestoneId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/updateMilestone/${goalId}/${numericMilestoneId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
-          body: JSON.stringify({
-            title: milestoneTitle,
-            description: milestoneDescription,
-            due_date: milestoneDueDate,
-            reminder_at: milestoneReminderDate
-          }),
+          body: JSON.stringify(requestPayload),
         });
         
         if (!response.ok) {
-          throw new Error('Failed to update milestone');
+          const errorResponse = await response.json();
+          console.error("API error response:", errorResponse);
+          throw new Error(errorResponse.message || 'Failed to update milestone');
         }
+        
+        // Show success toast
+        successToast('Milestone updated successfully');
       } else {
         // Add new milestone
         const newMilestone = {
-          id: Date.now().toString(),
+          milestone_id: Date.now().toString(), // Use consistent milestone_id
           title: milestoneTitle,
           description: milestoneDescription,
           due_date: milestoneDueDate,
           reminder_date: milestoneReminderDate || null,
           status: 'in_progress',
           member_progress: goal.members.reduce((acc, member) => {
-            acc[member.user_id] = false;
+            acc[member.user_id || member.id] = false;
             return acc;
           }, {})
         };
@@ -557,6 +709,19 @@ const GroupGoalDetail = () => {
           };
         });
         
+        // Prepare the request payload
+        const requestPayload = {
+          title: milestoneTitle,
+          description: milestoneDescription,
+          due_date: milestoneDueDate,
+          // Send the reminder date as reminder_at for API consistency
+          reminder_at: milestoneReminderDate,
+          // Add goal_id to satisfy the database trigger
+          goal_id: goalId
+        };
+        
+        console.log("Sending create payload to API:", requestPayload);
+        
         // Make API call to add milestone
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/addMilestone/${goalId}`, {
           method: 'POST',
@@ -564,17 +729,17 @@ const GroupGoalDetail = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
-          body: JSON.stringify({
-            title: milestoneTitle,
-            description: milestoneDescription,
-            due_date: milestoneDueDate,
-            reminder_at: milestoneReminderDate
-          }),
+          body: JSON.stringify(requestPayload),
         });
         
         if (!response.ok) {
-          throw new Error('Failed to add milestone');
+          const errorResponse = await response.json();
+          console.error("API error response:", errorResponse);
+          throw new Error(errorResponse.message || 'Failed to add milestone');
         }
+        
+        // Show success toast
+        successToast('New milestone added successfully');
       }
       
       // Reset form
@@ -586,6 +751,10 @@ const GroupGoalDetail = () => {
       setIsEditingMilestone(false);
       setShowMilestoneForm(false);
       
+      // Fetch updated goal data
+      setTimeout(() => {
+        fetchGoalData();
+      }, 500);
     } catch (error) {
       console.error('Error saving milestone:', error);
       errorToast('Failed to save milestone. Please try again.');
@@ -642,7 +811,12 @@ const GroupGoalDetail = () => {
         throw new Error(errorData.message || 'Failed to remove member');
       }
       
-      successToast('Member removed successfully');
+      // Different toast messages based on whether it's leaving or being removed
+      if (memberId === currentUser.id) {
+        successToast('You have left the goal successfully');
+      } else {
+        successToast('Member removed successfully');
+      }
       
       // If current user is leaving the goal
       if (memberId === currentUser.id) {
@@ -721,6 +895,7 @@ const GroupGoalDetail = () => {
   const handleUpdateGoal = (updatedGoal) => {
     setGoal({ ...goal, ...updatedGoal });
     setShowFormModal(false);
+    successToast('Goal updated successfully');
   };
   
   // Handle member removal confirmation
@@ -750,6 +925,9 @@ const GroupGoalDetail = () => {
         const processedGoal = {
           ...data.goal,
           milestones: data.goal.milestones.map(milestone => {
+            // Log milestone data for debugging
+            console.log("Raw milestone data from API:", milestone);
+            
             // Fetch milestone_users data for this milestone
             return fetch(`${import.meta.env.VITE_API_URL}/api/groupGoals/getMilestoneUsers/${milestone.milestone_id}`, {
               headers: {
@@ -807,19 +985,35 @@ const GroupGoalDetail = () => {
         let completedMilestones = 0;
         const totalMilestones = finalGoal.milestones.length;
         
+        // Count group-level completed milestones
         finalGoal.milestones.forEach(milestone => {
-          // Count milestones that are marked as completed or where current user has completed them
-          if (milestone.status === 'completed' || (milestone.member_progress && milestone.member_progress[currentUser?.id])) {
+          // A milestone is completed if its status is 'completed'
+          if (milestone.status === 'completed') {
             completedMilestones++;
           }
         });
         
+        // Calculate personal progress for the current user
+        let personalCompletedCount = 0;
+        finalGoal.milestones.forEach(milestone => {
+          if (milestone.member_progress && milestone.member_progress[currentUser?.id]) {
+            personalCompletedCount++;
+          }
+        });
+        
+        const userProgressPercentage = totalMilestones > 0
+          ? Math.round((personalCompletedCount / totalMilestones) * 100)
+          : 0;
+        
         const progress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+        console.log(`Group goal progress: ${completedMilestones}/${totalMilestones} milestones completed (${progress}%)`);
+        console.log(`Personal progress: ${personalCompletedCount}/${totalMilestones} milestones completed (${userProgressPercentage}%)`);
         
         // Update finalGoal with computed statistics
         finalGoal.completedMilestones = completedMilestones;
         finalGoal.totalMilestones = totalMilestones;
         finalGoal.progress = progress;
+        finalGoal.userProgress = userProgressPercentage; // Store user's personal progress for potential future use
         
         setPersonalMilestoneProgress(personalProgress);
         setGoal(finalGoal);
@@ -1763,7 +1957,10 @@ const GroupGoalDetail = () => {
                       <input
                         type="datetime-local"
                         value={milestoneReminderDate}
-                        onChange={(e) => setMilestoneReminderDate(e.target.value)}
+                        onChange={(e) => {
+                          console.log("Setting reminder date:", e.target.value);
+                          setMilestoneReminderDate(e.target.value);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent"
                       />
                     </div>

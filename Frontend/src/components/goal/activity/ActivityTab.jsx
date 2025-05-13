@@ -9,6 +9,7 @@ import {
   deleteComment,
   toggleLike 
 } from '../../../utils/goalPostService';
+import { useToastContext } from '../../../context/ToastContext';
 
 const ActivityTab = ({ 
   goal, 
@@ -16,9 +17,11 @@ const ActivityTab = ({
   formatTimestamp,
   onUpdate
 }) => {
+  const { successToast, errorToast, infoToast } = useToastContext();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [postToDelete, setPostToDelete] = useState(null);
 
   // Fetch posts when the component mounts
   useEffect(() => {
@@ -31,6 +34,7 @@ const ActivityTab = ({
       } catch (err) {
         console.error('Error fetching posts:', err);
         setError('Failed to load activity feed. Please try again.');
+        errorToast('Failed to load activity feed');
       } finally {
         setIsLoading(false);
       }
@@ -107,12 +111,15 @@ const ActivityTab = ({
         posts: [response.post, ...(goal.posts || []).filter(p => p.post_id !== tempId)]
       });
       
+      // Show success toast
+      successToast('Post added successfully');
+      
       return response.post;
     } catch (error) {
       console.error('Error adding post:', error);
       // Remove temporary post on error
       setPosts(prevPosts => prevPosts.filter(p => !p.post_id.startsWith('temp-')));
-      alert('Failed to add post. Please try again.');
+      errorToast('Failed to add post. Please try again.');
       throw error;
     }
   };
@@ -154,10 +161,13 @@ const ActivityTab = ({
         })
       });
       
+      // Show success toast
+      successToast('Comment added successfully');
+      
       return response.comment;
     } catch (error) {
       console.error('Error adding comment:', error);
-      alert('Failed to add comment. Please try again.');
+      errorToast('Failed to add comment. Please try again.');
       throw error;
     }
   };
@@ -197,33 +207,51 @@ const ActivityTab = ({
         })
       });
       
+      // Show appropriate toast based on like status
+      if (response.liked) {
+        successToast('Post liked');
+      } else {
+        infoToast('Post unliked');
+      }
+      
       return response;
     } catch (error) {
       console.error('Error toggling like:', error);
-      alert('Failed to update like status. Please try again.');
+      errorToast('Failed to update like status. Please try again.');
       throw error;
     }
   };
 
   // Handle deleting an activity
   const handleDeleteActivity = async (postId) => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        await deleteGoalPost(postId);
-        
-        // Update local state
-        setPosts(prevPosts => prevPosts.filter(post => post.post_id !== postId));
-        
-        // Update parent component state
-        onUpdate({
-          ...goal,
-          posts: (goal.posts || []).filter(post => post.post_id !== postId)
-        });
-      } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Failed to delete post. Please try again.');
-        throw error;
-      }
+    // Set the post ID to delete and show confirmation modal
+    setPostToDelete(postId);
+  };
+
+  // Handle confirming post deletion
+  const handleConfirmDelete = async () => {
+    if (!postToDelete) return;
+    
+    try {
+      await deleteGoalPost(postToDelete);
+      
+      // Update local state
+      setPosts(prevPosts => prevPosts.filter(post => post.post_id !== postToDelete));
+      
+      // Update parent component state
+      onUpdate({
+        ...goal,
+        posts: (goal.posts || []).filter(post => post.post_id !== postToDelete)
+      });
+      
+      // Show success toast
+      successToast('Post deleted successfully');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      errorToast('Failed to delete post. Please try again.');
+    } finally {
+      // Reset the post to delete state
+      setPostToDelete(null);
     }
   };
 
@@ -265,10 +293,13 @@ const ActivityTab = ({
         })
       });
       
+      // Show success toast
+      successToast('Post updated successfully');
+      
       return response.post;
     } catch (error) {
       console.error('Error updating post:', error);
-      alert('Failed to update post. Please try again.');
+      errorToast('Failed to update post. Please try again.');
       throw error;
     }
   };
@@ -360,16 +391,52 @@ const ActivityTab = ({
   });
 
   return (
-    <ActivityFeed 
-      activities={formattedActivities}
-      currentUser={currentUser}
-      onAddActivity={handleAddActivity}
-      onAddComment={handleAddComment}
-      onLikeActivity={handleLikeActivity}
-      onEditActivity={handleEditActivity}
-      onDeleteActivity={handleDeleteActivity}
-      formatTimestamp={formatTimestamp}
-    />
+    <>
+      <ActivityFeed 
+        activities={formattedActivities}
+        currentUser={currentUser}
+        onAddActivity={handleAddActivity}
+        onAddComment={handleAddComment}
+        onLikeActivity={handleLikeActivity}
+        onEditActivity={handleEditActivity}
+        onDeleteActivity={handleDeleteActivity}
+        formatTimestamp={formatTimestamp}
+      />
+      
+      {/* Delete Post Confirmation Modal */}
+      {postToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Delete Post</h3>
+              <p className="text-sm text-gray-600 mt-2">
+                Are you sure you want to delete this post? This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setPostToDelete(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
