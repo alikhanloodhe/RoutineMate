@@ -86,10 +86,10 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row-reverse bg-gray-50">
-      {/* Left Section (Illustration - now on right on desktop) */}
+    <div className="min-h-screen flex flex-col md:flex-row-reverse">
+      {/* Right Section (Illustration) with gradient background */}
       <motion.div 
-        className="hidden md:flex md:w-1/2 bg-white shadow-md items-center justify-center p-10"
+        className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#4A2BAF] to-[#5D4EFF] items-center justify-center p-10"
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -101,32 +101,32 @@ const Signup = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <div className="mb-10 flex justify-center">
-              <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
-                <FiCalendar className="text-white" size={32} />
+              <div className="w-16 h-16 rounded-lg bg-white flex items-center justify-center shadow-lg">
+                <FiCalendar className="text-[#4A2BAF]" size={32} />
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Start Your Journey with RoutineMate</h2>
-            <p className="text-gray-600 text-lg mb-6">
+            <h2 className="text-3xl font-bold text-white mb-4">Start Your Journey with RoutineMate</h2>
+            <p className="text-white/90 text-lg mb-6">
               Take the first step towards building better habits and achieving your goals.
             </p>
             <motion.div 
-              className="w-full h-64 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden shadow-sm"
+              className="w-full h-64 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center overflow-hidden shadow-sm border border-white/20"
               whileHover={{ scale: 1.03 }}
               transition={{ duration: 0.2 }}
             >
               <div className="px-6 text-center">
-                <blockquote className="text-xl italic text-indigo-700">
+                <blockquote className="text-xl italic text-white">
                   "The journey of a thousand miles begins with a single step."
                 </blockquote>
-                <p className="mt-4 text-gray-500">— Lao Tzu</p>
+                <p className="mt-4 text-white/70">— Lao Tzu</p>
               </div>
             </motion.div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Right Section (Signup Form - now on left on desktop) */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6">
+      {/* Left Section (Signup Form) */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 bg-white">
         <motion.div 
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 30 }}
@@ -134,7 +134,7 @@ const Signup = () => {
           transition={{ duration: 0.5 }}
         >
           <div className="flex justify-center md:hidden mb-8">
-            <div className="w-16 h-16 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-lg bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] flex items-center justify-center shadow-lg">
               <FiCalendar className="text-white" size={32} />
             </div>
           </div>
@@ -150,7 +150,7 @@ const Signup = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.6 }}
             >
-              <h2 className="text-2xl font-bold mb-1 text-indigo-700">Create Your Account</h2>
+              <h2 className="text-2xl font-bold mb-1 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">Create Your Account</h2>
               <p className="text-gray-600 mb-6">Start Building Better Days</p>
             </motion.div>
             
@@ -187,7 +187,7 @@ const Signup = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -210,7 +210,7 @@ const Signup = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -233,7 +233,7 @@ const Signup = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 placeholder-gray-400"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -251,19 +251,18 @@ const Signup = () => {
                   </div>
                 </div>
                 {formData.password && (
-                  <PasswordStrengthBar 
-                    password={formData.password} 
-                    scoreWords={['Weak', 'Weak', 'Okay', 'Good', 'Strong']}
-                    scoreColors={['#f87171', '#fbbf24', '#38bdf8', '#4f46e5', '#6366f1']}
-                    className="mt-1"
-                  />
+                  <div className="mt-2">
+                    <PasswordStrengthBar 
+                      password={formData.password} 
+                      scoreWords={['Weak', 'Weak', 'Okay', 'Good', 'Strong']}
+                      scoreColors={['#e74c3c', '#f39c12', '#f1c40f', '#3498db', '#4A2BAF']}
+                      minLength={6}
+                    />
+                  </div>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Must be at least 8 characters with uppercase, lowercase, number and special character
-                </p>
               </div>
               
-              <div className="mb-6">
+              <div className="mb-4">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
                 </label>
@@ -281,11 +280,7 @@ const Signup = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    className={`w-full pl-10 pr-10 py-2 border ${
-                      formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword
-                        ? 'border-red-300 focus:ring-red-500'
-                        : 'border-gray-300 focus:ring-indigo-500'
-                    } rounded-md focus:outline-none focus:ring-2 focus:border-transparent bg-gray-50 placeholder-gray-400`}
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
                   <div 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
@@ -302,47 +297,27 @@ const Signup = () => {
                     </motion.div>
                   </div>
                 </div>
-                {formData.password && formData.confirmPassword && (
-                  <div className="mt-1 text-xs">
-                    {formData.password === formData.confirmPassword ? (
-                      <span className="text-green-600 flex items-center">
-                        <FiCheck className="mr-1" /> Passwords match
-                      </span>
-                    ) : (
-                      <span className="text-red-600">
-                        Passwords do not match
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
               
               <div className="mb-6">
                 <div className="flex items-center">
                   <input
-                    id="terms"
-                    name="terms"
+                    id="agreeToTerms"
+                    name="agreeToTerms"
                     type="checkbox"
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     checked={agreeToTerms}
                     onChange={() => setAgreeToTerms(!agreeToTerms)}
+                    className="h-4 w-4 text-[#4A2BAF] focus:ring-[#5D4EFF] border-gray-300 rounded"
                   />
-                  <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">
-                    I agree to the{" "}
-                    <a href="#" className="text-indigo-600 hover:text-indigo-500">
-                      Terms of Service
-                    </a>{" "}
-                    and{" "}
-                    <a href="#" className="text-indigo-600 hover:text-indigo-500">
-                      Privacy Policy
-                    </a>
+                  <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-600">
+                    I agree to the <a href="#" className="text-[#4A2BAF] hover:text-[#5D4EFF]">Terms of Service</a> and <a href="#" className="text-[#4A2BAF] hover:text-[#5D4EFF]">Privacy Policy</a>
                   </label>
                 </div>
               </div>
               
               <motion.button 
                 type="submit" 
-                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+                className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A2BAF] transition-all duration-200"
                 disabled={loading}
                 whileHover={{ translateY: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -363,7 +338,7 @@ const Signup = () => {
               <p className="text-gray-600">
                 Already have an account?{' '}
                 <motion.span whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link to="/login" className="text-indigo-600 hover:text-indigo-500 font-medium">
+                  <Link to="/login" className="text-[#4A2BAF] hover:text-[#5D4EFF] font-medium">
                     Sign in
                   </Link>
                 </motion.span>
