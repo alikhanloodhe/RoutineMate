@@ -29,6 +29,8 @@ const ActivityItem = ({
       return;
     }
     
+    // Just send the edited content without trying to modify the photo
+    // The backend will preserve the existing photo
     onEdit(activity.id, { content: editedContent });
     setIsEditing(false);
   };

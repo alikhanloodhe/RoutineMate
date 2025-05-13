@@ -5,6 +5,7 @@ import PageHeader from '../components/ui/PageHeader';
 import { updateGoal } from '../utils/goalData';
 import { MilestoneFormModal, ActivityFormModal } from '../components/goal/activity';
 import { useToastContext } from '../context/ToastContext';
+import GoalFormModal from '../components/goal/personal/PersonalGoalFormModal';
 
 const GoalDetail = () => {
   const { successToast, errorToast, infoToast } = useToastContext();
@@ -22,6 +23,7 @@ const GoalDetail = () => {
   const [currentMilestone, setCurrentMilestone] = useState(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [currentActivity, setCurrentActivity] = useState(null);
+  const [showGoalEditModal, setShowGoalEditModal] = useState(false);
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   
@@ -36,6 +38,56 @@ const GoalDetail = () => {
   const { goalId } = useParams(); /// wehere its activities are renedered
 
   const navigate = useNavigate();
+
+  // Handle edit goal
+  const handleEditGoal = () => {
+    setShowGoalEditModal(true);
+  };
+
+  // Handle goal update submission
+  const handleGoalSubmit = async (goalData) => {
+    try {
+      // Ensure we preserve the goal_type and any other required fields
+      const dataToUpdate = {
+        ...goalData,
+        goal_type: 'personal', // Ensure we keep the goal type
+        goal_id: goalId, // Make sure goal_id is included
+      };
+
+      console.log('Updating goal with data:', dataToUpdate); // Debug log
+      
+      // Update the local state immediately for better UX
+      const updatedGoal = {
+        ...goal,
+        ...dataToUpdate
+      };
+      
+      setGoal(updatedGoal);
+      
+      // Update in backend
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/goals/updateGoal/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(dataToUpdate),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      // Keep local state in sync 
+      updateGoal(goal.goal_id, updatedGoal);
+      
+      successToast('Goal updated successfully');
+      setShowGoalEditModal(false);
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      errorToast('Failed to update goal. Please try again.');
+    }
+  };
 
   // Handle milestone related functions
   const handleAddMilestone = () => {
@@ -569,7 +621,7 @@ const GoalDetail = () => {
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => navigate(`/goals/edit/${goal.goal_id}`)}
+                  onClick={handleEditGoal}
                   className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1052,6 +1104,16 @@ ${activity.mood === 'happy' ? 'bg-green-50 text-green-600' :
               </div>
             </div>
           </div>
+        )}
+
+        {/* Goal Edit Modal */}
+        {showGoalEditModal && (
+          <GoalFormModal
+            isOpen={showGoalEditModal}
+            onClose={() => setShowGoalEditModal(false)}
+            onSubmit={handleGoalSubmit}
+            goal={goal}
+          />
         )}
       </div>
     </div>

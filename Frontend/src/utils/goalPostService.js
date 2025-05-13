@@ -150,15 +150,25 @@ export const addGoalPost = async (goalId, formDataOrContent, photo) => {
 // Update a post
 export const updateGoalPost = async (postId, content, photo) => {
   try {
-    const formData = new FormData();
-    formData.append('content', content);
+    console.log('updateGoalPost called with:', { postId, content, photo });
     
-    if (photo) {
+    const formData = new FormData();
+    formData.append('content', content || '');
+    
+    // Only append photo if it's a File object
+    if (photo && photo instanceof File) {
       console.log('Appending photo to update form data:', photo);
       formData.append('photo', photo);
+    } else if (photo && typeof photo === 'string') {
+      // If photo is a URL string, the backend should already have this photo
+      // Don't send it again, just log it
+      console.log('Photo is a URL string, not sending to backend:', photo);
+    } else if (photo) {
+      console.warn('Photo is not a File object or URL, skipping:', photo);
     }
     
     // Log form data for debugging
+    console.log('Form data entries for update:');
     for (let [key, value] of formData.entries()) {
       console.log(`${key}: ${value instanceof File ? 'File: ' + value.name : value}`);
     }
