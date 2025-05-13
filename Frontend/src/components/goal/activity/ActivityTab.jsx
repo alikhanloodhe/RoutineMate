@@ -9,7 +9,6 @@ import {
   deleteComment,
   toggleLike 
 } from '../../../utils/goalPostService';
-import { useToastContext } from '../../../context/ToastContext';
 
 const ActivityTab = ({ 
   goal, 
@@ -17,14 +16,9 @@ const ActivityTab = ({
   formatTimestamp,
   onUpdate
 }) => {
-  const { successToast, errorToast, infoToast } = useToastContext();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Confirmation dialog state
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [postToDelete, setPostToDelete] = useState(null);
 
   // Fetch posts when the component mounts
   useEffect(() => {
@@ -113,15 +107,12 @@ const ActivityTab = ({
         posts: [response.post, ...(goal.posts || []).filter(p => p.post_id !== tempId)]
       });
       
-      // Show success toast
-      successToast('Post added successfully');
-      
       return response.post;
     } catch (error) {
       console.error('Error adding post:', error);
       // Remove temporary post on error
       setPosts(prevPosts => prevPosts.filter(p => !p.post_id.startsWith('temp-')));
-      errorToast('Failed to add post. Please try again.');
+      alert('Failed to add post. Please try again.');
       throw error;
     }
   };
@@ -163,13 +154,10 @@ const ActivityTab = ({
         })
       });
       
-      // Show success toast
-      successToast('Comment added successfully');
-      
       return response.comment;
     } catch (error) {
       console.error('Error adding comment:', error);
-      errorToast('Failed to add comment. Please try again.');
+      alert('Failed to add comment. Please try again.');
       throw error;
     }
   };
@@ -209,61 +197,34 @@ const ActivityTab = ({
         })
       });
       
-      // Show appropriate success toast
-      if (response.liked) {
-        successToast('Post liked');
-      } else {
-        infoToast('Post unliked');
-      }
-      
       return response;
     } catch (error) {
       console.error('Error toggling like:', error);
-      errorToast('Failed to update like status. Please try again.');
+      alert('Failed to update like status. Please try again.');
       throw error;
     }
   };
 
-  // Handle deleting an activity - shows custom confirmation dialog
+  // Handle deleting an activity
   const handleDeleteActivity = async (postId) => {
-    // Set the post to delete and show confirmation dialog
-    setPostToDelete(postId);
-    setShowDeleteModal(true);
-  };
-  
-  // Confirm post deletion
-  const confirmPostDeletion = async () => {
-    try {
-      await deleteGoalPost(postToDelete);
-      
-      // Update local state
-      setPosts(prevPosts => prevPosts.filter(post => post.post_id !== postToDelete));
-      
-      // Update parent component state
-      onUpdate({
-        ...goal,
-        posts: (goal.posts || []).filter(post => post.post_id !== postToDelete)
-      });
-      
-      // Show success toast
-      successToast('Post deleted successfully');
-      
-      // Hide the modal
-      setShowDeleteModal(false);
-      setPostToDelete(null);
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      errorToast('Failed to delete post. Please try again.');
-      // Hide the modal even if there's an error
-      setShowDeleteModal(false);
-      setPostToDelete(null);
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      try {
+        await deleteGoalPost(postId);
+        
+        // Update local state
+        setPosts(prevPosts => prevPosts.filter(post => post.post_id !== postId));
+        
+        // Update parent component state
+        onUpdate({
+          ...goal,
+          posts: (goal.posts || []).filter(post => post.post_id !== postId)
+        });
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Failed to delete post. Please try again.');
+        throw error;
+      }
     }
-  };
-  
-  // Cancel deletion
-  const cancelPostDeletion = () => {
-    setShowDeleteModal(false);
-    setPostToDelete(null);
   };
 
   // Handle editing an activity
@@ -274,12 +235,11 @@ const ActivityTab = ({
       
       console.log('Updating post:', postId, updates);
       
-      // Fix for photo handling - only pass photo if it's actually provided
-      // Don't send null or undefined if no photo is provided
+      // Make API call to update the post
       const response = await updateGoalPost(
         postId, 
-        updates.content,
-        updates.photo // Remove || null to prevent sending null value
+        updates.content, 
+        updates.photo || null
       );
       
       console.log('Update post response:', response);
@@ -305,13 +265,10 @@ const ActivityTab = ({
         })
       });
       
-      // Show success toast
-      successToast('Post updated successfully');
-      
       return response.post;
     } catch (error) {
       console.error('Error updating post:', error);
-      errorToast('Failed to update post. Please try again.');
+      alert('Failed to update post. Please try again.');
       throw error;
     }
   };
@@ -403,42 +360,16 @@ const ActivityTab = ({
   });
 
   return (
-    <div>
-      <ActivityFeed 
-        activities={formattedActivities}
-        currentUser={currentUser}
-        onAddActivity={handleAddActivity}
-        onAddComment={handleAddComment}
-        onLikeActivity={handleLikeActivity}
-        onEditActivity={handleEditActivity}
-        onDeleteActivity={handleDeleteActivity}
-        formatTimestamp={formatTimestamp}
-      />
-      
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Deletion</h3>
-            <p className="text-gray-600 mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelPostDeletion}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPostDeletion}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <ActivityFeed 
+      activities={formattedActivities}
+      currentUser={currentUser}
+      onAddActivity={handleAddActivity}
+      onAddComment={handleAddComment}
+      onLikeActivity={handleLikeActivity}
+      onEditActivity={handleEditActivity}
+      onDeleteActivity={handleDeleteActivity}
+      formatTimestamp={formatTimestamp}
+    />
   );
 };
 

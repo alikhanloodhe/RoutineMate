@@ -6,8 +6,7 @@ const ActivityFeed = ({
   activities = [], 
   currentUser, 
   onAddActivity, 
-  onAddComment,
-  onDeleteComment, 
+  onAddComment, 
   onLikeActivity,
   onEditActivity,
   onDeleteActivity,
@@ -122,7 +121,6 @@ const ActivityFeed = ({
               activity={activity}
               currentUser={currentUser}
               onAddComment={onAddComment}
-              onDeleteComment={onDeleteComment}
               onLike={onLikeActivity}
               onEdit={onEditActivity}
               onDelete={onDeleteActivity}

@@ -276,9 +276,9 @@ const PersonalGoalFormModal = ({ isOpen, onClose, onSubmit, goal }) => {
       start_date: startDate,
       end_date: endDate,
       // visibility,
-      status: goal?.status || 'active',
+      // status: 'active',
       milestones,
-      progress: goal?.progress || 0, // Preserve existing progress when editing
+      progress: 0, // Initialize progress at 0%
       goal_type: 'personal',
       created_at: goal?.created_at || new Date().toISOString()
     };

@@ -312,7 +312,8 @@ export const updatePost = async (req, res) => {
     // Update content
     const updateResult = await client.query(
       `UPDATE goal_posts 
-       SET content = $1
+       SET content = $1, 
+           updated_at = CURRENT_TIMESTAMP
        WHERE post_id = $2 
        RETURNING *`,
       [content, postId]

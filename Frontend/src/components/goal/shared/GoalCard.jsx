@@ -102,15 +102,6 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
     }
   };
 
-  // Find the admin member for group goals
-  const findAdmin = () => {
-    if (goal.goal_type === 'group' && goal.members && Array.isArray(goal.members)) {
-      const admin = goal.members.find(member => member.role === 'admin');
-      return admin ? admin.name : 'Unknown Admin';
-    }
-    return null;
-  };
-
   // Handle click events
   const handleCardClick = () => {
     onView(goal);
@@ -125,9 +116,6 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
     e.stopPropagation(); // Prevent card click event
     onDelete(goal);
   };
-
-  // Get admin name if it's a group goal
-  const adminName = findAdmin();
 
   return (
     <motion.div
@@ -157,19 +145,7 @@ const GoalCard = ({ goal, onView, onEdit, onDelete }) => {
               </span>
             </div>
             
-            {goal.goal_type === 'group' ? (
-              <div className="flex items-center mb-2">
-                <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full mr-2">Group</span>
-                {adminName && (
-                  <span className="text-xs text-gray-600">
-                    Admin: {adminName}
-                  </span>
-                )}
-                <span className="text-xs text-gray-500 ml-2">
-                  {goal.members?.length || 0} members
-                </span>
-              </div>
-            ) : (
+            {goal.goal_type !== 'group' && (
               <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                 {goal.description}
               </p>

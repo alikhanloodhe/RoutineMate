@@ -179,8 +179,8 @@ export const updateGroupGoals = async (req, res) => {
                 [goalId]
             );
             
-            const currentMemberIds = new Set(currentMembers.rows.map(m => m.user_id.toString()));
-            const newMemberIds = new Set(members.map(m => m.id.toString()));
+            const currentMemberIds = new Set(currentMembers.rows.map(m => m.user_id ? m.user_id.toString() : ''));
+            const newMemberIds = new Set(members.filter(m => m && m.id).map(m => m.id.toString()));
             
             // Find members to add
             for (const member of members) {
@@ -200,7 +200,7 @@ export const updateGroupGoals = async (req, res) => {
             // Find members to remove
             for (const currentMemberId of currentMemberIds) {
                 // Don't remove the admin (creator)
-                const memberRole = currentMembers.rows.find(m => m.user_id.toString() === currentMemberId)?.role;
+                const memberRole = currentMembers.rows.find(m => m.user_id ? m.user_id.toString() === currentMemberId : false)?.role;
                 
                 if (
                     memberRole !== 'admin' && 
@@ -758,6 +758,13 @@ export const updateMilestone = async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body;
 
+    console.log('Updating milestone with data:', { 
+        goalId, 
+        milestoneId, 
+        userId,
+        updateData 
+    });
+
     const client = await pool.connect();
     
     try {
@@ -786,8 +793,36 @@ export const updateMilestone = async (req, res) => {
             return res.status(404).json({ error: 'Milestone not found for this goal' });
         }
 
+        // Format dates if they're provided
+        let formattedDueDate = null;
+        let formattedReminderAt = null;
+        
+        if (updateData.due_date) {
+            try {
+                formattedDueDate = new Date(updateData.due_date).toISOString();
+            } catch (dateError) {
+                console.error('Error formatting due_date:', dateError);
+                return res.status(400).json({ 
+                    message: 'Invalid due date format', 
+                    error: dateError.message 
+                });
+            }
+        }
+        
+        if (updateData.reminder_at) {
+            try {
+                formattedReminderAt = new Date(updateData.reminder_at).toISOString();
+            } catch (dateError) {
+                console.error('Error formatting reminder_at:', dateError);
+                return res.status(400).json({ 
+                    message: 'Invalid reminder date format', 
+                    error: dateError.message 
+                });
+            }
+        }
+
         // 3. Handle title/description updates (admin only)
-        if (isAdmin && (updateData.title || updateData.description || updateData.due_date)) {
+        if (isAdmin && (updateData.title || updateData.description || formattedDueDate)) {
             await client.query(
                 `UPDATE goal_milestones 
                  SET title = COALESCE($1, title),
@@ -798,136 +833,92 @@ export const updateMilestone = async (req, res) => {
                 [
                     updateData.title, 
                     updateData.description,
-                    updateData.due_date || null,
-                    updateData.reminder_at || null,
+                    formattedDueDate,
+                    formattedReminderAt,
                     milestoneId
                 ]
             );
         }
         
-        // 4. Handle user's personal milestone status update
+        // 4. Handle status update for both admin and members
         if (updateData.status) {
-            // Check if user already has a record in milestone_users
-            const userMilestoneCheck = await client.query(
-                'SELECT * FROM milestone_users WHERE milestone_id = $1 AND user_id = $2',
-                [milestoneId, userId]
-            );
-            
-            if (userMilestoneCheck.rows.length === 0) {
-                // Create new record if doesn't exist
-                await client.query(
-                    'INSERT INTO milestone_users (milestone_id, user_id, status) VALUES ($1, $2, $3)',
-                    [milestoneId, userId, updateData.status]
-                );
-            } else {
-                // Update existing record
-                await client.query(
-                    'UPDATE milestone_users SET status = $1, completion_date = $2 WHERE milestone_id = $3 AND user_id = $4',
-                    [
-                        updateData.status,
-                        updateData.status === 'completed' ? new Date() : null,
-                        milestoneId,
-                        userId
-                    ]
-                );
-            }
-            
-            // If admin, check if all members have completed the milestone
-            // Update milestone's overall status if all members have completed it
-            if (isAdmin) {
-                const allMembersResult = await client.query(
-                    'SELECT user_id FROM goal_members WHERE goal_id = $1',
-                    [goalId]
-                );
-                
-                const completedMembersResult = await client.query(
-                    'SELECT user_id FROM milestone_users WHERE milestone_id = $1 AND status = $2',
-                    [milestoneId, 'completed']
-                );
-                
-                const allMembers = allMembersResult.rows;
-                const completedMembers = completedMembersResult.rows;
-                
-                // If all members have completed, update milestone status
-                if (completedMembers.length === allMembers.length) {
-                    await client.query(
-                        'UPDATE goal_milestones SET status = $1, completion_date = $2 WHERE milestone_id = $3',
-                        ['completed', new Date(), milestoneId]
-                    );
-                } else if (completedMembers.length > 0) {
-                    // If some members have completed but not all, ensure status is in_progress
-                    await client.query(
-                        'UPDATE goal_milestones SET status = $1 WHERE milestone_id = $2 AND status != $3',
-                        ['in_progress', milestoneId, 'completed']
-                    );
-                }
-            }
-            
-            // Update overall goal progress
-            const milestonesResult = await client.query(
-                'SELECT * FROM goal_milestones WHERE goal_id = $1',
-                [goalId]
-            );
-            
-            const milestones = milestonesResult.rows;
-            const totalMilestones = milestones.length;
-            
-            // Count user-completed milestones
-            const userCompletedMilestonesResult = await client.query(
-                `SELECT COUNT(*) FROM milestone_users 
-                 WHERE user_id = $1 
-                 AND status = 'completed' 
-                 AND milestone_id IN (SELECT milestone_id FROM goal_milestones WHERE goal_id = $2)`,
-                [userId, goalId]
-            );
-            
-            const userCompletedMilestones = parseInt(userCompletedMilestonesResult.rows[0].count || 0);
-            const userProgress = totalMilestones > 0 
-                ? Math.round((userCompletedMilestones / totalMilestones) * 100) 
-                : 0;
-            
-            // Calculate team progress
-            const completedMilestonesResult = await client.query(
-                `SELECT COUNT(*) FROM goal_milestones 
-                 WHERE goal_id = $1 AND status = 'completed'`,
-                [goalId]
-            );
-            
-            const completedMilestones = parseInt(completedMilestonesResult.rows[0].count || 0);
-            const teamProgress = totalMilestones > 0 
-                ? Math.round((completedMilestones / totalMilestones) * 100) 
-                : 0;
-            
-            // Update overall goal progress
             await client.query(
-                'UPDATE goals SET progress = $1 WHERE goal_id = $2',
-                [teamProgress, goalId]
+                'UPDATE goal_milestones SET status = $1 WHERE milestone_id = $2',
+                [updateData.status, milestoneId]
             );
+            
+            // Also update the user's specific milestone status in milestone_users
+            await client.query(
+                'UPDATE milestone_users SET status = $1 WHERE milestone_id = $2 AND user_id = $3',
+                [updateData.status, milestoneId, userId]
+            );
+            
+            // If status is 'completed', add completion_date
+            if (updateData.status === 'completed') {
+                const completionDate = updateData.completion_date ? 
+                    new Date(updateData.completion_date).toISOString() : 
+                    new Date().toISOString();
+                
+                await client.query(
+                    'UPDATE goal_milestones SET completion_date = $1 WHERE milestone_id = $2',
+                    [completionDate, milestoneId]
+                );
+            } else if (updateData.status === 'in_progress' && !updateData.completion_date) {
+                // If status is changed back to in_progress, remove completion_date
+                await client.query(
+                    'UPDATE goal_milestones SET completion_date = NULL WHERE milestone_id = $2',
+                    [milestoneId]
+                );
+            }
         }
         
-        await client.query('COMMIT');
-        
-        // Return the updated milestone data and milestone_users data
+        // Fetch the updated milestone
         const updatedMilestone = await client.query(
             'SELECT * FROM goal_milestones WHERE milestone_id = $1',
             [milestoneId]
         );
         
-        const milestoneUsers = await client.query(
-            'SELECT mu.*, u.name FROM milestone_users mu JOIN users u ON mu.user_id = u.id WHERE mu.milestone_id = $1',
-            [milestoneId]
+        // Calculate and update the goal's progress
+        const totalMilestonesResult = await client.query(
+            'SELECT COUNT(*) FROM goal_milestones WHERE goal_id = $1',
+            [goalId]
         );
+        
+        const completedMilestonesResult = await client.query(
+            'SELECT COUNT(*) FROM goal_milestones WHERE goal_id = $1 AND status = $2',
+            [goalId, 'completed']
+        );
+        
+        const totalMilestones = parseInt(totalMilestonesResult.rows[0].count);
+        const completedMilestones = parseInt(completedMilestonesResult.rows[0].count);
+        
+        // Calculate progress percentage (rounded to nearest integer)
+        const progress = totalMilestones > 0 
+            ? Math.round((completedMilestones / totalMilestones) * 100) 
+            : 0;
+        
+        // Update the goal's progress
+        await client.query(
+            'UPDATE goals SET progress = $1 WHERE goal_id = $2',
+            [progress, goalId]
+        );
+        
+        await client.query('COMMIT');
         
         res.status(200).json({
             message: 'Milestone updated successfully',
             milestone: updatedMilestone.rows[0],
-            users: milestoneUsers.rows
+            goal_progress: progress
         });
         
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error updating milestone:', error);
-        res.status(500).json({ error: 'Server error', message: error.message });
+        res.status(500).json({ 
+            message: 'Error updating milestone', 
+            error: error.message,
+            details: error.stack
+        });
     } finally {
         client.release();
     }

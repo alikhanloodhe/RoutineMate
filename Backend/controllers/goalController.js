@@ -52,6 +52,42 @@ export const addGoal = async (req, res) => {
         const { goalId } = req.params;
         // If a milestone is added against a goal it must be entered in the milestone_user table as well
         try {
+            console.log('Adding milestone with data:', { 
+                title, 
+                description, 
+                due_date, 
+                reminder_at, 
+                goalId 
+            });
+            
+            // Format the dates if they're provided
+            let formattedDueDate = null;
+            let formattedReminderAt = null;
+            
+            if (due_date) {
+                try {
+                    formattedDueDate = new Date(due_date).toISOString();
+                } catch (dateError) {
+                    console.error('Error formatting due_date:', dateError);
+                    return res.status(400).json({ 
+                        message: 'Invalid due date format', 
+                        error: dateError.message 
+                    });
+                }
+            }
+            
+            if (reminder_at) {
+                try {
+                    formattedReminderAt = new Date(reminder_at).toISOString();
+                } catch (dateError) {
+                    console.error('Error formatting reminder_at:', dateError);
+                    return res.status(400).json({ 
+                        message: 'Invalid reminder date format', 
+                        error: dateError.message 
+                    });
+                }
+            }
+            
             // First insert the milestone and get its ID
             const newMilestone = await pool.query(
                 'INSERT INTO goal_milestones(goal_id, title, description, due_date, reminder_at, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
@@ -59,8 +95,8 @@ export const addGoal = async (req, res) => {
                     goalId, 
                     title, 
                     description, 
-                    due_date || null, 
-                    reminder_at || null, 
+                    formattedDueDate, 
+                    formattedReminderAt, 
                     status2
                 ]
             );
@@ -93,7 +129,11 @@ export const addGoal = async (req, res) => {
             res.status(201).json({ milestone: newMilestone.rows[0] });
         } catch (error) {
             console.error('Error adding milestone:', error);
-            res.status(500).json({ message: 'Error adding milestone', error: error.message });
+            res.status(500).json({ 
+                message: 'Error adding milestone', 
+                error: error.message,
+                details: error.stack
+            });
         }
     }
 
