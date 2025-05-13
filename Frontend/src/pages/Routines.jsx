@@ -623,7 +623,27 @@ const Routines = () => {
       
       if (response.ok) {
         // Add the new routine to the state
-        setRoutines([...routines, data]);
+        const normalizedData = {
+          ...data,
+          id: data.routine_id || data.id,
+          routine_id: data.routine_id || data.id,
+          // Ensure both time formats are available
+          startTime: data.start_time || data.startTime,
+          endTime: data.end_time || data.endTime,
+          start_time: data.start_time || data.startTime,
+          end_time: data.end_time || data.endTime,
+          // Ensure both day formats are available
+          days: data.days || data.daysOfWeek,
+          daysOfWeek: data.days || data.daysOfWeek,
+          // Add empty completion data if not provided
+          completionData: data.completionData || {
+            streak: 0,
+            lastCompleted: null,
+            completionRate: 0,
+            history: []
+          }
+        };
+        setRoutines([...routines, normalizedData]);
         setShowAddForm(false);
         successToast('Routine created successfully!');
       } else {
@@ -1371,8 +1391,8 @@ const Routines = () => {
                       {weeklyScheduleData.map((day, dayIndex) => 
                         day.routines.map(routine => {
                           // Get start and end times in minutes since midnight
-                          const startMinutes = getMinutesSinceMidnight(routine.startTime);
-                          const endMinutes = getMinutesSinceMidnight(routine.endTime);
+                          const startMinutes = getMinutesSinceMidnight(routine.startTime || routine.start_time);
+                          const endMinutes = getMinutesSinceMidnight(routine.endTime || routine.end_time);
                           const durationMinutes = endMinutes - startMinutes;
                           
                           // Flag for short duration routines (less than 30 minutes)
