@@ -512,11 +512,11 @@ const ProductivityTrend = () => {
         <div className="flex items-center space-x-4">
           {currentScore !== null && (
             <div className={`text-sm font-medium ${getScoreColor(currentScore)}`}>
-              Current: {currentScore}%
+              {/* Current: {currentScore}% */}
             </div>
           )}
           <div className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'} flex items-center`}>
-            {getChangeMessage()}
+            {/* {getChangeMessage()} */}
           </div>
         </div>
       </div>
