@@ -174,7 +174,6 @@ GROUP BY g.goal_id, c.name
             `,[userId]
           );
 
-          console.log('Full Goals: ',fullGoalResult.rows);
 
           const fullGoals = fullGoalResult.rows;
           res.status(200).json({ goals: fullGoals });

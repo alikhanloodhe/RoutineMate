@@ -69,7 +69,6 @@ const LoadingScreen = () => {
           animate="pulse"
           variants={pulseVariants}
         >
-          {/* Simple SVG logo placeholder - replace with your actual logo */}
           <svg width="120" height="120" viewBox="0 0 120 120">
             <motion.circle 
               cx="60" 
