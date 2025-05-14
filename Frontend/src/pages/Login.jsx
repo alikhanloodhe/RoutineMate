@@ -32,8 +32,14 @@ const Login = () => {
         successToast('Login successful!');
         navigate('/dashboard');
       } else {
-        setError(result.error || 'Login failed. Please check your credentials.');
-        errorToast(result.error || 'Login failed. Please check your credentials.');
+        // Handle verification error specifically
+        if (result.isVerificationError) {
+          setError(result.error);
+          errorToast(result.error);
+        } else {
+          setError(result.error || 'Login failed. Please check your credentials.');
+          errorToast(result.error || 'Login failed. Please check your credentials.');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);

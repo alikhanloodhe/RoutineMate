@@ -1,7 +1,7 @@
-const pool = require('../config/db');
-const jwt = require('jsonwebtoken');
+import pool from '../config/db.js';
+import  jwt from 'jsonwebtoken';
 
-exports.verifyEmail = async (req, res) => {
+export const verifyEmail = async (req, res) => {
     const { token } = req.query;
     console.log('Received token');
     try {

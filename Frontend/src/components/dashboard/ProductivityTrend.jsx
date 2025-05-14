@@ -45,7 +45,6 @@ const ProductivityTrend = () => {
           return;
         }
         
-        console.log('Fetching productivity trend data...');
         const apiUrl = `${import.meta.env.VITE_API_URL}/api/dashboard/productivity-trend`;
         
         const response = await axios.get(apiUrl, {
@@ -54,8 +53,6 @@ const ProductivityTrend = () => {
           }
         });
         
-        console.log('FULL API RESPONSE:', response);
-        console.log('Productivity trend API response:', response.data);
 
         // Process the API response data
         if (response.data) {

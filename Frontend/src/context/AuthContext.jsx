@@ -43,12 +43,17 @@ export const AuthProvider = ({ children }) => {
     }
     
     const decodedToken = decodeToken(token);
+    if (decodedToken.isExpired || !decodedToken.is_verified) {
+  logout();
+  return false;
+}
+
     
-    if (decodedToken.isExpired) {
-      // Token is expired, clear auth data
-      logout();
-      return false;
-    }
+    // if (decodedToken.isExpired) {
+    //   // Token is expired, clear auth data
+    //   logout();
+    //   return false;
+    // }
     
     return true;
   };
@@ -77,6 +82,15 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
           return;
         }
+        if (!decodedToken.is_verified) {
+      console.log('User not verified, logging out');
+       localStorage.removeItem('token');
+      setIsAuthenticated(false);
+       setUser(null);
+        setLoading(false);
+      return;
+}
+
         
         // Validate token with backend (optional - you can implement this later)
         // For now, just check if token exists
@@ -109,6 +123,11 @@ export const AuthProvider = ({ children }) => {
             };
           }
         }
+        const isVerified = localStorage.getItem('isVerified') === 'true'; // it is stored as string
+        userData = {
+        ...userData,
+        is_verified: isVerified
+        };
         
         setUser(userData);
       } catch (error) {
@@ -166,7 +185,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('userId', data.user.id);
           localStorage.setItem('userEmail', data.user.email);
           localStorage.setItem('username', data.user.username || data.user.name);
-          
+          localStorage.setItem('isVerified', data.user.is_verified); // save verification status
           // For old format - maintain compatibility
           localStorage.setItem('user', JSON.stringify(data.user));
           
@@ -176,9 +195,19 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
         return { success: true };
       } else {
+        // Handle specific error for unverified email
+        if (response.status === 401 && data.msg === "Please verify your email first.") {
+          return { 
+            success: false, 
+            error: data.msg,
+            isVerificationError: true
+          };
+        }
+        
+        // Handle other errors
         return { 
           success: false, 
-          error: data.message || 'Login failed. Please check your credentials.'
+          error: data.msg || 'Login failed. Please check your credentials.'
         };
       }
     } catch (error) {
@@ -221,8 +250,8 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('userId', data.user.id);
             localStorage.setItem('userEmail', data.user.email);
             localStorage.setItem('username', data.user.username || data.user.name);
-            
             // For old format - maintain compatibility
+            localStorage.setItem('isVerified', data.user.is_verified); // save verification status
             localStorage.setItem('user', JSON.stringify(data.user));
             
             setUser(data.user);

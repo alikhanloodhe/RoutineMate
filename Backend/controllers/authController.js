@@ -2,6 +2,26 @@ import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 // Excluding verify e-mail everything is same like I have
+import nodemailer from 'nodemailer'; // required to mail the user
+
+// This file is exporting two modules/functions signup and login
+const transporter = nodemailer.createTransport({
+  service: 'Gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+async function sendVerificationEmail(email, token) {
+  const verificationUrl = `https://routine-mate.vercel.app/verify-email?token=${token}`;
+  await transporter.sendMail({
+    from: '"RoutineMate" <your-email@gmail.com>',
+    to: email,
+    subject: "Verify your email",
+    html: `<p>Click the link to verify your email:</p><a href="${verificationUrl}">Verify Email</a>`,
+  });
+}
+
 export const signUp = async (req, res) => {
     try {
 
@@ -33,19 +53,23 @@ export const signUp = async (req, res) => {
         
         // Create JWT Token
         const token = jwt.sign(
-            { id: newUser.rows[0].id }, 
+            { id: newUser.rows[0].id , is_verified: newUser.rows[0].is_verified}, 
             process.env.JWT_SECRET || 'defaultsecret', 
             { expiresIn: '2h' }
         );
+        sendVerificationEmail(email,token);
         
         // Return success response
+        // return res.status(201).json({ 
+        //     token, 
+        //     user: {
+        //         id: newUser.rows[0].id,
+        //         name: newUser.rows[0].name,
+        //         email: newUser.rows[0].email
+        //     }
+        // });
         return res.status(201).json({ 
-            token, 
-            user: {
-                id: newUser.rows[0].id,
-                name: newUser.rows[0].name,
-                email: newUser.rows[0].email
-            }
+        message: 'Signup successful. Please check your email to verify your account.'
         });
     } catch (err) {
         console.error('Signup error:', err);
@@ -69,6 +93,11 @@ export const login = async (req, res) => {
             return res.status(400).json({ msg: "Invalid credentials" });
         }
         
+        // Check if email is verified
+        if (!user.rows[0].is_verified) {
+            return res.status(401).json({ msg: "Please verify your email first." });
+        }
+        
         // Compare password
         const isMatch = await bcrypt.compare(password, user.rows[0].password);
         
@@ -78,7 +107,7 @@ export const login = async (req, res) => {
         
         // Create JWT Token
         const token = jwt.sign(
-            { id: user.rows[0].id }, 
+            { id: user.rows[0].id, is_verified: user.rows[0].is_verified }, 
             process.env.JWT_SECRET || 'defaultsecret', 
             { expiresIn: '2h' }
         );

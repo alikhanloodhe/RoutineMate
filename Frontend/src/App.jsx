@@ -20,7 +20,7 @@ import Layout from './components/layout/Layout';
 import { TimerProvider } from './context/TimerContext';
 import PersistentTimer from './components/tasks/PersistentTimer';
 import LandingPage from './pages/LandingPage';
-
+import VerifyEmail from './pages/verifyEmail';
 // Loading component with animated logo
 const LoadingScreen = () => {
   // Define animation variants for the logo parts
@@ -135,13 +135,13 @@ const LoadingScreen = () => {
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading,user } = useAuth();
   
   if (loading) {
     return <LoadingScreen />;
   }
-  
-  if (!isAuthenticated) {
+
+  if (!isAuthenticated && !user?.is_verified) {
     return <Navigate to="/login" />;
   }
   
@@ -225,6 +225,7 @@ function App() {
               {/* Fallback routes */}
               <Route path="/" element={<Navigate to="/landing" replace />} />
               <Route path="*" element={<Navigate to="/landing" replace />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
             </Routes>
             
             {/* PersistentTimer is outside of routes so it persists across navigation */}

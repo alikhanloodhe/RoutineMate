@@ -48,7 +48,7 @@ const HabitDashboard = ({
           </div>
         </div>
         
-        {/* Progress Overview */}
+        {/* Progress Overview
         {habits.length > 0 && (
           <div className="w-full">
             <div className="flex justify-between mb-1">
@@ -64,7 +64,7 @@ const HabitDashboard = ({
               ></div>
             </div>
           </div>
-        )}
+        )} */}
       </motion.div>
       
       {/* Habits List */}

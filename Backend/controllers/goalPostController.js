@@ -45,13 +45,6 @@ export const addPost = async (req, res) => {
     // Process photo if it exists
     if (req.file) {
       try {
-        console.log(`Uploading file: ${req.file.path}`);
-        console.log('File details:', {
-          filename: req.file.filename,
-          mimetype: req.file.mimetype,
-          size: req.file.size
-        });
-        
         // Check if file exists before attempting to upload
         if (!fs.existsSync(req.file.path)) {
           console.error(`File not found: ${req.file.path}`);
@@ -65,8 +58,7 @@ export const addPost = async (req, res) => {
           const result = await cloudinary.uploader.upload(req.file.path, {
             folder: 'goal_posts',
           });
-          
-          console.log('Cloudinary upload result:', result);
+  
           photo_url = result.secure_url;
           cloudinarySuccess = true;
         } catch (cloudinaryError) {
@@ -77,7 +69,6 @@ export const addPost = async (req, res) => {
           const filename = req.file.filename;
           const baseUrl = `${req.protocol}://${req.get('host')}`;
           photo_url = `${baseUrl}/uploads/${filename}`;
-          console.log('Using local fallback URL:', photo_url);
         }
         
         // Update the post with the photo URL
