@@ -1289,7 +1289,7 @@ const GroupGoalDetail = () => {
             <p className="text-gray-600 mb-6">{goal.description}</p>
             
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="w-full sm:w-auto flex-1">
+              {/* <div className="w-full sm:w-auto flex-1">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-gray-700">Progress</span>
                   <span className="text-sm font-medium text-gray-700">
@@ -1302,7 +1302,7 @@ const GroupGoalDetail = () => {
                     style={{ width: `${goal.progress}%` }}
                   ></div>
                 </div>
-              </div>
+              </div> */}
               
               <div className="flex items-center gap-1">
                 {goal.members.slice(0, 4).map((member, index) => (
