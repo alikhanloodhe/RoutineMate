@@ -3,9 +3,6 @@ import pool from '../config/db.js';
 import cloudinary from '../config/cloudinary.js';
 import fs from 'fs';
 
-/**
- * Add an activity with an optional photo
- */
 export const addActivityWithPhoto = async (req, res) => {
   const { title, description, mood } = req.body;
   const user_id = req.user.id;
@@ -239,13 +236,10 @@ export const deleteActivity = async (req, res) => {
     if (photos.rows.length > 0) {
       for (const photo of photos.rows) {
         try {
-          // Extract the public_id from the URL
-          // Cloudinary URLs typically look like: https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/activities/abcdef123456
-          // We need to extract the 'activities/abcdef123456' part
+
           const urlParts = photo.photo_url.split('/');
           const publicIdWithVersion = urlParts.slice(-2).join('/'); // Get 'v1234567890/activities/abcdef123456'
           
-          // Remove version number if present
           const publicId = publicIdWithVersion.includes('v') && publicIdWithVersion.includes('/')
             ? publicIdWithVersion.split('/').slice(1).join('/') // Get 'activities/abcdef123456'
             : publicIdWithVersion;

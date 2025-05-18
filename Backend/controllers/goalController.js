@@ -9,13 +9,15 @@ export const addGoal = async (req, res) => {
     const status = 'active'; // Default status for new goals
 
     try {
+      await pool.query('BEGIN');
       const categoryText =category;
       const categoryResult = await pool.query('SELECT id FROM categories where name = $1',[categoryText]);
       if (categoryResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
         throw new Error('status not found');
       }
       const category_id = categoryResult.rows[0].id;
-    
+
         const newGoal = await pool.query(
         'INSERT INTO goals (creator_id, title, description, goal_type,category_id,start_date,end_date,status,progress) VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9) RETURNING *',
         [user_id, title, description, goal_type,category_id,start_date || null,end_date || null,status,progress]
@@ -27,20 +29,15 @@ export const addGoal = async (req, res) => {
             for (let i = 0; i < milestones.length; i++) {
               await pool.query(
                 'INSERT INTO goal_milestones(goal_id,title,description,due_date,reminder_at,status) VALUES($1, $2, $3, $4, $5, $6)',
-                [
-                  goal_id, 
-                  milestones[i].title, 
-                  milestones[i].description, 
-                  milestones[i].due_date || null, 
-                  milestones[i].reminder_at || null, 
-                  status2
+                [ goal_id,milestones[i].title, milestones[i].description, milestones[i].due_date || null, milestones[i].reminder_at || null, status2
                 ]
               );
             }
         }
-    
+        await pool.query('COMMIT');
         res.status(201).json({ goal: newGoal.rows[0] });
     } catch (error) {
+      await pool.query('ROLLBACK');
         console.error('Error adding goal:', error);
         res.status(500).json({ message: 'Error adding goal', error: error.message });
     }
@@ -142,37 +139,28 @@ export const fetchGoals = async (req, res) => {
       
         try {
           const fullGoalResult = await pool.query(`
-            SELECT 
-  g.goal_id,
-  g.title,
-  g.description,
-  g.goal_type,
-  g.start_date,
-  g.end_date,
-  g.status,
-  g.progress,
-  g.created_at,
-  c.name AS category,
-  COALESCE(
-    JSON_AGG(
-      JSON_BUILD_OBJECT(
-        'milestone_id', m.milestone_id,
-        'title', m.title,
-        'description', m.description,
-        'due_date', m.due_date,
-        'status', m.status
-      )
-      ORDER BY m.due_date
-    ) FILTER (WHERE m.milestone_id IS NOT NULL), 
-    '[]'
-  ) AS milestones
-FROM goals g
-LEFT JOIN categories c ON g.category_id = c.id
-LEFT JOIN goal_milestones m ON g.goal_id = m.goal_id
-WHERE g.creator_id = $1 AND g.goal_type = 'personal'
-GROUP BY g.goal_id, c.name
-            `,[userId]
-          );
+            SELECT g.goal_id, g.title, g.description, g.goal_type, g.start_date, g.end_date, g.status, g.progress, g.created_at, 
+            c.name AS category,
+            COALESCE(
+              JSON_AGG(
+                JSON_BUILD_OBJECT(
+                     'milestone_id', m.milestone_id,
+                     'title', m.title,
+                     'description', m.description,
+                     'due_date', m.due_date,
+                     'status', m.status
+                   )
+                  ORDER BY m.due_date
+                ) FILTER (WHERE m.milestone_id IS NOT NULL), 
+                '[]'
+              ) AS milestones
+            FROM goals g
+            LEFT JOIN categories c ON g.category_id = c.id
+            LEFT JOIN goal_milestones m ON g.goal_id = m.goal_id
+            WHERE g.creator_id = $1 AND g.goal_type = 'personal'
+            GROUP BY g.goal_id, c.name
+                        `,[userId]
+                      );
 
 
           const fullGoals = fullGoalResult.rows;
@@ -304,6 +292,9 @@ export const updateMilestone = async (req, res) => {
           goalId
         ]
       );
+      try {
+
+}
       
       if (updatedMilestone.rows.length === 0) {
         return res.status(404).json({ error: 'Milestone not found' });

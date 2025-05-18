@@ -7,10 +7,6 @@ export const addTask = async (req, res) => {
 
   const { name, description, dueDate, category_id, priority_id, subtasks, status, estimatedHours, estimatedMinutes, estimated_time } = req.body;
 
-  // Debug logging for the request body
-  console.log('Request body in addTask:', req.body);
-  console.log('Due date from request:', dueDate);
-
   // Get timezone-adjusted timestamp functions
   const { timestamp } = getClientAdjustedTime(req.clientTimezone?.name);
 
@@ -42,17 +38,12 @@ export const addTask = async (req, res) => {
     }
     
 
-
-    // 2. Insert task
+    await client.query('BEGIN');
     const insertTaskResult = await client.query(
       'INSERT INTO tasks(user_id,name, description,category_id, priority_id,status,estimated_time,due_date) VALUES($1, $2, $3,$4, $5, $6, $7,$8) RETURNING task_id',
       [user_id, name, description, category_id, priority_id, status, task_estimated_time, dueDate]
     );
     const task_id = insertTaskResult.rows[0].task_id;
-
-
-
-    // 4. Insert subtasks
     if (Array.isArray(subtasks) && subtasks.length > 0) {
       for (let i = 0; i < subtasks.length; i++) {
         await client.query(
@@ -61,7 +52,6 @@ export const addTask = async (req, res) => {
         );
       }
     }
-
     await client.query('COMMIT');
     res.status(201).json({ message: 'Task, tags, and subtasks added successfully', taskId: task_id });
   } catch (err) {
@@ -176,8 +166,6 @@ export const deleteTask = async (req, res) => {
   
   try {
     await client.query('BEGIN');
-    
-    // First check if the task exists and belongs to the user
     const taskResult = await client.query(
       'SELECT * FROM tasks WHERE task_id = $1 AND user_id = $2',
       [task_id, user_id]
@@ -187,14 +175,6 @@ export const deleteTask = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Task not found or you do not have permission to delete it' });
     }
-    
-    // Delete associated task sessions
-    await client.query('DELETE FROM task_sessions WHERE task_id = $1', [task_id]);
-    
-    // Delete associated subtasks (this should cascade automatically due to the FK constraint, but being explicit)
-    await client.query('DELETE FROM subtasks WHERE task_id = $1', [task_id]);
-    
-    // Delete the task
     await client.query('DELETE FROM tasks WHERE task_id = $1', [task_id]);
     
     await client.query('COMMIT');
@@ -292,14 +272,14 @@ export const editTask = async (req, res) => {
 
     // Update subtasks if provided
     if (Array.isArray(subtasks) && subtasks.length > 0) {
-      // Delete existing subtasks
+      // Delete existing subtasks 
       await client.query('DELETE FROM subtasks WHERE task_id = $1', [task_id]);
       
       // Insert new subtasks
       for (const subtask of subtasks) {
         await client.query(
           'INSERT INTO subtasks(task_id, name, status) VALUES($1, $2, $3)',
-          [task_id, subtask.title || subtask.name, subtask.status || (subtask.completed ? 'completed' : 'pending')]
+          [task_id, subtask.title || subtask.name, subtask.completed ? 'completed' : 'pending']
         );
       }
     }

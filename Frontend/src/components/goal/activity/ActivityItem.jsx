@@ -106,8 +106,6 @@ const ActivityItem = ({
     if (likeDebounceTimer.current) {
       clearTimeout(likeDebounceTimer.current);
     }
-
-    console.log(`Toggle like for activity ${activity.id}, current state: ${isLiked}, count: ${likesCount}`);
     onLike(activity.id);
 
     // Reset processing state after a delay
@@ -128,7 +126,7 @@ const ActivityItem = ({
     }
   };
 
-  console.log("Current activity:", activity.id, "Owner:", isActivityOwner, "Current user:", currentUser.id, "Activity user:", activity.user.id);
+
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
@@ -235,7 +233,6 @@ const ActivityItem = ({
                 });
                 // Try adding a cache-busting parameter
                 const newUrl = `${photoUrl}?cb=${Date.now()}`;
-                console.log('Retrying with cache-busting URL:', newUrl);
                 e.target.src = newUrl;
                 
                 // Set a fallback if it fails again

@@ -56,8 +56,7 @@ const WeeklyActivityChart = () => {
           setLoading(false);
           return;
         }
-        
-        console.log('Fetching weekly activity data...');
+
         const apiUrl = `${import.meta.env.VITE_API_URL}/api/dashboard/weekly-activity`;
         
         const response = await axios.get(apiUrl, {
@@ -66,7 +65,6 @@ const WeeklyActivityChart = () => {
           }
         });
         
-        console.log('API response:', response.data);
         
         if (!response.data || !response.data.weeklyData || !Array.isArray(response.data.weeklyData)) {
           console.error('Invalid data format received:', response.data);
@@ -83,7 +81,7 @@ const WeeklyActivityChart = () => {
           habits: parseInt(item.habits || 0)
         }));
         
-        console.log('Final processed weekly activity data:', processedData);
+
         
         if (processedData.length === 0) {
           console.error('No data after processing');

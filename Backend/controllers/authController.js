@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 // Excluding verify e-mail everything is same like I have
 import nodemailer from 'nodemailer'; // required to mail the user
 
-// This file is exporting two modules/functions signup and login
+
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
   auth: {

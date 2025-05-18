@@ -25,58 +25,32 @@ const TodaySchedule = () => {
 
   const scheduleContainerRef = useRef(null);
   const currentItemRef = useRef(null);
+  
+useEffect(() => {
+  const fetchTodaySchedule = async () => {
+    setLoading(true);
+    setError(null);
 
-  // Fetch today's schedule on component mount and when refreshKey changes
-  useEffect(() => {
-    const fetchTodaySchedule = async () => {
-      setLoading(true);
-      setError(null);
+    try {
+      const data = await dashboardService.getTodaySchedule();
 
-      try {
-        const data = await dashboardService.getTodaySchedule();
-        console.log('Today schedule response:', data);
+      setSchedule(data.schedule || []);
+      setOriginalSchedule(data.schedule || []);
+      setTasksWithoutTime(data.tasksWithoutTime || []);
+      setHabitsWithoutTime(data.habitsWithoutTime || []);
+      setGoalsWithoutTime(data.goalsWithoutTime || []);
+      setTodayInfo(data.today || { date: '', dayOfWeek: '' });
+      setIsAiMode(false);
+    } catch (error) {
+      console.error('Error fetching today\'s schedule:', error);
+      setError('Failed to load your schedule. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Debug task and goal data
-        if (data.tasksWithoutTime) {
-          console.log(`Received ${data.tasksWithoutTime.length} tasks without time:`, data.tasksWithoutTime);
-
-          // Analyze tasks by completion status
-          const completedTasks = data.tasksWithoutTime.filter(task => task.completed);
-          const pendingTasks = data.tasksWithoutTime.filter(task => !task.completed);
-          console.log(`Tasks breakdown: ${completedTasks.length} completed, ${pendingTasks.length} pending`);
-
-          // Log tasks with due date
-          const tasksWithDueDate = data.tasksWithoutTime.filter(task => task.dueDate);
-          console.log(`Tasks with due date: ${tasksWithDueDate.length}`);
-          tasksWithDueDate.forEach(task => {
-            console.log(`Task "${task.title}": due=${task.dueDate}, completed=${task.completed}, priority=${task.priority}`);
-          });
-        }
-
-        if (data.goalsWithoutTime) {
-          console.log(`Received ${data.goalsWithoutTime.length} goals without time:`, data.goalsWithoutTime);
-          data.goalsWithoutTime.forEach(goal => {
-            console.log(`Goal: "${goal.title}", dueDate=${goal.dueDate}`);
-          });
-        }
-
-        setSchedule(data.schedule || []);
-        setOriginalSchedule(data.schedule || []);
-        setTasksWithoutTime(data.tasksWithoutTime || []);
-        setHabitsWithoutTime(data.habitsWithoutTime || []);
-        setGoalsWithoutTime(data.goalsWithoutTime || []);
-        setTodayInfo(data.today || { date: '', dayOfWeek: '' });
-        setIsAiMode(false);
-      } catch (error) {
-        console.error('Error fetching today\'s schedule:', error);
-        setError('Failed to load your schedule. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTodaySchedule();
-  }, [refreshKey]);
+  fetchTodaySchedule();
+}, [refreshKey]);
 
   // Format time interval for display
   const formatTimeInterval = (start, end) => {

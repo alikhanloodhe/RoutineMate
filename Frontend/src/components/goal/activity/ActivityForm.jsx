@@ -14,8 +14,6 @@ const ActivityForm = ({ onAddActivity, onCancel }) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    console.log('Selected file:', file);
-    
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
@@ -51,10 +49,7 @@ const ActivityForm = ({ onAddActivity, onCancel }) => {
       alert('Please enter content or add a photo');
       return;
     }
-    
-    console.log('Submitting form with content:', content);
-    console.log('Photo to upload:', activityPhoto);
-    
+
     setIsUploading(true);
     
     try {
@@ -69,8 +64,7 @@ const ActivityForm = ({ onAddActivity, onCancel }) => {
       
       // Store the result from onAddActivity
       const result = await onAddActivity(newActivity);
-      console.log('Result from server:', result);
-      
+
       // Clean up preview URL
       if (previewPhoto) {
         URL.revokeObjectURL(previewPhoto);

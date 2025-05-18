@@ -59,17 +59,16 @@ const ProductivityTrend = () => {
           // Use weeklyData and change directly from response
           if (Array.isArray(response.data.weeklyData)) {
             setWeeklyData(response.data.weeklyData);
-            console.log('Weekly data extracted:', response.data.weeklyData);
             
             // Use change value directly from response
             setChange(response.data.change || 0);
-            console.log('Change value:', response.data.change);
+
           }
           
           // Use detailedStats from response
           if (Array.isArray(response.data.detailedStats)) {
             setDetailedStats(response.data.detailedStats);
-            console.log('Detailed stats set:', response.data.detailedStats);
+
           } else {
             console.warn('Invalid detailedStats format in API response');
             
@@ -110,7 +109,6 @@ const ProductivityTrend = () => {
     
     // Helper function to set mock data when needed
     const useMockData = () => {
-      console.log('Using mock data');
       const mockData = [
         {
           weekLabel: '2023-05-12',
@@ -181,7 +179,6 @@ const ProductivityTrend = () => {
         labels.unshift("N/A");
       }
       
-      console.log('Generated chart labels:', labels);
       return labels;
     }
     
@@ -210,7 +207,7 @@ const ProductivityTrend = () => {
       });
     }
     
-    console.log('Date to details map:', map);
+
     return map;
   };
   
@@ -219,7 +216,6 @@ const ProductivityTrend = () => {
 
   // Prepare the data for the chart
   const prepareChartData = () => {
-    console.log('Preparing chart data with detailedStats:', detailedStats);
     
     // Create a simple mapping of date strings to scores for direct lookup
     const dateToScoreMap = {};
@@ -239,7 +235,7 @@ const ProductivityTrend = () => {
             // Map the formatted date to its score (use productivityScore directly from data)
             const score = stat.productivity_score || stat.productivityScore;
             dateToScoreMap[formattedDate] = score || null;
-            console.log(`Mapped ${formattedDate} to score ${dateToScoreMap[formattedDate]}`);
+
           }
         }
       });
@@ -247,16 +243,15 @@ const ProductivityTrend = () => {
     
     // Get labels that will be used in the chart
     const chartLabels = getWeekLabels();
-    console.log('Chart labels:', chartLabels);
+
     
     // Map each label to its corresponding score
     const chartData = chartLabels.map(label => {
       const score = dateToScoreMap[label] !== undefined ? dateToScoreMap[label] : null;
-      console.log(`Label ${label} maps to score ${score}`);
+
       return score;
     });
     
-    console.log('Final chart data:', chartData);
     return chartData;
   };
 
@@ -285,7 +280,7 @@ const ProductivityTrend = () => {
     ]
   };
 
-  console.log('Final chart configuration:', data);
+
 
   // Chart options
   const options = {
@@ -302,11 +297,9 @@ const ProductivityTrend = () => {
           },
           label: function(context) {
             const pointLabel = context.chart.data.labels[context.dataIndex];
-            console.log('Tooltip requested for:', pointLabel);
-            
             // Look up the details for this date directly from our map
             const details = dateDetailsMap[pointLabel];
-            console.log('Found details:', details);
+
             
             if (details) {
               // Support both property name formats

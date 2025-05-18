@@ -33,7 +33,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
         const photoUrls = activity.photos.map(photo => photo.photo_url);
         setPreviewPhotos(photoUrls);
         
-        console.log('Setting preview photos:', photoUrls);
+
       } else {
         setExistingPhotos([]);
         setPreviewPhotos([]);
@@ -78,8 +78,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
       alert(`You can only upload up to 5 images. You've selected ${files.length} new images, but you already have ${existingPhotos.length - removedPhotoIds.length} existing and ${photos.length} new images.`);
       return;
     }
-    
-    console.log(`Adding ${files.length} photos. Total will be ${totalPhotos}`);
+
     
     // Set the new combined photos array
     setPhotos(prevPhotos => [...prevPhotos, ...files]);
@@ -166,10 +165,7 @@ const ActivityFormModal = ({ isOpen, onClose, onSubmit, activity = null }) => {
       }
     }
     
-    // Debug what's being sent
-    for (let pair of activityData.entries()) {
-      console.log(pair[0], pair[1]);
-    }
+
 
     // Use Promise.resolve to handle both promise and non-promise returns
     Promise.resolve(onSubmit(activityData))

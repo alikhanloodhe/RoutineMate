@@ -49,8 +49,6 @@ const CategoryDistribution = () => {
         setLoading(true);
         const response = await getCategoryDistribution();
         
-        console.log('Category Distribution API response:', response);
-        
         if (response.success && response.categoryData) {
           // Map the API data to our format with colors
           const formattedData = response.categoryData.map(item => {
@@ -70,8 +68,7 @@ const CategoryDistribution = () => {
               color: categoryColors[item.category] || defaultColors[0] // Use default color if not found
             };
           });
-          
-          console.log('Formatted category data:', formattedData);
+
           
           setCategories(formattedData);
         } else {

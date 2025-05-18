@@ -623,62 +623,6 @@ const updateRoutine = async (req, res) => {
   }
 };
 
-// Helper for diagnosing database relationship issues
-const diagnoseRoutineRelationships = async (routineId) => {
-  try {
-    console.log(`Diagnosing relationships for routine ID ${routineId}`);
-
-    // Check routine_completion_history
-    const historyQuery = `
-      SELECT COUNT(*) as count FROM routine_completion_history
-      WHERE routine_id = $1
-    `;
-    const historyResult = await db.query(historyQuery, [routineId]);
-    console.log(`Found ${historyResult.rows[0].count} history records`);
-
-    // Check routine_completion_data
-    const dataQuery = `
-      SELECT COUNT(*) as count FROM routine_completion_data
-      WHERE routine_id = $1
-    `;
-    const dataResult = await db.query(dataQuery, [routineId]);
-    console.log(`Found ${dataResult.rows[0].count} completion data records`);
-
-    // Check routine_days
-    const daysQuery = `
-      SELECT COUNT(*) as count FROM routine_days
-      WHERE routine_id = $1
-    `;
-    const daysResult = await db.query(daysQuery, [routineId]);
-    console.log(`Found ${daysResult.rows[0].count} day relationships`);
-
-    // Check any other potential relationships
-    const otherRelationshipsQuery = `
-      SELECT
-        (SELECT COUNT(*) FROM pg_constraint 
-         WHERE conrelid = 'routines'::regclass 
-         AND confrelid != 0) as foreign_keys_to_routines,
-        (SELECT array_agg(conname) FROM pg_constraint 
-         WHERE conrelid = 'routines'::regclass 
-         AND confrelid != 0) as constraint_names
-    `;
-    const otherResult = await db.query(otherRelationshipsQuery);
-    console.log(`Found ${otherResult.rows[0].foreign_keys_to_routines} foreign key relationships to routines table`);
-    console.log(`Constraint names: ${JSON.stringify(otherResult.rows[0].constraint_names)}`);
-
-    return {
-      historyCount: historyResult.rows[0].count,
-      dataCount: dataResult.rows[0].count,
-      daysCount: daysResult.rows[0].count,
-      foreignKeyCount: otherResult.rows[0].foreign_keys_to_routines,
-      constraintNames: otherResult.rows[0].constraint_names
-    };
-  } catch (error) {
-    console.error('Error diagnosing relationships:', error);
-    return null;
-  }
-};
-
 // Delete a routine
 const deleteRoutine = async (req, res) => {
   // Start a transaction to ensure all delete operations are atomic
@@ -703,11 +647,6 @@ const deleteRoutine = async (req, res) => {
       await db.query('ROLLBACK');
       return res.status(404).json({ message: 'Routine not found or not authorized' });
     }
-
-    console.log(`Found routine ${id}, proceeding with deletion`);
-
-    // Run diagnostics before attempting delete
-    await diagnoseRoutineRelationships(id);
 
     try {
       // First delete from routine_completion_history
