@@ -291,11 +291,7 @@ export const updateMilestone = async (req, res) => {
           milestoneId,
           goalId
         ]
-      );
-      try {
-
-}
-      
+      );  
       if (updatedMilestone.rows.length === 0) {
         return res.status(404).json({ error: 'Milestone not found' });
       }

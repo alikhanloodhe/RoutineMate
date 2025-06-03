@@ -12,13 +12,36 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+// async function sendVerificationEmail(email, token) {
+//   const verificationUrl = `https://routine-mate.vercel.app/verify-email?token=${token}`;
+//   await transporter.sendMail({
+//     from: '"RoutineMate" <your-email@gmail.com>',
+//     to: email,
+//     subject: "Verify your email",
+//     html: `<p>Click the link to verify your email:</p><a href="${verificationUrl}">Verify Email</a>`,
+//   });
+// }
 async function sendVerificationEmail(email, token) {
   const verificationUrl = `https://routine-mate.vercel.app/verify-email?token=${token}`;
   await transporter.sendMail({
-    from: '"RoutineMate" <your-email@gmail.com>',
+    from: '"RoutineMate Support" <support@routine-mate.com>', // ✅ Use domain-based email (avoid Gmail)
     to: email,
-    subject: "Verify your email",
-    html: `<p>Click the link to verify your email:</p><a href="${verificationUrl}">Verify Email</a>`,
+    subject: "Welcome to RoutineMate - Please Verify Your Email",
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2>Hi there,</h2>
+        <p>Thanks for signing up with <strong>RoutineMate</strong>!</p>
+        <p>To get started, please verify your email address by clicking the button below:</p>
+        <p style="text-align: center; margin: 20px 0;">
+          <a href="${verificationUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            Verify Email
+          </a>
+        </p>
+        <p>If you didn't create an account, you can safely ignore this email.</p>
+        <p>Best regards,<br>RoutineMate Team</p>
+      </div>
+    `,
+    text: `Hi there,\n\nThanks for signing up with RoutineMate!\n\nPlease verify your email by clicking the link below:\n${verificationUrl}\n\nIf you didn’t create an account, you can safely ignore this email.\n\n- RoutineMate Team`,
   });
 }
 

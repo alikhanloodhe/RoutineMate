@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import morgan from 'morgan';
+// import morgan from 'morgan';
 import helmet from 'helmet';
 import ensureDirectoriesExist from './utils/ensureDirectories.js';
 import initSmartScheduleFunction from './utils/initSmartSchedule.js';
@@ -45,7 +45,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
-app.use(morgan('dev'));
+// app.use(morgan('dev'));
 
 // Apply timezone middleware to all routes
 app.use(timezoneMiddleware);
