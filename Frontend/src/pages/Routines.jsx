@@ -1332,7 +1332,7 @@ const Routines = () => {
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] relative">
                   <div className="min-w-[900px] lg:w-full">
                     {/* Day headers - Sticky */}
-                    <div className="grid grid-cols-8 border-b border-gray-200 sticky top-0 bg-white z-20">
+                    <div className="grid grid-cols-8 border-b border-gray-200 sm:sticky sm:top-0 bg-white z-20">
                       <div className="py-3 px-3 text-center font-medium text-sm text-gray-600 border-r border-gray-200">
                         Time
                       </div>
@@ -1479,15 +1479,15 @@ const Routines = () => {
                         style={{
                           position: 'absolute',
                           top: `${(currentTime.getHours() * 60 + currentTime.getMinutes()) / 60 * 96}px`,
-                          left: 0,
+                          left: 'calc(100% / 8)', // Start after the time column (1/8th of grid)
                           right: 0,
                           height: '2px',
                           backgroundColor: 'red',
-                          zIndex: 20
+                          zIndex: 0
                         }}
                       >
                         <div 
-                          className="w-3 h-3 rounded-full bg-red-500 absolute -left-1 -top-1.5"
+                          className="w-3 h-3 rounded-full bg-red-500 absolute -left-1.5 -top-1.5"
                           style={{ boxShadow: '0 0 0 2px white' }}
                         />
                       </div>
