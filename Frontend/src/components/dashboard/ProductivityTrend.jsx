@@ -492,7 +492,7 @@ const ProductivityTrend = () => {
 
   return (
     <motion.div 
-      className="bg-white text-gray-800 rounded-xl shadow-sm p-6 mb-6"
+      className="bg-white text-gray-800 rounded-xl shadow-sm p-6 min-h-[400px] flex flex-col"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.3 }}

@@ -135,9 +135,9 @@ const CategoryDistribution = () => {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
+    <div className="bg-white rounded-xl shadow-sm p-6 min-h-[400px] flex flex-col">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Categories Distribution</h3>
-      <div className="h-64">
+      <div className="flex-1 min-h-[300px]">
         <Pie data={chartData} options={chartOptions} />
       </div>
     </div>

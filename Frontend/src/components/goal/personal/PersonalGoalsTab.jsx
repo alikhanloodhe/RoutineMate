@@ -175,6 +175,7 @@ const PersonalGoalsTab = ({ goals, onViewGoal, refreshGoals }) => {
   );
 
   return (
+ 
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Personal Goals</h2>
