@@ -159,7 +159,7 @@ const ProductivityTrend = () => {
       
       // Process detailedStats to display from oldest to newest (chronologically left to right)
       // No need to reverse - SQL query already orders them DESC, so oldest is at the end of array
-      [...detailedStats].reverse().forEach(stat => {
+      [...detailedStats].forEach(stat => {
         if (stat && (stat.week_label || stat.weekLabel)) {
           // Format date to like "Apr 28" or "May 5"
           const dateStr = stat.week_label || stat.weekLabel;
