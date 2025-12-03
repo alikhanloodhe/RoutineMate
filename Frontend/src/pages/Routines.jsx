@@ -299,6 +299,13 @@ const Routines = () => {
       });
     }
 
+    // Sort by start time (earliest to latest)
+    result.sort((a, b) => {
+      const aStartTime = a.startTime || a.start_time || '00:00';
+      const bStartTime = b.startTime || b.start_time || '00:00';
+      return aStartTime.localeCompare(bStartTime);
+    });
+
     setFilteredRoutines(result);
   }, [routines, searchTerm, routineTypeFilter]);
 
