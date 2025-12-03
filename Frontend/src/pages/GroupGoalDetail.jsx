@@ -1326,42 +1326,42 @@ const GroupGoalDetail = () => {
 
           {/* Tabs Section */}
           <div className="border-b border-gray-200 mb-6">
-            <nav className="flex -mb-px">
+            <nav className="flex -mb-px overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 sm:overflow-x-visible">
               <button
-                onClick={() => setActiveTab('overview')} 
-                className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                  activeTab === 'overview' 
-                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                onClick={() => setActiveTab('overview')}
+                className={`py-4 px-6 font-medium text-sm border-b-2 min-w-max ${
+                  activeTab === 'overview'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 Overview
               </button>
               <button
-                onClick={() => setActiveTab('activity')} 
-                className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                  activeTab === 'activity' 
-                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                onClick={() => setActiveTab('activity')}
+                className={`py-4 px-6 font-medium text-sm border-b-2 min-w-max ${
+                  activeTab === 'activity'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 Activity
               </button>
               <button
-                onClick={() => setActiveTab('members')} 
-                className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                  activeTab === 'members' 
-                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                onClick={() => setActiveTab('members')}
+                className={`py-4 px-6 font-medium text-sm border-b-2 min-w-max ${
+                  activeTab === 'members'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 Members
               </button>
               <button
-                onClick={() => setActiveTab('leaderboard')} 
-                className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                  activeTab === 'leaderboard' 
-                    ? 'border-[#4A2BAF] text-[#4A2BAF]' 
+                onClick={() => setActiveTab('leaderboard')}
+                className={`py-4 px-6 font-medium text-sm border-b-2 min-w-max ${
+                  activeTab === 'leaderboard'
+                    ? 'border-[#4A2BAF] text-[#4A2BAF]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -1587,9 +1587,9 @@ const GroupGoalDetail = () => {
                 </div>
                 
                 {/* Members List */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">{
-                  /* Check if we have members before rendering */
-                  goal && goal.members && goal.members.length > 0 ? (
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -1686,10 +1686,74 @@ const GroupGoalDetail = () => {
                         })}
                       </tbody>
                     </table>
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      No members found
-                    </div>
+                  </div>
+                  {/* Mobile Cards */}
+                  <div className="sm:hidden divide-y divide-gray-200">
+                    {goal.members.map(member => {
+                      // Calculate member progress
+                      let completedCount = 0;
+                      goal.milestones.forEach(milestone => {
+                        const memberId = member.id || member.user_id;
+                        if (milestone.member_progress?.[memberId]) {
+                          completedCount++;
+                        }
+                      });
+                      const progress = goal.milestones.length > 0
+                        ? Math.round((completedCount / goal.milestones.length) * 100)
+                        : 0;
+                      const memberId = member.id || member.user_id;
+                      const currentUserId = currentUser?.id;
+                      return (
+                        <div key={memberId} className="p-4 flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-base font-medium text-[#4A2BAF]">
+                              {member.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-base font-semibold text-gray-900">
+                                {member.name}
+                                {memberId === currentUserId && (
+                                  <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                )}
+                              </div>
+                              <div className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(member.role)} mt-1 w-fit`}>
+                                {member.role === 'admin' ? 'Admin' : 'Collaborator'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <span>Joined: {formatDate(member.join_date || goal.created_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-full bg-gray-200 rounded-full h-2 mr-2 max-w-[100px]">
+                              <div className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] h-2 rounded-full" style={{ width: `${progress}%` }}></div>
+                            </div>
+                            <span className="text-xs text-gray-500">{progress}%</span>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            {(currentUser && currentUser.role === 'admin' && member.role !== 'admin') && (
+                              <button
+                                onClick={() => handleRemoveMember(memberId, goal.goal_id)}
+                                className="px-3 py-1.5 rounded text-white bg-red-500 hover:bg-red-600 text-xs"
+                              >Remove</button>
+                            )}
+                            {memberId === currentUserId && member.role !== 'admin' && (
+                              <button
+                                onClick={() => handleRemoveMember(memberId, goal.goal_id)}
+                                className="px-3 py-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 text-xs"
+                              >Leave Goal</button>
+                            )}
+                            {member.role === 'admin' && memberId === currentUserId && (
+                              <span className="text-xs text-gray-500 italic">Admin (cannot leave)</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* No members fallback */}
+                  {(!goal.members || goal.members.length === 0) && (
+                    <div className="p-6 text-center text-gray-500">No members found</div>
                   )}
                 </div>
                 
@@ -1727,107 +1791,172 @@ const GroupGoalDetail = () => {
                 
                 {goal.milestones && goal.milestones.length > 0 ? (
                   <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milestones</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {/* Sort members by number of completed milestones */}
-                        {goal.members
-                          .map(member => {
-                            // Calculate completed milestones for each member
-                            let completedCount = 0;
-                            goal.milestones.forEach(milestone => {
-                              if (milestone.member_progress && milestone.member_progress[member.id]) {
-                                completedCount++;
-                              }
-                            });
-                            
-                            const progressPercentage = goal.milestones.length > 0
-                              ? Math.round((completedCount / goal.milestones.length) * 100)
-                              : 0;
+                    {/* Desktop Table */}
+                    <div className="hidden sm:block">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milestones</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {/* Sort members by number of completed milestones */}
+                          {goal.members
+                            .map(member => {
+                              // Calculate completed milestones for each member
+                              let completedCount = 0;
+                              goal.milestones.forEach(milestone => {
+                                if (milestone.member_progress && milestone.member_progress[member.id]) {
+                                  completedCount++;
+                                }
+                              });
                               
-                            return {
-                              ...member,
-                              completedMilestones: completedCount,
-                              totalMilestones: goal.milestones.length,
-                              progress: progressPercentage
-                            };
-                          })
-                          .sort((a, b) => {
-                            // Sort by completed milestones (descending)
-                            if (b.completedMilestones !== a.completedMilestones) {
-                              return b.completedMilestones - a.completedMilestones;
+                              const progressPercentage = goal.milestones.length > 0
+                                ? Math.round((completedCount / goal.milestones.length) * 100)
+                                : 0;
+                              
+                              return {
+                                ...member,
+                                completedMilestones: completedCount,
+                                totalMilestones: goal.milestones.length,
+                                progress: progressPercentage
+                              };
+                            })
+                            .sort((a, b) => {
+                              // Sort by completed milestones (descending)
+                              if (b.completedMilestones !== a.completedMilestones) {
+                                return b.completedMilestones - a.completedMilestones;
+                              }
+                              // If tied, sort alphabetically by name
+                              return a.name.localeCompare(b.name);
+                            })
+                            .map((member, index) => (
+                              <tr key={member.id} className={index < 3 ? getMemberRankClass(index) : ''}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {index === 0 && (
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
+                                      🥇
+                                    </div>
+                                  )}
+                                  {index === 1 && (
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-800 border border-gray-300">
+                                      🥈
+                                    </div>
+                                  )}
+                                  {index === 2 && (
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                                      🥉
+                                    </div>
+                                  )}
+                                  {index > 2 && (
+                                    <div className="text-center text-gray-500">{index + 1}</div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
+                                      {member.name.charAt(0)}
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {member.name}
+                                        {member.id === currentUser.id && (
+                                          <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {member.role === 'admin' ? 'Admin' : 'Collaborator'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900">
+                                    {member.completedMilestones} / {member.totalMilestones}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-xs">
+                                    <div 
+                                      className={`h-2.5 rounded-full ${index < 3 
+                                        ? 'bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF]' 
+                                        : 'bg-blue-500'}`}
+                                      style={{ width: `${member.progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">{member.progress}% complete</div>
+                                </td>
+                              </tr>
+                            ))
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Mobile Cards */}
+                    <div className="sm:hidden divide-y divide-gray-200">
+                      {goal.members
+                        .map(member => {
+                          let completedCount = 0;
+                          goal.milestones.forEach(milestone => {
+                            if (milestone.member_progress && milestone.member_progress[member.id]) {
+                              completedCount++;
                             }
-                            // If tied, sort alphabetically by name
-                            return a.name.localeCompare(b.name);
-                          })
-                          .map((member, index) => (
-                            <tr key={member.id} className={index < 3 ? getMemberRankClass(index) : ''}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {index === 0 && (
-                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
-                                    🥇
-                                  </div>
-                                )}
-                                {index === 1 && (
-                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-800 border border-gray-300">
-                                    🥈
-                                  </div>
-                                )}
-                                {index === 2 && (
-                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                                    🥉
-                                  </div>
-                                )}
-                                {index > 2 && (
-                                  <div className="text-center text-gray-500">{index + 1}</div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-xs font-medium text-[#4A2BAF]">
-                                    {member.name.charAt(0)}
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {member.name}
-                                      {member.id === currentUser.id && (
-                                        <span className="ml-1 text-xs text-gray-500">(You)</span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {member.role === 'admin' ? 'Admin' : 'Collaborator'}
-                                    </div>
-                                  </div>
+                          });
+                          const progressPercentage = goal.milestones.length > 0
+                            ? Math.round((completedCount / goal.milestones.length) * 100)
+                            : 0;
+                          return {
+                            ...member,
+                            completedMilestones: completedCount,
+                            totalMilestones: goal.milestones.length,
+                            progress: progressPercentage
+                          };
+                        })
+                        .sort((a, b) => {
+                          if (b.completedMilestones !== a.completedMilestones) {
+                            return b.completedMilestones - a.completedMilestones;
+                          }
+                          return a.name.localeCompare(b.name);
+                        })
+                        .map((member, index) => (
+                          <div key={member.id} className={`p-4 flex flex-col gap-2 ${index < 3 ? getMemberRankClass(index) : ''}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-[#4A2BAF]/10 flex items-center justify-center text-base font-medium text-[#4A2BAF]">
+                                {member.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="text-base font-semibold text-gray-900">
+                                  {member.name}
+                                  {member.id === currentUser.id && (
+                                    <span className="ml-1 text-xs text-gray-500">(You)</span>
+                                  )}
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {member.completedMilestones} / {member.totalMilestones}
+                                <div className="text-xs text-gray-500">
+                                  {member.role === 'admin' ? 'Admin' : 'Collaborator'}
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-xs">
-                                  <div 
-                                    className={`h-2.5 rounded-full ${index < 3 
-                                      ? 'bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF]' 
-                                      : 'bg-blue-500'}`}
-                                    style={{ width: `${member.progress}%` }}
-                                  ></div>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">{member.progress}% complete</div>
-                              </td>
-                            </tr>
-                          ))
-                        }
-                      </tbody>
-                    </table>
+                              </div>
+                              <div className="ml-auto">
+                                {index === 0 && <span className="text-2xl">🥇</span>}
+                                {index === 1 && <span className="text-2xl">🥈</span>}
+                                {index === 2 && <span className="text-2xl">🥉</span>}
+                                {index > 2 && <span className="text-xs text-gray-500">{index + 1}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                              <span>Milestones: {member.completedMilestones} / {member.totalMilestones}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-[100px]">
+                                <div className={`h-2.5 rounded-full ${index < 3 ? 'bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF]' : 'bg-blue-500'}`} style={{ width: `${member.progress}%` }}></div>
+                              </div>
+                              <span className="text-xs text-gray-500">{member.progress}% complete</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-10 bg-white border border-gray-200 rounded-xl">
