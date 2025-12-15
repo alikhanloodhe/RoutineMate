@@ -204,7 +204,7 @@ const CelebrationParticles = forwardRef(({
             animationFrameRef.current = requestAnimationFrame(animate);
 
             // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
             // Update and draw particles
             particlesRef.current = particlesRef.current.filter(particle => {
