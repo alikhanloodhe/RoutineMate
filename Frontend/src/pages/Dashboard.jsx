@@ -85,7 +85,9 @@ const Dashboard = () => {
         {/* Daily Quote Component */}
         <DailyQuote quote={currentQuote} />
 
-        {/* 3D Trophy & Streak Progress Row */}
+        {/* 3D Trophy Progress Row */}
+
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* 3D Progress Trophy - Computer Graphics: 3D, lighting, shading, particles */}
           <div className="lg:col-span-1">
