@@ -23,6 +23,27 @@ const Mascot3D = ({
 
     const [isHovered, setIsHovered] = useState(false);
     const [isCelebrating, setIsCelebrating] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const hasMovedRef = useRef(false); // Track if actual dragging occurred
+
+    // Load saved position from localStorage or use default
+    const getInitialPosition = () => {
+        const saved = localStorage.getItem('mascotPosition');
+        if (saved) {
+            return JSON.parse(saved);
+        }
+        // Default positions based on position prop
+        const defaults = {
+            'bottom-right': { x: window.innerWidth - size - 16, y: window.innerHeight - size - 16 },
+            'bottom-left': { x: 16, y: window.innerHeight - size - 16 },
+            'top-right': { x: window.innerWidth - size - 16, y: 80 },
+            'top-left': { x: 16, y: 80 }
+        };
+        return defaults[position] || defaults['bottom-right'];
+    };
+
+    const [mascotPosition, setMascotPosition] = useState(getInitialPosition);
 
     // Sync state to ref
     useEffect(() => {
@@ -46,6 +67,61 @@ const Mascot3D = ({
 
         if (onCelebrate) onCelebrate();
     }, [onCelebrate]);
+
+    // Drag handlers
+    const handleMouseDown = useCallback((e) => {
+        if (isCelebrating) return; // Don't drag during celebration
+        e.preventDefault();
+        setIsDragging(true);
+        hasMovedRef.current = false; // Reset movement flag
+
+        // Calculate offset between mouse position and mascot position
+        const rect = e.currentTarget.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+    }, [isCelebrating]);
+
+    const handleMouseMove = useCallback((e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        hasMovedRef.current = true; // Mark that movement occurred
+
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
+
+        // Keep mascot within viewport bounds
+        const maxX = window.innerWidth - size;
+        const maxY = window.innerHeight - size;
+
+        setMascotPosition({
+            x: Math.max(0, Math.min(newX, maxX)),
+            y: Math.max(0, Math.min(newY, maxY))
+        });
+    }, [isDragging, dragOffset, size]);
+
+    const handleMouseUp = useCallback(() => {
+        if (isDragging) {
+            setIsDragging(false);
+            // Save position to localStorage only if actually moved
+            if (hasMovedRef.current) {
+                localStorage.setItem('mascotPosition', JSON.stringify(mascotPosition));
+            }
+        }
+    }, [isDragging, mascotPosition]);
+
+    // Add/remove global mouse event listeners for dragging
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            return () => {
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+            };
+        }
+    }, [isDragging, handleMouseMove, handleMouseUp]);
 
     // Setup Three.js scene
     useEffect(() => {
@@ -230,18 +306,33 @@ const Mascot3D = ({
         'top-left': 'top-20 left-4'
     };
 
+    const handleClick = (e) => {
+        // Only trigger celebration if we didn't actually drag (no movement occurred)
+        if (!hasMovedRef.current) {
+            triggerCelebration(e);
+        }
+    };
+
     return (
         <div
-            className={`fixed ${positionClasses[position]} z-50 cursor-pointer transition-transform duration-200 hover:scale-110`}
-            style={{ width: size, height: size }}
+            className={`fixed z-50 transition-transform duration-200 ${isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab hover:scale-110'
+                }`}
+            style={{
+                width: size,
+                height: size,
+                left: `${mascotPosition.x}px`,
+                top: `${mascotPosition.y}px`,
+                userSelect: 'none'
+            }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={triggerCelebration}
-            title="Click me!"
+            onMouseDown={handleMouseDown}
+            onClick={handleClick}
+            title={isDragging ? "Dragging..." : "Drag to move or click to celebrate!"}
         >
             <div
                 ref={containerRef}
-                className="w-full h-full"
+                className="w-full h-full pointer-events-none"
                 style={{
                     filter: isHovered ? 'drop-shadow(0 0 15px rgba(99, 102, 241, 0.6))' : 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))'
                 }}
@@ -268,9 +359,9 @@ const Mascot3D = ({
             )}
 
             {/* Tooltip */}
-            {isHovered && !isCelebrating && (
+            {isHovered && !isCelebrating && !isDragging && (
                 <div className="hidden sm:block absolute -top-10 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap">
-                    Click for celebration!
+                    Drag to move • Click to celebrate!
                 </div>
             )}
         </div>

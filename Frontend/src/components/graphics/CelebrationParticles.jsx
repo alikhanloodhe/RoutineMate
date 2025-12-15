@@ -137,7 +137,7 @@ const CelebrationParticles = forwardRef(({
 
         // Determine if this is a directed burst or default celebration (rain)
         const isDefault = x === undefined && y === undefined;
-        
+
         // Use window dimensions for logical coordinates (handles DPR correctly)
         const posX = x ?? window.innerWidth / 2;
         const posY = y ?? -50; // Start above screen for rain
@@ -146,7 +146,7 @@ const CelebrationParticles = forwardRef(({
         for (let i = 0; i < particleCount; i++) {
             const color = colors[Math.floor(Math.random() * colors.length)];
             let p;
-            
+
             if (Math.random() > 0.3) {
                 p = new ConfettiParticle(posX, posY, color);
             } else {
@@ -159,9 +159,9 @@ const CelebrationParticles = forwardRef(({
                 const spread = window.innerWidth / 2;
                 p.x = window.innerWidth / 2 + (Math.random() - 0.5) * spread; // Random start X across top
                 p.y = -Math.random() * 50 - 10; // Staggered start height above screen
-                
+
                 // Gentle drift
-                p.vx = (Math.random() - 0.5) * 3; 
+                p.vx = (Math.random() - 0.5) * 3;
                 // Downward velocity
                 p.vy = Math.random() * 8 + 4;
                 p.gravity = 0.15;
@@ -203,7 +203,7 @@ const CelebrationParticles = forwardRef(({
         const animate = () => {
             animationFrameRef.current = requestAnimationFrame(animate);
 
-            // Clear canvas
+            // Clear canvas (use logical dimensions after DPR scaling)
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
             // Update and draw particles
