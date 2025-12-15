@@ -6,14 +6,17 @@ import PasswordStrengthBar from 'react-password-strength-bar';
 import { useAuth } from '../context/AuthContext';
 import { useToastContext } from '../context/ToastContext';
 
+// Import graphics component (Computer Graphics concepts)
+import { GradientMeshBackground } from '../components/graphics';
+
 const Signup = () => {
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    email: '', 
-    password: '', 
-    confirmPassword: '' 
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -22,7 +25,7 @@ const Signup = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const { errorToast, successToast } = useToastContext();
-  
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     // Clear error when user starts typing again
@@ -87,14 +90,21 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row-reverse">
-      {/* Right Section (Illustration) with gradient background */}
-      <motion.div 
-        className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#4A2BAF] to-[#5D4EFF] items-center justify-center p-10"
+      {/* Right Section (Illustration) with animated gradient background */}
+      <motion.div
+        className="hidden md:flex md:w-1/2 items-center justify-center p-10 relative overflow-hidden"
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <div className="max-w-md text-center">
+        {/* Animated Gradient Background - Computer Graphics: WebGL shaders, rendering */}
+        <GradientMeshBackground
+          color1="#4A2BAF"
+          color2="#5D4EFF"
+          color3="#7c3aed"
+        />
+
+        <div className="max-w-md text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -109,7 +119,7 @@ const Signup = () => {
             <p className="text-white/90 text-lg mb-6">
               Take the first step towards building better habits and achieving your goals.
             </p>
-            <motion.div 
+            <motion.div
               className="w-full h-64 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center overflow-hidden shadow-sm border border-white/20"
               whileHover={{ scale: 1.03 }}
               transition={{ duration: 0.2 }}
@@ -127,7 +137,7 @@ const Signup = () => {
 
       {/* Left Section (Signup Form) */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-6 bg-white">
-        <motion.div 
+        <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,8 +148,8 @@ const Signup = () => {
               <FiCalendar className="text-white" size={32} />
             </div>
           </div>
-          
-          <motion.div 
+
+          <motion.div
             className="bg-white p-8 rounded-xl shadow-md"
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
@@ -153,10 +163,10 @@ const Signup = () => {
               <h2 className="text-2xl font-bold mb-1 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] bg-clip-text text-transparent">Create Your Account</h2>
               <p className="text-gray-600 mb-6">Start Building Better Days</p>
             </motion.div>
-            
+
             <AnimatePresence>
               {error && (
-                <motion.div 
+                <motion.div
                   className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-md"
                   initial={{ opacity: 0, x: 20, height: 0 }}
                   animate={{ opacity: 1, x: 0, height: 'auto' }}
@@ -167,7 +177,7 @@ const Signup = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -191,7 +201,7 @@ const Signup = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email
@@ -214,7 +224,7 @@ const Signup = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                   Password
@@ -235,7 +245,7 @@ const Signup = () => {
                     required
                     className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
-                  <div 
+                  <div
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
                     onClick={togglePasswordVisibility}
                   >
@@ -243,8 +253,8 @@ const Signup = () => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      {showPassword ? 
-                        <FiEyeOff className="text-gray-400 hover:text-gray-600" /> : 
+                      {showPassword ?
+                        <FiEyeOff className="text-gray-400 hover:text-gray-600" /> :
                         <FiEye className="text-gray-400 hover:text-gray-600" />
                       }
                     </motion.div>
@@ -252,8 +262,8 @@ const Signup = () => {
                 </div>
                 {formData.password && (
                   <div className="mt-2">
-                    <PasswordStrengthBar 
-                      password={formData.password} 
+                    <PasswordStrengthBar
+                      password={formData.password}
                       scoreWords={['Weak', 'Weak', 'Okay', 'Good', 'Strong']}
                       scoreColors={['#e74c3c', '#f39c12', '#f1c40f', '#3498db', '#4A2BAF']}
                       minLength={6}
@@ -261,7 +271,7 @@ const Signup = () => {
                   </div>
                 )}
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
@@ -282,7 +292,7 @@ const Signup = () => {
                     required
                     className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A2BAF] focus:border-transparent bg-gray-50 placeholder-gray-400"
                   />
-                  <div 
+                  <div
                     className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
                     onClick={toggleConfirmPasswordVisibility}
                   >
@@ -290,15 +300,15 @@ const Signup = () => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      {showConfirmPassword ? 
-                        <FiEyeOff className="text-gray-400 hover:text-gray-600" /> : 
+                      {showConfirmPassword ?
+                        <FiEyeOff className="text-gray-400 hover:text-gray-600" /> :
                         <FiEye className="text-gray-400 hover:text-gray-600" />
                       }
                     </motion.div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="mb-6">
                 <div className="flex items-center">
                   <input
@@ -314,9 +324,9 @@ const Signup = () => {
                   </label>
                 </div>
               </div>
-              
-              <motion.button 
-                type="submit" 
+
+              <motion.button
+                type="submit"
                 className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4A2BAF] transition-all duration-200"
                 disabled={loading}
                 whileHover={{ translateY: -2 }}
@@ -333,7 +343,7 @@ const Signup = () => {
                 ) : 'Create Account'}
               </motion.button>
             </form>
-            
+
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}

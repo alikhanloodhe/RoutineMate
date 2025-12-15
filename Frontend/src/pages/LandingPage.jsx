@@ -6,6 +6,9 @@ import { CheckCircle2, Menu, X, Calendar, CheckCircle, Clock, BarChart3, Target,
 import dashboardImg from '../assets/ourdashboard.jpg';
 import activityImg from '../assets/activity.jpg';
 
+// Import graphics component (Computer Graphics concepts)
+import { ParticleBackground } from '../components/graphics';
+
 const LandingPage = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
 
@@ -41,7 +44,7 @@ const LandingPage = () => {
         <CallToAction />
         <Footer />
       </main>
-      
+
       {/* Scroll to top button */}
       {showScrollButton && (
         <motion.button
@@ -99,14 +102,13 @@ const Navbar = () => {
   ];
 
   return (
-    <nav 
-      className={`sticky top-0 z-[100] py-3 backdrop-blur-lg transition-all duration-300 border-b ${
-        scrolled ? "border-gray-200 bg-white/95 shadow-sm" : "border-transparent bg-white/80"
-      }`}
+    <nav
+      className={`sticky top-0 z-[100] py-3 backdrop-blur-lg transition-all duration-300 border-b ${scrolled ? "border-gray-200 bg-white/95 shadow-sm" : "border-transparent bg-white/80"
+        }`}
     >
       <div className="container px-4 mx-auto relative">
         <div className="flex justify-between items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
@@ -119,8 +121,8 @@ const Navbar = () => {
               RoutineMate
             </span>
           </motion.div>
-          
-          <motion.ul 
+
+          <motion.ul
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -142,8 +144,8 @@ const Navbar = () => {
               </li>
             ))}
           </motion.ul>
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -163,28 +165,25 @@ const Navbar = () => {
               Get Started
             </Link>
           </motion.div>
-          
+
           <div className="lg:hidden relative z-[110]">
-            <button 
+            <button
               onClick={toggleNavbar}
               className="w-10 h-10 relative focus:outline-none rounded-md flex items-center justify-center"
               aria-label="Toggle menu"
             >
               <div className="w-5 flex flex-col justify-between items-center">
                 <span
-                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${
-                    mobileDrawerOpen ? 'rotate-45 translate-y-1' : '-translate-y-0.5'
-                  }`}
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${mobileDrawerOpen ? 'rotate-45 translate-y-1' : '-translate-y-0.5'
+                    }`}
                 ></span>
                 <span
-                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm my-0.5 ${
-                    mobileDrawerOpen ? 'opacity-0' : 'opacity-100'
-                  }`}
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm my-0.5 ${mobileDrawerOpen ? 'opacity-0' : 'opacity-100'
+                    }`}
                 ></span>
                 <span
-                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${
-                    mobileDrawerOpen ? '-rotate-45 -translate-y-1' : 'translate-y-0.5'
-                  }`}
+                  className={`bg-[#4A2BAF] block transition-all duration-300 ease-out h-0.5 w-5 rounded-sm ${mobileDrawerOpen ? '-rotate-45 -translate-y-1' : 'translate-y-0.5'
+                    }`}
                 ></span>
               </div>
             </button>
@@ -193,28 +192,27 @@ const Navbar = () => {
 
         {/* Backdrop Overlay */}
         {mobileDrawerOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[101]"
             onClick={toggleNavbar}
           ></div>
         )}
 
         {/* Mobile Menu */}
-        <div 
-          className={`fixed top-0 right-0 w-[75%] max-w-xs h-screen bg-white z-[102] shadow-xl transition-transform duration-300 ease-in-out transform ${
-            mobileDrawerOpen ? 'translate-x-0' : 'translate-x-full'
-          } overflow-y-auto`}
+        <div
+          className={`fixed top-0 right-0 w-[75%] max-w-xs h-screen bg-white z-[102] shadow-xl transition-transform duration-300 ease-in-out transform ${mobileDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+            } overflow-y-auto`}
         >
           <div className="flex flex-col h-full">
             <div className="flex justify-end p-4">
-              <button 
-                onClick={toggleNavbar} 
+              <button
+                onClick={toggleNavbar}
                 className="p-2 rounded-full text-[#4A2BAF] hover:bg-[#4A2BAF]/5 transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="flex items-center justify-center mb-8 mt-2">
               <div className="h-12 w-12 mr-3 bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] rounded-md flex items-center justify-center shadow-md">
                 <Calendar className="text-white" size={26} />
@@ -223,7 +221,7 @@ const Navbar = () => {
                 RoutineMate
               </span>
             </div>
-            
+
             <div className="px-6 flex-1">
               <ul className="flex flex-col space-y-4">
                 {navItems.map((item, index) => (
@@ -231,9 +229,9 @@ const Navbar = () => {
                     key={index}
                     className="border-b border-gray-100 pb-3"
                   >
-                    <a 
-                      href={item.href} 
-                      className="flex items-center text-lg font-medium py-2 text-gray-800 hover:text-[#4A2BAF] transition-colors" 
+                    <a
+                      href={item.href}
+                      className="flex items-center text-lg font-medium py-2 text-gray-800 hover:text-[#4A2BAF] transition-colors"
                       onClick={(e) => {
                         e.preventDefault();
                         document.querySelector(item.href).scrollIntoView({ behavior: 'smooth' });
@@ -247,7 +245,7 @@ const Navbar = () => {
                 ))}
               </ul>
             </div>
-            
+
             <div className="mt-auto p-6 border-t border-gray-100">
               <div className="flex flex-col space-y-4 w-full">
                 <Link
@@ -277,14 +275,17 @@ const Navbar = () => {
 // Hero Section Component
 const HeroSection = () => {
   return (
-    <section className="flex flex-col items-center pt-8 lg:pt-16 text-center px-4 pb-16 relative overflow-hidden">
-      {/* Animated background shapes */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#4A2BAF]/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/3 right-1/3 w-72 h-72 bg-[#5D4EFF]/5 rounded-full blur-3xl"></div>
+    <section className="flex flex-col items-center pt-8 lg:pt-16 text-center px-4 pb-16 relative overflow-hidden min-h-[500px]">
+      {/* Animated Particle Background - Computer Graphics: 2D rendering, particle systems */}
+      <div className="absolute inset-0 w-full h-full" style={{ minHeight: '500px' }}>
+        <ParticleBackground
+          particleCount={60}
+          interactive={true}
+          showConnections={true}
+        />
       </div>
-      
-      <motion.span 
+
+      <motion.span
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -292,8 +293,8 @@ const HeroSection = () => {
       >
         Your Personal Productivity Assistant
       </motion.span>
-      
-      <motion.h1 
+
+      <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -309,18 +310,18 @@ const HeroSection = () => {
           Together
         </span>
       </motion.h1>
-      
-      <motion.p 
+
+      <motion.p
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         className="mt-6 text-lg sm:text-xl text-gray-600 max-w-3xl"
       >
-        RoutineMate helps you organize your life, track your progress, and achieve your goals 
+        RoutineMate helps you organize your life, track your progress, and achieve your goals
         through smart routine building, task management, and habit tracking with AI-powered insights.
       </motion.p>
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
@@ -343,8 +344,8 @@ const HeroSection = () => {
           Explore Features
         </a>
       </motion.div>
-      
-   
+
+
     </section>
   );
 };
@@ -388,9 +389,9 @@ const FeatureSection = () => {
     <section id="features" className="relative mt-24 border-b border-gray-200 pb-20">
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#5D4EFF]/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#4A2BAF]/5 rounded-full blur-3xl -z-10"></div>
-      
+
       <div className="text-center">
-        <motion.span 
+        <motion.span
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -399,7 +400,7 @@ const FeatureSection = () => {
         >
           Features
         </motion.span>
-        <motion.h2 
+        <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -411,14 +412,14 @@ const FeatureSection = () => {
             special
           </span>
         </motion.h2>
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-6 text-gray-600 max-w-2xl mx-auto text-lg"
         >
-          A comprehensive solution designed to transform how you manage your daily routines 
+          A comprehensive solution designed to transform how you manage your daily routines
           and achieve your goals with AI-powered insights and social motivation.
         </motion.p>
       </div>
@@ -442,7 +443,7 @@ const FeatureSection = () => {
           </motion.div>
         ))}
       </div>
-      
+
       {/* New section - AI Assistant teaser
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
@@ -541,7 +542,7 @@ const Workflow = () => {
       {/* Background decorations */}
       <div className="absolute -left-20 top-1/4 w-40 h-40 rounded-full bg-[#4A2BAF]/5 blur-3xl"></div>
       <div className="absolute right-0 bottom-20 w-60 h-60 rounded-full bg-[#5D4EFF]/5 blur-3xl"></div>
-      
+
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -566,7 +567,7 @@ const Workflow = () => {
 
       <div className="flex flex-col-reverse lg:flex-row justify-center items-center gap-12 lg:gap-8">
         {/* Checklist Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -50 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
@@ -574,8 +575,8 @@ const Workflow = () => {
           className="w-full lg:w-1/2 space-y-8"
         >
           {checklistItems.map((item, index) => (
-            <motion.div 
-              key={index} 
+            <motion.div
+              key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -591,7 +592,7 @@ const Workflow = () => {
               </div>
             </motion.div>
           ))}
-          
+
           <div className="pl-16 pt-4">
             <Link
               to="/signup"
@@ -601,9 +602,9 @@ const Workflow = () => {
             </Link>
           </div>
         </motion.div>
-        
+
         {/* Dashboard Image Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 50 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
@@ -613,12 +614,12 @@ const Workflow = () => {
           <div className="rounded-lg w-full max-w-lg relative">
             <div className="absolute inset-0 bg-gradient-to-r from-[#4A2BAF]/20 to-[#5D4EFF]/20 rounded-3xl transform rotate-3 scale-105"></div>
             <div className="relative bg-white p-6 rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-              <img 
-                src={dashboardImg} 
-                alt="RoutineMate Dashboard" 
+              <img
+                src={dashboardImg}
+                alt="RoutineMate Dashboard"
                 className="rounded-lg shadow-sm w-full object-cover"
               />
-              
+
               {/* Floating badges */}
               <div className="absolute -left-4 top-1/4 bg-white rounded-lg shadow-md p-3 flex items-center border border-gray-100">
                 <div className="bg-green-100 text-green-600 p-1 rounded-md mr-2">
@@ -626,7 +627,7 @@ const Workflow = () => {
                 </div>
                 <span className="text-sm font-medium">Task completed</span>
               </div>
-              
+
               <div className="absolute -right-4 bottom-1/4 bg-white rounded-lg shadow-md p-3 flex items-center border border-gray-100">
                 <div className="bg-blue-100 text-blue-600 p-1 rounded-md mr-2">
                   <Bell size={16} />
@@ -637,9 +638,9 @@ const Workflow = () => {
           </div>
         </motion.div>
       </div>
-      
+
       {/* Feature highlight box */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -653,7 +654,7 @@ const Workflow = () => {
           <h3 className="text-lg font-bold mb-2">Task Management</h3>
           <p className="text-gray-600">Organize tasks with deadlines, subtasks, and priority levels. Track completion and stay on top of your commitments.</p>
         </div>
-        
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all">
           <div className="w-12 h-12 rounded-lg bg-[#5D4EFF]/10 flex items-center justify-center text-[#4A2BAF] mb-5">
             <Clock size={24} />
@@ -661,7 +662,7 @@ const Workflow = () => {
           <h3 className="text-lg font-bold mb-2">Routine Building</h3>
           <p className="text-gray-600">Create consistent daily routines that automate your schedule and help you maintain productivity throughout the day.</p>
         </div>
-        
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all">
           <div className="w-12 h-12 rounded-lg bg-[#5D4EFF]/10 flex items-center justify-center text-[#4A2BAF] mb-5">
             <Award size={24} />
@@ -693,7 +694,7 @@ const CollaborationSection = () => {
       description: "Celebrate your wins with friends and get support when you need extra motivation with likes, comments, and encouraging messages."
     }
   ];
-  
+
   // Testimonials data
   const testimonials = [
     {
@@ -718,9 +719,9 @@ const CollaborationSection = () => {
       {/* Decorative elements */}
       <div className="absolute top-20 right-0 w-72 h-72 bg-[#4A2BAF]/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-40 left-10 w-60 h-60 bg-[#5D4EFF]/5 rounded-full blur-3xl -z-10"></div>
-      
+
       <div className="text-center">
-        <motion.span 
+        <motion.span
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -729,7 +730,7 @@ const CollaborationSection = () => {
         >
           Collaboration
         </motion.span>
-        <motion.h2 
+        <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -741,14 +742,14 @@ const CollaborationSection = () => {
             {" "}together
           </span>
         </motion.h2>
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-6 text-gray-600 max-w-2xl mx-auto text-lg"
         >
-          Connect with friends to share goals, celebrate achievements, and stay motivated 
+          Connect with friends to share goals, celebrate achievements, and stay motivated
           with RoutineMate's powerful social and collaboration features.
         </motion.p>
       </div>
@@ -773,7 +774,7 @@ const CollaborationSection = () => {
         ))}
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -784,8 +785,8 @@ const CollaborationSection = () => {
           <div className="md:w-1/2 mb-6 md:mb-0 md:pr-10">
             <h3 className="text-2xl md:text-3xl font-bold mb-4">Capture your journey</h3>
             <p className="text-gray-600 mb-6">
-              RoutineMate helps you document your growth, store memories of achievements, 
-              and build a visual history of your progress over time. Share milestones with 
+              RoutineMate helps you document your growth, store memories of achievements,
+              and build a visual history of your progress over time. Share milestones with
               your network for added motivation and celebration.
             </p>
             <ul className="space-y-4">
@@ -822,12 +823,12 @@ const CollaborationSection = () => {
             <div className="relative w-full max-w-md">
               <div className="absolute inset-0 bg-gradient-to-r from-[#4A2BAF]/20 to-[#5D4EFF]/20 rounded-xl transform rotate-3 scale-105"></div>
               <div className="relative bg-white rounded-lg border border-gray-100 w-full overflow-hidden shadow-md">
-                <img 
-                  src={activityImg} 
-                  alt="RoutineMate Activity" 
+                <img
+                  src={activityImg}
+                  alt="RoutineMate Activity"
                   className="w-full object-cover"
                 />
-                
+
                 {/* Social interaction overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                   <div className="text-white">
@@ -844,7 +845,7 @@ const CollaborationSection = () => {
           </div>
         </div>
       </motion.div>
-      
+
       {/* Testimonials section */}
       {/* <motion.div
         initial={{ opacity: 0, y: 30 }}
