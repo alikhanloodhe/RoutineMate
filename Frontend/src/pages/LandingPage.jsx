@@ -289,7 +289,7 @@ const HeroSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-[#5D4EFF]/10 text-[#5D4EFF] rounded-full text-sm font-medium px-4 py-1.5 mb-6"
+        className="bg-[#5D4EFF]/10 text-[#5D4EFF] rounded-full text-sm font-medium px-4 py-1.5 mb-6 relative z-10"
       >
         Your Personal Productivity Assistant
       </motion.span>
@@ -298,7 +298,7 @@ const HeroSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight"
+        className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight relative z-10"
       >
         Build Better{" "}
         <span className="bg-gradient-to-r from-[#4A2BAF] to-[#5D4EFF] text-transparent bg-clip-text">
@@ -315,7 +315,7 @@ const HeroSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="mt-6 text-lg sm:text-xl text-gray-600 max-w-3xl"
+        className="mt-6 text-lg sm:text-xl text-gray-600 max-w-3xl relative z-10"
       >
         RoutineMate helps you organize your life, track your progress, and achieve your goals
         through smart routine building, task management, and habit tracking with AI-powered insights.
@@ -325,7 +325,7 @@ const HeroSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex flex-col sm:flex-row justify-center mt-10 space-y-4 sm:space-y-0 sm:space-x-6"
+        className="flex flex-col sm:flex-row justify-center mt-10 space-y-4 sm:space-y-0 sm:space-x-6 relative z-10"
       >
         <Link
           to="/signup"
